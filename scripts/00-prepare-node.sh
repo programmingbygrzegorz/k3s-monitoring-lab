@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Przygotowanie maszyny wirtualnej: nazwa hosta, /etc/hosts, aktualizacje, swap, firewall.
 # Użycie (na każdej maszynie): sudo ./scripts/00-prepare-node.sh <nazwa-hosta>
+# Opis każdej części: docs/skrypty/00-prepare-node.md
 # Nazwy hostów: k3s-master, k3s-worker-1, k3s-worker-2, (opcjonalnie k3s-worker-3), monitoring
 set -euo pipefail
 # shellcheck source=lib.sh

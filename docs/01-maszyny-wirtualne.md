@@ -109,6 +109,8 @@ sudo ./scripts/00-prepare-node.sh k3s-worker-2    # na workerze 2
 sudo ./scripts/00-prepare-node.sh monitoring      # na maszynie monitoring
 ```
 
-Skrypt ustawia nazwę hosta i `/etc/hosts`, aktualizuje system, wyłącza swap i konfiguruje firewall `ufw`.
+Skrypt ustawia nazwę hosta i `/etc/hosts`, aktualizuje system, wyłącza swap, wyłącza logowanie hasłem
+przez SSH (gdy masz już klucz) i konfiguruje firewall `ufw`. Opis każdej części skryptu:
+[docs/skrypty/00-prepare-node.md](skrypty/00-prepare-node.md).
 
 **Zrób snapshot wszystkich maszyn.** Gdy coś zepsujesz, wrócisz do czystego stanu w kilka sekund.
