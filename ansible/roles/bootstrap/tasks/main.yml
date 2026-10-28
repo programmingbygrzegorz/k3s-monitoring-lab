@@ -68,8 +68,10 @@
     group: root
     mode: "0644"
   loop:
-    - { file: 99-hostname.cfg, content: "preserve_hostname: true" }
-    - { file: 99-disable-network-config.cfg, content: "network: {config: disabled}" }
+    - file: 99-hostname.cfg
+      content: "preserve_hostname: true"
+    - file: 99-disable-network-config.cfg
+      content: "network: {config: disabled}"
   register: bootstrap_cloud_init
 
 - name: Znajdź inne pliki Netplan
