@@ -42,7 +42,10 @@ ADMIN_USER="${SUDO_USER:-root}"
 AUTHORIZED_KEYS="$(getent passwd "${ADMIN_USER}" | cut -d: -f6)/.ssh/authorized_keys"
 if [[ -s "${AUTHORIZED_KEYS}" ]]; then
   log "Wyłączam logowanie hasłem przez SSH (${ADMIN_USER} ma klucz w authorized_keys)"
-  echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/99-lab.conf
+  # sshd bierze pierwszą znalezioną wartość, a pliki czyta alfabetycznie – nazwa 01-
+  # wyprzedza 50-cloud-init.conf z Ubuntu, w którym jest PasswordAuthentication yes
+  rm -f /etc/ssh/sshd_config.d/99-lab.conf
+  echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/01-lab.conf
   systemctl reload ssh
 else
   log "UWAGA: ${ADMIN_USER} nie ma klucza SSH – logowanie hasłem zostaje włączone (docs/01, Klucz SSH)"
