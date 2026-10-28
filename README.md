@@ -109,7 +109,7 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 ├── monitoring/
 │   ├── kube-prometheus-stack-values.yaml
 │   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
-├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu
+├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu (opis: packer/README.md)
 └── docs/                        # szczegółowe instrukcje krok po kroku
 ```
 

@@ -15,6 +15,8 @@ Pliki w `packer/`:
 | `k3s-worker-3.pkrvars.hcl.example` | parametry maszyny (nazwa, IP, MAC, RAM, ISO) |
 | `secrets.pkrvars.hcl.example` | użytkownik i hasło |
 
+Szczegółowo, co z czym się łączy i skąd bierze się każda wartość: [packer/README.md](../packer/README.md).
+
 Przebieg `packer build`:
 
 1. Packer tworzy maszynę w VMware i uruchamia instalator z ISO.
