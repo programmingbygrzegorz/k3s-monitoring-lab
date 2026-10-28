@@ -11,3 +11,4 @@ kubeconfig*
 
 # Ansible
 ansible/inventory.ini
+ansible/inventory-bootstrap.ini

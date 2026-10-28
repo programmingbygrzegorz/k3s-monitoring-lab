@@ -1,0 +1,12 @@
+# Ustawienia sieci dla świeżo sklonowanych maszyn. Nadpisz je w inventory-bootstrap.ini.
+
+# Stały adres maszyny – ustaw w inventory przy każdym hoście (bootstrap_static_ip=...)
+bootstrap_static_ip: ""
+bootstrap_prefix: 24
+bootstrap_gateway: 192.168.1.1
+bootstrap_dns:
+  - 1.1.1.1
+  - 8.8.8.8
+
+# Interfejs sieciowy (domyślnie ten sam co w group_vars/all.yml)
+bootstrap_iface: "{{ iface | default('ens33') }}"

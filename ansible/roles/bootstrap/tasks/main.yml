@@ -1,0 +1,160 @@
+# Pierwsza konfiguracja klonów szablonu: unikalny machine-id, nazwa hosta i stały adres IP.
+# Maszyny są osiągalne pod tymczasowymi adresami z DHCP, po restarcie – pod bootstrap_static_ip.
+
+- name: Sprawdź, czy podano stały adres
+  ansible.builtin.assert:
+    that: bootstrap_static_ip | length > 0
+    fail_msg: "Ustaw bootstrap_static_ip dla {{ inventory_hostname }} w inventory-bootstrap.ini"
+    quiet: true
+
+# Klony z jednego szablonu mają ten sam machine-id (albo pusty, jeśli szablon go nie miał).
+# Wtedy dostają ten sam adres z DHCP, a systemd i k3s traktują je jak jedną maszynę.
+- name: Sprawdź, czy machine-id jest unikalny
+  ansible.builtin.set_fact:
+    bootstrap_machine_id_reset: >-
+      {{ (ansible_facts['machine_id'] | default('')) | length == 0
+         or (ansible_play_hosts
+             | map('extract', hostvars, ['ansible_facts', 'machine_id'])
+             | select('equalto', ansible_facts['machine_id'])
+             | list | length) > 1 }}
+
+- name: Wygeneruj nowy machine-id
+  when: bootstrap_machine_id_reset | bool
+  block:
+    - name: Usuń stary machine-id
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/machine-id
+        - /var/lib/dbus/machine-id
+
+    - name: Utwórz nowy machine-id
+      ansible.builtin.command: systemd-machine-id-setup
+      changed_when: true
+
+# Klony mają też te same klucze SSH hosta – klient nie odróżni wtedy maszyn od siebie.
+- name: Sprawdź, czy klucze SSH hosta są unikalne
+  ansible.builtin.set_fact:
+    bootstrap_ssh_keys_reset: >-
+      {{ (ansible_play_hosts
+          | map('extract', hostvars, ['ansible_facts', 'ssh_host_key_ed25519_public'])
+          | select('equalto', ansible_facts['ssh_host_key_ed25519_public'] | default('brak'))
+          | list | length) > 1 }}
+
+# Jednym poleceniem: bez kluczy sshd nie przyjmie kolejnego połączenia Ansible.
+- name: Wygeneruj nowe klucze SSH hosta
+  ansible.builtin.shell: rm -f /etc/ssh/ssh_host_* && ssh-keygen -A
+  changed_when: true
+  when: bootstrap_ssh_keys_reset | bool
+
+- name: Ustaw nazwę hosta
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+  register: bootstrap_hostname
+
+- name: Własna nazwa w /etc/hosts (127.0.1.1)
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+  register: bootstrap_hosts
+
+- name: Cloud-init nie zmienia nazwy hosta ani sieci
+  ansible.builtin.copy:
+    dest: "/etc/cloud/cloud.cfg.d/{{ item.file }}"
+    content: "{{ item.content }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { file: 99-hostname.cfg, content: "preserve_hostname: true" }
+    - { file: 99-disable-network-config.cfg, content: "network: {config: disabled}" }
+  register: bootstrap_cloud_init
+
+- name: Znajdź inne pliki Netplan
+  ansible.builtin.find:
+    paths: /etc/netplan
+    patterns: ["*.yaml", "*.yml"]
+    excludes: ["01-lab.yaml"]
+  register: bootstrap_old_netplan
+
+- name: Przenieś stare pliki Netplan do /root/netplan-old
+  when: bootstrap_old_netplan.files | length > 0
+  block:
+    - name: Katalog na kopie
+      ansible.builtin.file:
+        path: /root/netplan-old
+        state: directory
+        mode: "0700"
+
+    - name: Skopiuj stare pliki
+      ansible.builtin.copy:
+        src: "{{ item.path }}"
+        dest: /root/netplan-old/
+        remote_src: true
+        mode: preserve
+      loop: "{{ bootstrap_old_netplan.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Usuń stare pliki z /etc/netplan
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ bootstrap_old_netplan.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+- name: Stały adres IP (Netplan)
+  ansible.builtin.template:
+    src: 01-lab.yaml.j2
+    dest: /etc/netplan/01-lab.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  register: bootstrap_netplan
+
+- name: Sprawdź, czy potrzebny jest restart
+  ansible.builtin.set_fact:
+    bootstrap_reboot: >-
+      {{ bootstrap_machine_id_reset | bool
+         or bootstrap_ssh_keys_reset | bool
+         or bootstrap_hostname is changed
+         or bootstrap_hosts is changed
+         or bootstrap_cloud_init is changed
+         or bootstrap_old_netplan.files | length > 0
+         or bootstrap_netplan is changed }}
+
+# Moduł reboot czekałby na stary adres, a po restarcie maszyna ma już nowy.
+# Dlatego restart idzie w tle, a Ansible łączy się dalej pod stałym adresem.
+- name: Restart w tle
+  ansible.builtin.shell: sleep 2 && systemctl reboot
+  async: 1
+  poll: 0
+  changed_when: true
+  when: bootstrap_reboot | bool
+
+- name: Dalej łącz się pod stałym adresem
+  ansible.builtin.set_fact:
+    ansible_host: "{{ bootstrap_static_ip }}"
+
+- name: Poczekaj, aż maszyna wróci
+  ansible.builtin.wait_for_connection:
+    delay: 20
+    timeout: 300
+  when: bootstrap_reboot | bool
+
+- name: Odczytaj stan po restarcie
+  ansible.builtin.setup:
+    gather_subset: [network]
+
+- name: Sprawdź adres i nazwę hosta
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['default_ipv4']['address'] == bootstrap_static_ip
+      - ansible_facts['hostname'] == inventory_hostname
+    fail_msg: >-
+      {{ inventory_hostname }}: adres {{ ansible_facts['default_ipv4']['address'] | default('brak') }},
+      nazwa {{ ansible_facts['hostname'] }}
+    success_msg: "{{ inventory_hostname }}: {{ bootstrap_static_ip }}"

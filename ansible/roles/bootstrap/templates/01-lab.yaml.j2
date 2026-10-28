@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+network:
+  version: 2
+  ethernets:
+    {{ bootstrap_iface }}:
+      dhcp4: false
+      addresses: [{{ bootstrap_static_ip }}/{{ bootstrap_prefix }}]
+      routes:
+        - to: default
+          via: {{ bootstrap_gateway }}
+      nameservers:
+        addresses: [{{ bootstrap_dns | join(', ') }}]

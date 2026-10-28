@@ -1,0 +1,8 @@
+# Pierwsza konfiguracja świeżych klonów szablonu (adresy z DHCP -> stałe adresy).
+# Uruchamiany raz, z osobnym inventory:
+#   ansible-playbook -i inventory-bootstrap.ini playbooks/bootstrap.yml --ask-become-pass
+- name: Unikalna tożsamość i stały adres IP dla klonów
+  hosts: all
+  become: true
+  roles:
+    - bootstrap

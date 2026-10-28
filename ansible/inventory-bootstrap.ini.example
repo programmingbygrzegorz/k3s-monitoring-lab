@@ -1,0 +1,26 @@
+# Inventory dla playbooks/bootstrap.yml – świeże klony szablonu z adresami z DHCP.
+#   cp inventory-bootstrap.ini.example inventory-bootstrap.ini
+# ansible_host  – tymczasowy adres z DHCP (sprawdź na maszynie: ip a)
+# bootstrap_static_ip – docelowy stały adres, taki sam jak w inventory.ini
+# Plik inventory-bootstrap.ini jest w .gitignore.
+
+[k3s_server]
+k3s-master ansible_host=192.168.1.130 bootstrap_static_ip=192.168.1.51
+
+[k3s_agents]
+k3s-worker-1 ansible_host=192.168.1.131 bootstrap_static_ip=192.168.1.52
+k3s-worker-2 ansible_host=192.168.1.132 bootstrap_static_ip=192.168.1.53
+
+[monitoring_vm]
+monitoring ansible_host=192.168.1.133 bootstrap_static_ip=192.168.1.54
+
+[k3s_cluster:children]
+k3s_server
+k3s_agents
+
+[all:vars]
+ansible_user=twoj-uzytkownik
+bootstrap_gateway=192.168.1.1
+# Sieć NAT w VMware Workstation: brama i DNS to adres .2 sieci VMnet8, np.
+# bootstrap_gateway=192.168.180.2
+# bootstrap_dns=['192.168.180.2', '1.1.1.1']
