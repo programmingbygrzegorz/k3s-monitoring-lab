@@ -73,6 +73,11 @@ flowchart LR
 | hasło (zapisane w systemie) | `password_hash` | `secrets.pkrvars.hcl` | `identity.password` w user-data |
 | hasło (do logowania Packera) | `password` | `secrets.pkrvars.hcl` | `ssh_password`, `sudo` w provisionerach, `shutdown_command` |
 | obraz systemu | `iso_path`, `iso_checksum` | `k3s-worker-3.pkrvars.hcl` | `iso_url`, `iso_checksum` w przepisie |
+| klucz SSH w `authorized_keys` | `ssh_public_key_file` | domyślnie `~/.ssh/k3s-lab.pub` w przepisie | `ssh.authorized-keys` w user-data |
+
+**Logowanie:** Packer łączy się przez SSH hasłem, ale tylko w trakcie budowy. Ostatni krok
+provisionera zapisuje `PasswordAuthentication no`, więc gotowa maszyna przyjmuje przez SSH
+wyłącznie klucz `k3s-lab`. Hasło działa dalej przy `sudo` i w konsoli VMware.
 
 `password` i `password_hash` to **to samo hasło** w dwóch postaciach: hash zapisuje instalator
 w systemie, a zwykłym hasłem Packer loguje się przez SSH. Jeśli się różnią, budowa zatrzyma się

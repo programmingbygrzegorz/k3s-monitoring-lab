@@ -107,6 +107,16 @@ variable "password_hash" {
   description = "Hash hasła: openssl passwd -6"
 }
 
+variable "ssh_public_key_file" {
+  type        = string
+  description = "Klucz publiczny SSH wgrywany do authorized_keys"
+  default     = "~/.ssh/k3s-lab.pub"
+}
+
+locals {
+  ssh_public_key = trimspace(file(pathexpand(var.ssh_public_key_file)))
+}
+
 variable "repo_url" {
   type    = string
   default = "https://github.com/programmingbygrzegorz/k3s-monitoring-lab.git"
@@ -137,15 +147,16 @@ source "vmware-iso" "k3s_node" {
   http_content = {
     "/meta-data" = ""
     "/user-data" = templatefile("${path.root}/user-data.pkrtpl.yaml", {
-      node_name     = var.node_name
-      node_ip       = var.node_ip
-      node_mac      = var.node_mac
-      iface         = var.iface
-      prefix        = var.prefix
-      gateway       = var.gateway
-      dns           = var.dns
-      username      = var.username
-      password_hash = var.password_hash
+      node_name      = var.node_name
+      node_ip        = var.node_ip
+      node_mac       = var.node_mac
+      iface          = var.iface
+      prefix         = var.prefix
+      gateway        = var.gateway
+      dns            = var.dns
+      username       = var.username
+      password_hash  = var.password_hash
+      ssh_public_key = local.ssh_public_key
     })
   }
 
@@ -174,7 +185,9 @@ build {
     execute_command = "echo '${var.password}' | sudo -S bash '{{ .Path }}'"
     inline = concat(
       ["sed -i '/# k3s-lab$/d' /etc/hosts"],
-      [for name, ip in var.lab_hosts : "echo '${ip} ${name} # k3s-lab' >> /etc/hosts"]
+      [for name, ip in var.lab_hosts : "echo '${ip} ${name} # k3s-lab' >> /etc/hosts"],
+      # Hasło przez SSH działa tylko na czas budowy – gotowa maszyna przyjmuje wyłącznie klucz
+      ["echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/99-lab.conf"]
     )
   }
 

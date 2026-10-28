@@ -44,6 +44,8 @@ W `k3s-worker-3.pkrvars.hcl` uzupełnij ścieżkę do ISO, sumę kontrolną
 (`Get-FileHash plik.iso`), adresy i `output_directory`. MAC musi być unikalny i z puli VMware
 dla adresów statycznych: `00:50:56:00:00:00` – `00:50:56:3F:FF:FF`.
 
+Przepis wgrywa na maszynę klucz `~/.ssh/k3s-lab.pub` (docs/01, *Klucz SSH zamiast hasła*) – utwórz go przed budową.
+
 W `secrets.pkrvars.hcl` wpisz użytkownika, hasło i jego hash. Hash wygenerujesz na dowolnej
 maszynie labu:
 

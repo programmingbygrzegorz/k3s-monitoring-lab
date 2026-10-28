@@ -12,9 +12,12 @@ autoinstall:
     username: ${username}
     password: "${password_hash}"
 
+  # Hasło przez SSH jest potrzebne Packerowi tylko w trakcie budowy – na końcu wyłącza je provisioner
   ssh:
     install-server: true
     allow-pw: true
+    authorized-keys:
+      - "${ssh_public_key}"
 
   # Stały adres od pierwszego uruchomienia – bez DHCP i bez późniejszej edycji Netplanu
   network:

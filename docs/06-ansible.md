@@ -34,14 +34,17 @@ ansible --version
 
 ## 2. Klucze SSH
 
-Ansible loguje się na maszyny kluczem, bez hasła:
+Ansible loguje się na maszyny kluczem, bez hasła. Na węźle sterującym:
 
 ```bash
-ssh-keygen -t ed25519
+ssh-keygen -t ed25519 -f ~/.ssh/k3s-lab -C "k3s-lab"
 for host in 192.168.1.51 192.168.1.52 192.168.1.53 192.168.1.54; do
-  ssh-copy-id <użytkownik>@$host
+  ssh-copy-id -i ~/.ssh/k3s-lab.pub <użytkownik>@$host
 done
 ```
+
+Ścieżkę do klucza podaje `ansible_ssh_private_key_file` w inventory. Rola `common` wyłącza potem
+logowanie hasłem przez SSH (`ssh_disable_password` w `group_vars/all.yml`).
 
 ## 3. Konfiguracja
 

@@ -21,6 +21,7 @@ k3s_agents
 
 [all:vars]
 ansible_user=twoj-uzytkownik
+ansible_ssh_private_key_file=~/.ssh/k3s-lab
 bootstrap_gateway=192.168.1.1
 # Sieć NAT w VMware Workstation: brama i DNS to adres .2 sieci VMnet8, np.
 # bootstrap_gateway=192.168.180.2

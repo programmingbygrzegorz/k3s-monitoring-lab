@@ -35,6 +35,18 @@ log "Wyłączam swap"
 swapoff -a
 sed -i.bak '/\sswap\s/ s/^#*/#/' /etc/fstab
 
+# Logowanie hasłem przez SSH wyłączamy tylko wtedy, gdy użytkownik ma już klucz –
+# inaczej odcięlibyśmy się od maszyny (zostałaby tylko konsola VMware).
+ADMIN_USER="${SUDO_USER:-root}"
+AUTHORIZED_KEYS="$(getent passwd "${ADMIN_USER}" | cut -d: -f6)/.ssh/authorized_keys"
+if [[ -s "${AUTHORIZED_KEYS}" ]]; then
+  log "Wyłączam logowanie hasłem przez SSH (${ADMIN_USER} ma klucz w authorized_keys)"
+  echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/99-lab.conf
+  systemctl reload ssh
+else
+  log "UWAGA: ${ADMIN_USER} nie ma klucza SSH – logowanie hasłem zostaje włączone (docs/01, Klucz SSH)"
+fi
+
 if [[ "${ENABLE_UFW:-yes}" != "yes" ]]; then
   log "Pomijam konfigurację firewalla (ENABLE_UFW=${ENABLE_UFW})"
   exit 0

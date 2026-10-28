@@ -44,6 +44,17 @@
     regexp: '^([^#].*\sswap\s.*)$'
     replace: '# \1'
 
+# Ansible łączy się kluczem, więc logowanie hasłem przez SSH nie jest już potrzebne.
+- name: Wyłącz logowanie hasłem przez SSH
+  when: ssh_disable_password | bool
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-lab.conf
+    content: "PasswordAuthentication no\n"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Przeładuj SSH
+
 - name: Skonfiguruj firewall
   when: enable_ufw | bool
   block:

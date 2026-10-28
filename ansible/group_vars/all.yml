@@ -17,3 +17,6 @@ k3s_service_cidr: 10.43.0.0/16
 
 # Firewall ufw na maszynach
 enable_ufw: true
+
+# Logowanie przez SSH tylko kluczem (Ansible i tak łączy się kluczem – docs/06, krok 2)
+ssh_disable_password: true

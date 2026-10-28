@@ -68,6 +68,38 @@ cp lab.env.example lab.env
 nano lab.env      # adresy IP, nazwa interfejsu, sieć administratora, hasło Grafany
 ```
 
+## Klucz SSH zamiast hasła
+
+Na swoim komputerze utwórz osobny klucz dla laboratorium:
+
+```powershell
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\k3s-lab -C "k3s-lab"
+```
+
+Wgraj klucz publiczny na każdą maszynę (ostatni raz podajesz hasło). Windows nie ma
+`ssh-copy-id`, dlatego w PowerShell:
+
+```powershell
+type $env:USERPROFILE\.ssh\k3s-lab.pub | ssh <użytkownik>@192.168.1.51 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+```
+
+Powtórz dla pozostałych adresów. W pliku `~/.ssh/config` dopisz maszyny, aby logować się po nazwie:
+
+```
+Host k3s-master
+    HostName 192.168.1.51
+# ... pozostałe maszyny analogicznie
+
+Host k3s-master k3s-worker-1 k3s-worker-2 monitoring
+    User <użytkownik>
+    IdentityFile ~/.ssh/k3s-lab
+    IdentitiesOnly yes
+```
+
+Sprawdź, że `ssh k3s-master` loguje bez pytania o hasło. Skrypt `00-prepare-node.sh` wyłączy
+wtedy logowanie hasłem przez SSH – ale tylko na maszynie, na której klucz już jest. Hasło zostaje
+do `sudo` i do konsoli VMware.
+
 ## Przygotowanie systemu
 
 ```bash
