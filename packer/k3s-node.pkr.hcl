@@ -184,7 +184,7 @@ build {
   provisioner "shell" {
     execute_command = "echo '${var.password}' | sudo -S bash '{{ .Path }}'"
     inline = concat(
-      ["sed -i '/# k3s-lab$/d' /etc/hosts"],
+      ["sed -i -E '/^127\\./!{/[[:space:]](k3s-master|k3s-worker-[0-9]+|monitoring)([[:space:]]|$)/d}' /etc/hosts"],
       [for name, ip in var.lab_hosts : "echo '${ip} ${name} # k3s-lab' >> /etc/hosts"],
       # Hasło przez SSH działa tylko na czas budowy – gotowa maszyna przyjmuje wyłącznie klucz
       ["echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/99-lab.conf"]

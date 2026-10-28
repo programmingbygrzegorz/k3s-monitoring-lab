@@ -13,7 +13,8 @@ log "Ustawiam nazwę hosta: ${NEW_HOSTNAME}"
 hostnamectl set-hostname "${NEW_HOSTNAME}"
 
 log "Aktualizuję /etc/hosts"
-sed -i '/# k3s-lab$/d' /etc/hosts
+# Usuń każdy wpis z nazwą maszyny labu (także dopisany ręcznie), poza liniami 127.x
+sed -i -E '/^127\./!{/[[:space:]](k3s-master|k3s-worker-[0-9]+|monitoring)([[:space:]]|$)/d}' /etc/hosts
 cat >> /etc/hosts << HOSTS
 ${MASTER_IP:?} k3s-master # k3s-lab
 ${WORKER1_IP:?} k3s-worker-1 # k3s-lab
