@@ -47,10 +47,11 @@ flowchart LR
 
 | Maszyna | Rola | vCPU | RAM | Dysk |
 |---|---|---|---|---|
-| k3s-master | węzeł sterujący (control plane) | 2 | 4 GB | 30 GB |
-| k3s-worker-1 | węzeł roboczy | 2 | 4 GB | 30 GB |
-| k3s-worker-2 | węzeł roboczy | 2 | 4 GB | 30 GB |
-| monitoring | zewnętrzny monitoring (Docker) | 2 | 2 GB | 20 GB |
+| ubuntu-template | szablon do klonowania (potem wyłączony) | 2 | 4 GB | 40 GB |
+| k3s-master | węzeł sterujący (control plane) | 2 | 4 GB | 40 GB |
+| k3s-worker-1 | węzeł roboczy | 2 | 6 GB | 40 GB |
+| k3s-worker-2 | węzeł roboczy | 2 | 6 GB | 40 GB |
+| monitoring | zewnętrzny monitoring (Docker) | 2 | 4 GB | 40 GB |
 
 System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMware Workstation
 (działa też VirtualBox, Hyper-V lub Proxmox).

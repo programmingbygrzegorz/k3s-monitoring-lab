@@ -2,13 +2,15 @@
 
 ## Wymagania sprzętowe
 
-Komputer z **minimum 16 GB RAM** (zalecane 32 GB), procesorem z obsługą wirtualizacji (VT-x / AMD-V)
-i ok. 120 GB wolnego miejsca na dysku.
+Komputer z **minimum 32 GB RAM** (uruchomione maszyny zajmują razem 20 GB), procesorem z obsługą
+wirtualizacji (VT-x / AMD-V) i ok. 200 GB wolnego miejsca na dysku.
 
 ## Tworzenie maszyn
 
 1. Pobierz obraz **Ubuntu Server 24.04 LTS**.
-2. Utwórz 4 maszyny według tabeli z README (`k3s-master`, `k3s-worker-1`, `k3s-worker-2`, `monitoring`).
+2. Utwórz maszynę `ubuntu-template`, zainstaluj na niej system i sklonuj z niej 4 maszyny według
+   tabeli z README (`k3s-master`, `k3s-worker-1`, `k3s-worker-2`, `monitoring`), ustawiając im
+   RAM z tabeli. Szablon potem wyłącz.
 3. Kartę sieciową ustaw w trybie **Bridged** – maszyny dostaną adresy w Twojej sieci domowej.
 4. Podczas instalacji Ubuntu zaznacz **Install OpenSSH server**.
 
