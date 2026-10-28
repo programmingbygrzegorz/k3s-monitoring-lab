@@ -55,10 +55,12 @@ Oba pliki `.pkrvars.hcl` są w `.gitignore`. Hasło nie może zawierać apostrof
 
 ```powershell
 packer init .
-packer validate -var-file=k3s-worker-3.pkrvars.hcl -var-file=secrets.pkrvars.hcl .
-packer build -var-file=k3s-worker-3.pkrvars.hcl -var-file=secrets.pkrvars.hcl .
+packer validate "-var-file=k3s-worker-3.pkrvars.hcl" "-var-file=secrets.pkrvars.hcl" .
+packer build "-var-file=k3s-worker-3.pkrvars.hcl" "-var-file=secrets.pkrvars.hcl" .
 ```
 
+- W PowerShell argumenty `-var-file=...` muszą być w cudzysłowie – bez tego PowerShell 5.1 rozbija
+  je na kropce i Packer pokazuje tylko pomoc (`Usage: packer build`).
 - Trwa to ok. 15–30 minut. **Nie klikaj w okno maszyny** – Packer wpisuje na nim polecenia.
 - Przy pierwszym uruchomieniu Zapora Windows może zapytać o dostęp dla Packera – zezwól w sieciach
   prywatnych, inaczej instalator nie pobierze `user-data`.

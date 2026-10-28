@@ -2,7 +2,7 @@
 # Instalacja bez klikania (autoinstall), od razu ze stałym IP, nazwą hosta i repozytorium.
 #
 #   packer init .
-#   packer build -var-file=k3s-worker-3.pkrvars.hcl -var-file=secrets.pkrvars.hcl .
+#   packer build "-var-file=k3s-worker-3.pkrvars.hcl" "-var-file=secrets.pkrvars.hcl" .
 
 packer {
   required_plugins {
@@ -171,7 +171,7 @@ build {
   sources = ["source.vmware-iso.k3s_node"]
 
   provisioner "shell" {
-    execute_command = "echo '${var.password}' | sudo -S -E bash '{{ .Path }}'"
+    execute_command = "echo '${var.password}' | sudo -S bash '{{ .Path }}'"
     inline = concat(
       ["sed -i '/# k3s-lab$/d' /etc/hosts"],
       [for name, ip in var.lab_hosts : "echo '${ip} ${name} # k3s-lab' >> /etc/hosts"]
