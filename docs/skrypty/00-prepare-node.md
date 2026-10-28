@@ -23,6 +23,113 @@ dublowania wpisów.
 
 ---
 
+## Cała procedura z konsoli (PowerShell na Windowsie)
+
+Wszystkie polecenia wydajesz z **PowerShell na swoim komputerze** (znak zachęty `PS C:\...>`),
+nie na maszynie Linux. Zakładają klucz SSH i plik `~/.ssh/config` z nazwami maszyn
+(`docs/01`, *Klucz SSH zamiast hasła*). Przykłady są dla `k3s-master` – na pozostałych maszynach
+zmieniasz tylko nazwę.
+
+### 0. Maszyny włączone i osiągalne
+
+Włącz maszyny w VMware i sprawdź, czy odpowiadają (bez pytania o hasło):
+
+```powershell
+ssh k3s-master hostname
+ssh k3s-worker-1 hostname
+ssh k3s-worker-2 hostname
+ssh monitoring hostname
+```
+
+Przy okazji sprawdź nazwę karty i adres – nazwa musi zgadzać się z `IFACE` w `lab.env`:
+
+```powershell
+ssh k3s-master "ip -4 -o addr show"
+```
+
+### 1. Repozytorium na maszynie
+
+Jeśli repozytorium jeszcze nie ma:
+
+```powershell
+ssh k3s-master "git clone https://github.com/<twoj-login>/k3s-monitoring-lab.git ~/k3s-monitoring-lab"
+```
+
+Jeśli już jest – pobierz najnowszą wersję:
+
+```powershell
+ssh k3s-master "cd ~/k3s-monitoring-lab && git pull"
+```
+
+### 2. `lab.env` na maszynie
+
+```powershell
+ssh -t k3s-master "cd ~/k3s-monitoring-lab && cp -n lab.env.example lab.env && nano lab.env"
+```
+
+W edytorze uzupełnij adresy wszystkich maszyn, `ADMIN_CIDR`, `IFACE` i `GRAFANA_ADMIN_PASSWORD`
+(na wszystkich maszynach te same wartości), zapisz **Ctrl+O**, Enter, wyjdź **Ctrl+X**.
+`cp -n` nie nadpisze istniejącego `lab.env`.
+
+Kontrola:
+
+```powershell
+ssh k3s-master "cd ~/k3s-monitoring-lab && grep -E '_IP=|ADMIN_CIDR|IFACE' lab.env"
+```
+
+> Wygodnie: uzupełnij `lab.env` raz, na jednej maszynie, a potem skopiuj go na pozostałe
+> (`scp k3s-master:k3s-monitoring-lab/lab.env .` i `scp lab.env k3s-worker-1:k3s-monitoring-lab/`).
+> Usuń potem lokalną kopię – zawiera hasło Grafany.
+
+### 3. Snapshot w VMware
+
+Prawy klik na maszynie → **Snapshot → Take Snapshot**, np. `przed-prepare`.
+
+### 4. Uruchomienie skryptu
+
+```powershell
+ssh -t k3s-master "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh k3s-master"
+```
+
+Nazwa maszyny występuje **dwa razy**: po `ssh -t` (z którą maszyną się łączysz) i na końcu
+(jaką nazwę skrypt ustawi). Muszą być takie same. `sudo` zapyta o hasło użytkownika na maszynie.
+
+Wszystkie maszyny po kolei jednym poleceniem (hasło `sudo` podajesz raz dla każdej maszyny):
+
+```powershell
+ssh -t k3s-master "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh k3s-master"; ssh -t k3s-worker-1 "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh k3s-worker-1"; ssh -t k3s-worker-2 "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh k3s-worker-2"; ssh -t monitoring "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh monitoring"
+```
+
+### 5. Sprawdzenie
+
+```powershell
+ssh k3s-master "hostname; systemctl is-active ufw; swapon --show; grep k3s-lab /etc/hosts; ping -c1 k3s-worker-1"
+ssh -o PubkeyAuthentication=no k3s-master
+```
+
+| Co sprawdzasz | Oczekiwany wynik |
+|---|---|
+| `hostname` | nazwa maszyny |
+| `systemctl is-active ufw` | `active` |
+| `swapon --show` | pusto |
+| `grep k3s-lab /etc/hosts` | po jednym wpisie na każdą maszynę |
+| `ping -c1 k3s-worker-1` | `1 received` |
+| `ssh -o PubkeyAuthentication=no` | od razu `Permission denied (publickey)` – hasło przez SSH wyłączone |
+
+Zwykłe `ssh k3s-master` (kluczem) musi dalej działać.
+
+### Najczęstsze błędy
+
+| Komunikat | Przyczyna | Rozwiązanie |
+|---|---|---|
+| `Permission denied (os error 13)` przy `sudo ./scripts/...` | skrypt bez prawa wykonywania (np. dodany do gita z Windowsa) | `git pull` (w repozytorium skrypty mają tryb `100755`) albo `sudo bash ./scripts/00-prepare-node.sh ...` |
+| `Brak pliku lab.env` | nie wykonano kroku 2 | `cp lab.env.example lab.env` i uzupełnij |
+| `MASTER_IP: parameter null or not set` | pusta wartość w `lab.env` | uzupełnij brakującą zmienną |
+| `ssh k3s-...` pyta o hasło | polecenie wpisane **na maszynie Linux**, a nie w PowerShell | `exit`, potem polecenie w PowerShell |
+| po skrypcie `Permission denied (publickey,password)` przy teście bez klucza | starsza wersja skryptu zapisywała `99-lab.conf`, który przegrywa z `50-cloud-init.conf` | `git pull` i uruchom skrypt ponownie |
+
+---
+
 ## 1. Nagłówek i bezpieczny tryb pracy (linie 1–9)
 
 ```bash
