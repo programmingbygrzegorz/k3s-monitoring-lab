@@ -14,6 +14,20 @@ wirtualizacji (VT-x / AMD-V) i ok. 200 GB wolnego miejsca na dysku.
 3. Kartę sieciową ustaw w trybie **Bridged** – maszyny dostaną adresy w Twojej sieci domowej.
 4. Podczas instalacji Ubuntu zaznacz **Install OpenSSH server**.
 
+## Przygotowanie szablonu przed klonowaniem
+
+Klony dziedziczą `/etc/machine-id` szablonu, a router w DHCP może im wtedy przydzielić ten sam adres.
+Przed sklonowaniem wyczyść identyfikator na `ubuntu-template` i wyłącz maszynę:
+
+```bash
+sudo truncate -s 0 /etc/machine-id
+sudo rm -f /var/lib/dbus/machine-id
+sudo poweroff
+```
+
+Każdy klon wygeneruje własny `machine-id` przy pierwszym uruchomieniu. Sprawdź to na klonach
+poleceniem `cat /etc/machine-id` – wartości muszą się różnić.
+
 ## Stały adres IP
 
 Klaster wymaga stałych adresów. Edytuj plik Netplan (nazwa może się różnić):
