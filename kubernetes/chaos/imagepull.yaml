@@ -1,0 +1,23 @@
+# Nieistniejący tag obrazu -> ErrImagePull / ImagePullBackOff.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-imagepull
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      scenario: imagepull
+  template:
+    metadata:
+      labels:
+        scenario: imagepull
+    spec:
+      containers:
+        - name: missing-image
+          image: nginx:0.0.0-ten-tag-nie-istnieje
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi

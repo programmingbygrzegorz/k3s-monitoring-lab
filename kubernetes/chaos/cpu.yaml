@@ -1,0 +1,28 @@
+# Dwa wątki obciążające CPU przy limicie 500m -> widoczny throttling na wykresach.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-cpu
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      scenario: cpu
+  template:
+    metadata:
+      labels:
+        scenario: cpu
+    spec:
+      containers:
+        - name: cpu-hog
+          image: polinux/stress
+          command: ["stress"]
+          args: ["--cpu", "2"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 64Mi

@@ -1,0 +1,33 @@
+# CI: automatyczna kontrola jakości skryptów i manifestów przy każdym pushu.
+name: lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck (skrypty Bash)
+        run: shellcheck -x scripts/*.sh
+
+      - name: yamllint (pliki YAML)
+        run: |
+          pip install --quiet yamllint
+          yamllint -c .yamllint.yml .
+
+      - name: kubeconform (poprawność manifestów Kubernetesa)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -summary -strict -ignore-missing-schemas kubernetes/
+
+      - name: ansible-lint (playbooki i role)
+        working-directory: ansible
+        run: |
+          pip install --quiet ansible ansible-lint
+          cp inventory.ini.example inventory.ini
+          ansible-playbook --syntax-check site.yml
+          ansible-lint site.yml playbooks roles

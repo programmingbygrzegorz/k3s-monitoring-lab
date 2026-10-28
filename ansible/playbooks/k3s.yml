@@ -1,0 +1,38 @@
+- name: Węzeł sterujący k3s
+  hosts: k3s_server
+  become: true
+  roles:
+    - k3s_server
+
+- name: Węzły robocze k3s
+  hosts: k3s_agents
+  become: true
+  roles:
+    - k3s_agent
+
+- name: Kontrola klastra i role węzłów
+  hosts: k3s_server
+  become: true
+  tasks:
+    - name: Poczekaj, aż wszystkie węzły będą Ready
+      ansible.builtin.command: k3s kubectl get nodes --no-headers
+      register: nodes
+      until: (nodes.stdout_lines | select('search', ' Ready') | list | length) == (groups['k3s_cluster'] | length)
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    - name: Nadaj workerom rolę worker
+      ansible.builtin.command: k3s kubectl label node {{ item }} node-role.kubernetes.io/worker=worker --overwrite
+      loop: "{{ groups['k3s_agents'] }}"
+      register: label_result
+      changed_when: "'labeled' in label_result.stdout"
+
+    - name: Pokaż stan klastra
+      ansible.builtin.command: k3s kubectl get nodes -o wide
+      register: cluster
+      changed_when: false
+
+    - name: Wynik
+      ansible.builtin.debug:
+        var: cluster.stdout_lines

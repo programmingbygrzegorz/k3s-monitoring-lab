@@ -1,0 +1,20 @@
+# Dołączenie workera do klastra – odpowiednik scripts/02-install-worker.sh.
+
+- name: Pobierz instalator k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: "0755"
+
+- name: Zainstaluj k3s (agent) i dołącz do klastra
+  ansible.builtin.command:
+    cmd: >-
+      /tmp/k3s-install.sh agent
+      --node-ip {{ ansible_host }}
+      --flannel-iface {{ iface }}
+    creates: /etc/systemd/system/k3s-agent.service
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+    K3S_URL: "https://{{ hostvars[groups['k3s_server'][0]].ansible_host }}:6443"
+    K3S_TOKEN: "{{ hostvars[groups['k3s_server'][0]].k3s_server_token }}"
+  no_log: true

@@ -1,0 +1,31 @@
+# Monitoring poza klastrem: działa nawet wtedy, gdy klaster padnie.
+services:
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?ustaw w .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      PROMETHEUS_URL: http://${MASTER_IP:?ustaw w .env}:30090
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    extra_hosts:
+      # Ingress aplikacji demo widziany "z zewnątrz", jak przez użytkownika
+      - "podinfo.lab.local:${WORKER2_IP:?ustaw w .env}"
+
+volumes:
+  grafana-data:
+  uptime-kuma-data:

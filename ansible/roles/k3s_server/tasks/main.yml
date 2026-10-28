@@ -1,0 +1,45 @@
+# Instalacja węzła sterującego – odpowiednik scripts/01-install-master.sh.
+
+- name: Pobierz instalator k3s
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/k3s-install.sh
+    mode: "0755"
+
+- name: Zainstaluj k3s (server)
+  ansible.builtin.command:
+    cmd: >-
+      /tmp/k3s-install.sh server
+      --node-ip {{ ansible_host }}
+      --advertise-address {{ ansible_host }}
+      --flannel-iface {{ iface }}
+      --write-kubeconfig-mode 0644
+      --node-taint node-role.kubernetes.io/control-plane=true:NoSchedule
+    creates: /etc/systemd/system/k3s.service
+  environment:
+    INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"
+
+- name: Poczekaj na API Kubernetesa
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 6443
+    timeout: 300
+
+- name: Poczekaj, aż węzeł sterujący będzie Ready
+  ansible.builtin.command: k3s kubectl get node {{ inventory_hostname }} --no-headers
+  register: k3s_server_master_status
+  until: "' Ready' in k3s_server_master_status.stdout"
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Odczytaj token do dołączania workerów
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_server_node_token
+  no_log: true
+
+- name: Zapamiętaj token dla kolejnych kroków
+  ansible.builtin.set_fact:
+    k3s_server_token: "{{ k3s_server_node_token.content | b64decode | trim }}"
+  no_log: true

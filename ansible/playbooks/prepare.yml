@@ -1,0 +1,5 @@
+- name: Przygotowanie wszystkich maszyn laboratorium
+  hosts: all
+  become: true
+  roles:
+    - common

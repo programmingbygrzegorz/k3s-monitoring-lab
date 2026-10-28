@@ -1,0 +1,77 @@
+# Wartości dla chartu kube-prometheus-stack dopasowane do k3s.
+# Zmienne ${...} podstawia skrypt scripts/04-install-monitoring.sh z pliku lab.env.
+
+grafana:
+  enabled: true
+  adminPassword: "${GRAFANA_ADMIN_PASSWORD}"
+  defaultDashboardsTimezone: browser
+  service:
+    type: NodePort
+    nodePort: 30300
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 30090   # zewnętrzna Grafana na maszynie monitoring czyta dane stąd
+  prometheusSpec:
+    retention: 7d
+    # Zbieraj ServiceMonitory i reguły z całego klastra, nie tylko te z etykietą release
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+
+alertmanager:
+  service:
+    type: NodePort
+    nodePort: 30093
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # Dead man's switch: Watchdog jest zawsze aktywny i co minutę trafia do healthchecks.io.
+        # Gdy przestanie docierać (padł klaster lub monitoring), healthchecks.io wyśle powiadomienie.
+        - receiver: deadmans-switch
+          matchers:
+            - alertname = "Watchdog"
+          group_wait: 0s
+          group_interval: 1m
+          repeat_interval: 1m
+    receivers:
+      - name: "null"
+      # Tu możesz dodać własny kanał powiadomień, np. e-mail (email_configs) lub Telegram (telegram_configs).
+      - name: deadmans-switch
+        webhook_configs:
+          - url: "${HEALTHCHECKS_URL}"
+            send_resolved: false
+
+# k3s uruchamia controller-manager, scheduler i kube-proxy wewnątrz jednego procesu
+# i nie wystawia ich metryk w standardowy sposób. Bez wyłączenia tych celów
+# Prometheus zgłaszałby fałszywe alerty TargetDown.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false

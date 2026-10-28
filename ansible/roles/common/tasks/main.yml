@@ -1,0 +1,116 @@
+# Przygotowanie maszyny – odpowiednik scripts/00-prepare-node.sh.
+
+- name: Ustaw nazwę hosta
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Dodaj wszystkie maszyny laboratorium do /etc/hosts
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} k3s-lab (zarządzane przez Ansible)"
+    block: |
+      {% for host in groups['all'] %}
+      {{ hostvars[host].ansible_host }} {{ host }}
+      {% endfor %}
+
+- name: Zaktualizuj system
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: safe
+    cache_valid_time: 3600
+
+- name: Zainstaluj potrzebne pakiety
+  ansible.builtin.apt:
+    name:
+      - curl
+      - ca-certificates
+      - gettext-base
+      - jq
+      - ufw
+    state: present
+
+- name: Ustaw strefę czasową
+  community.general.timezone:
+    name: "{{ timezone }}"
+
+- name: Wyłącz swap w bieżącej sesji
+  ansible.builtin.command: swapoff -a
+  when: ansible_facts['swaptotal_mb'] | int > 0
+  changed_when: true
+
+- name: Wyłącz swap na stałe (/etc/fstab)
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\sswap\s.*)$'
+    replace: '# \1'
+
+- name: Skonfiguruj firewall
+  when: enable_ufw | bool
+  block:
+    - name: Domyślnie blokuj ruch przychodzący
+      community.general.ufw:
+        default: deny
+        direction: incoming
+
+    - name: SSH z sieci administratora
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ admin_cidr }}"
+        port: "22"
+        proto: tcp
+
+    - name: Reguły dla maszyny monitoring
+      when: inventory_hostname in groups['monitoring_vm']
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ admin_cidr }}"
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "3000"   # Grafana
+        - "3001"   # Uptime Kuma
+
+    - name: Reguły dla węzłów klastra
+      when: inventory_hostname in groups['k3s_cluster']
+      block:
+        - name: Pełna komunikacja między węzłami
+          community.general.ufw:
+            rule: allow
+            from_ip: "{{ hostvars[item].ansible_host }}"
+          loop: "{{ groups['k3s_cluster'] }}"
+
+        - name: Sieci podów i usług k3s
+          community.general.ufw:
+            rule: allow
+            from_ip: "{{ item }}"
+          loop:
+            - "{{ k3s_pod_cidr }}"
+            - "{{ k3s_service_cidr }}"
+
+        - name: API Kubernetesa z sieci administratora
+          community.general.ufw:
+            rule: allow
+            from_ip: "{{ admin_cidr }}"
+            port: "6443"
+            proto: tcp
+
+        - name: Ingress (HTTP i HTTPS)
+          community.general.ufw:
+            rule: allow
+            port: "{{ item }}"
+            proto: tcp
+          loop:
+            - "80"
+            - "443"
+
+        - name: NodePorty dla administratora i maszyny monitoring
+          community.general.ufw:
+            rule: allow
+            from_ip: "{{ item }}"
+            port: "30000:32767"
+            proto: tcp
+          loop: "{{ [admin_cidr] + (groups['monitoring_vm'] | map('extract', hostvars, 'ansible_host') | list) }}"
+
+    - name: Włącz firewall
+      community.general.ufw:
+        state: enabled

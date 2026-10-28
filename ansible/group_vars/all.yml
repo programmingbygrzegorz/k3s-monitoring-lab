@@ -1,0 +1,19 @@
+# Wspólne ustawienia laboratorium (odpowiednik lab.env dla Ansible).
+
+# Interfejs sieciowy maszyn wirtualnych (sprawdź: ip a)
+iface: ens33
+
+# Sieć, z której łączysz się do laboratorium
+admin_cidr: 192.168.1.0/24
+
+timezone: Europe/Warsaw
+
+# Kanał instalacji k3s: stable, latest lub konkretna wersja (np. v1.31)
+k3s_channel: stable
+
+# Domyślne sieci podów i usług k3s
+k3s_pod_cidr: 10.42.0.0/16
+k3s_service_cidr: 10.43.0.0/16
+
+# Firewall ufw na maszynach
+enable_ufw: true

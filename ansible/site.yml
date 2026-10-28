@@ -1,0 +1,6 @@
+# Całe laboratorium jednym poleceniem: ansible-playbook site.yml
+- name: Przygotowanie maszyn
+  ansible.builtin.import_playbook: playbooks/prepare.yml
+
+- name: Klaster k3s
+  ansible.builtin.import_playbook: playbooks/k3s.yml

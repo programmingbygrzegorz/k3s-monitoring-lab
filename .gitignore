@@ -1,0 +1,13 @@
+# Sekrety i konfiguracja lokalna
+lab.env
+monitoring/monitoring-vm/.env
+*.kubeconfig
+kubeconfig*
+*.token
+
+# Pliki tymczasowe
+*.bak
+.DS_Store
+
+# Ansible
+ansible/inventory.ini

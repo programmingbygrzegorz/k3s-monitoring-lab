@@ -1,0 +1,56 @@
+# Własne reguły alertów laboratorium (uzupełniają domyślne reguły kube-prometheus-stack,
+# które już obejmują m.in. KubeNodeNotReady, KubePodCrashLooping i KubePodNotReady).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: lab-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: lab.pods
+      rules:
+        - alert: PodRestartingTooOften
+          expr: increase(kube_pod_container_status_restarts_total[10m]) > 3
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} restartuje się zbyt często"
+            description: "Kontener {{ $labels.container }} zrestartował się ponad 3 razy w ciągu 10 minut."
+        - alert: ContainerOOMKilled
+          expr: |
+            (kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1)
+            and on (namespace, pod, container)
+            (increase(kube_pod_container_status_restarts_total[10m]) > 0)
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kontener {{ $labels.namespace }}/{{ $labels.pod }} przekroczył limit pamięci"
+            description: "Kontener {{ $labels.container }} został zabity z powodu braku pamięci (OOMKilled)."
+    - name: lab.demo-app
+      rules:
+        - alert: PodinfoDegraded
+          expr: kube_deployment_status_replicas_available{namespace="demo", deployment="podinfo"} < 3
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Aplikacja podinfo działa w ograniczonym trybie"
+            description: "Dostępnych replik: {{ $value }} z 3."
+        - alert: PodinfoDown
+          expr: kube_deployment_status_replicas_available{namespace="demo", deployment="podinfo"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Aplikacja podinfo nie działa"
+            description: "Brak dostępnych replik aplikacji podinfo."
+    - name: lab.nodes
+      rules:
+        - alert: NodeMemoryHigh
+          expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Wysokie zużycie pamięci na {{ $labels.instance }}"
+            description: "Zużycie pamięci przekracza 90% od 5 minut."

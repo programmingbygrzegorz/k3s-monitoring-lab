@@ -1,0 +1,20 @@
+# Skopiuj do inventory.ini i uzupełnij adresy oraz użytkownika SSH:
+#   cp inventory.ini.example inventory.ini
+# Plik inventory.ini jest w .gitignore.
+
+[k3s_server]
+k3s-master ansible_host=192.168.1.51
+
+[k3s_agents]
+k3s-worker-1 ansible_host=192.168.1.52
+k3s-worker-2 ansible_host=192.168.1.53
+
+[monitoring_vm]
+monitoring ansible_host=192.168.1.54
+
+[k3s_cluster:children]
+k3s_server
+k3s_agents
+
+[all:vars]
+ansible_user=twoj-uzytkownik

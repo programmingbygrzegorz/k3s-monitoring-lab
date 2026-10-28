@@ -1,0 +1,28 @@
+# Aplikacja kończy się błędem tuż po starcie -> CrashLoopBackOff.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-crashloop
+  namespace: chaos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      scenario: crashloop
+  template:
+    metadata:
+      labels:
+        scenario: crashloop
+    spec:
+      containers:
+        - name: broken-app
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - "echo 'BŁĄD - brak pliku konfiguracyjnego /etc/app/config.yaml'; sleep 5; exit 1"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 32Mi
