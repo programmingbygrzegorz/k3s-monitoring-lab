@@ -1,4 +1,7 @@
 extends: default
+# Szablony Packera (${...}) stają się poprawnym YAML-em dopiero po podstawieniu wartości
+ignore: |
+  packer/*.pkrtpl.yaml
 rules:
   line-length:
     max: 140

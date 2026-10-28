@@ -60,7 +60,8 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 ## Stos technologiczny
 
 - **Kubernetes:** k3s, Traefik (Ingress), Helm
-- **Infrastructure as Code:** Ansible – przygotowanie maszyn i instalacja klastra (role, inventory, idempotentne playbooki)
+- **Infrastructure as Code:** Ansible – przygotowanie maszyn i instalacja klastra (role, inventory, idempotentne playbooki);
+  Packer – instalacja nowych maszyn z ISO bez klikania (autoinstall Ubuntu)
 - **Monitoring w klastrze:** kube-prometheus-stack – Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics
 - **Monitoring zewnętrzny:** Grafana i Uptime Kuma w Docker Compose, healthchecks.io jako dead man's switch
 - **Aplikacja demo:** [podinfo](https://github.com/stefanprodan/podinfo) z metrykami Prometheusa, sondami i Ingressem
@@ -108,6 +109,7 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 ├── monitoring/
 │   ├── kube-prometheus-stack-values.yaml
 │   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
+├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu
 └── docs/                        # szczegółowe instrukcje krok po kroku
 ```
 

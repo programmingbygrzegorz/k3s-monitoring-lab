@@ -1,0 +1,24 @@
+# Parametry maszyny k3s-worker-3. Skopiuj do k3s-worker-3.pkrvars.hcl i dopasuj do swojej sieci.
+
+iso_path     = "C:/Users/<użytkownik>/Downloads/ubuntu-server-amd64.iso"
+iso_checksum = "sha256:<suma z: Get-FileHash plik.iso>"
+
+node_name        = "k3s-worker-3"
+node_ip          = "192.168.1.55"
+node_mac         = "00:50:56:00:01:55"
+memory           = 6144
+output_directory = "C:/Users/<użytkownik>/Documents/Virtual Machines/k3s-worker-3"
+
+gateway = "192.168.1.1"
+dns     = ["1.1.1.1", "8.8.8.8"]
+# Sieć NAT w VMware Workstation: brama i DNS to adres .2 sieci VMnet8, np.
+# gateway = "192.168.180.2"
+# dns     = ["192.168.180.2", "1.1.1.1"]
+
+lab_hosts = {
+  "k3s-master"   = "192.168.1.51"
+  "k3s-worker-1" = "192.168.1.52"
+  "k3s-worker-2" = "192.168.1.53"
+  "monitoring"   = "192.168.1.54"
+  "k3s-worker-3" = "192.168.1.55"
+}

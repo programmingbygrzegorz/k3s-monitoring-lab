@@ -1,0 +1,46 @@
+#cloud-config
+# Autoinstall Ubuntu Server – szablon wypełniany przez Packera (k3s-node.pkr.hcl).
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: pl
+  timezone: Europe/Warsaw
+
+  identity:
+    hostname: ${node_name}
+    username: ${username}
+    password: "${password_hash}"
+
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  # Stały adres od pierwszego uruchomienia – bez DHCP i bez późniejszej edycji Netplanu
+  network:
+    version: 2
+    ethernets:
+      lan:
+        match:
+          macaddress: "${node_mac}"
+        set-name: ${iface}
+        dhcp4: false
+        addresses: [${node_ip}/${prefix}]
+        routes:
+          - to: default
+            via: ${gateway}
+        nameservers:
+          addresses: [${join(", ", dns)}]
+
+  storage:
+    layout:
+      name: direct
+
+  packages:
+    - open-vm-tools
+    - git
+
+  late-commands:
+    # Cloud-init nie zmienia później nazwy hosta ani sieci
+    - "echo 'preserve_hostname: true' > /target/etc/cloud/cloud.cfg.d/99-hostname.cfg"
+    - "echo 'network: {config: disabled}' > /target/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
