@@ -10,6 +10,7 @@ k3s-master ansible_host=192.168.1.130 bootstrap_static_ip=192.168.1.51
 [k3s_agents]
 k3s-worker-1 ansible_host=192.168.1.131 bootstrap_static_ip=192.168.1.52
 k3s-worker-2 ansible_host=192.168.1.132 bootstrap_static_ip=192.168.1.53
+# k3s-worker-3 ansible_host=192.168.1.134 bootstrap_static_ip=192.168.1.55
 
 [monitoring_vm]
 monitoring ansible_host=192.168.1.133 bootstrap_static_ip=192.168.1.54

@@ -51,6 +51,7 @@ flowchart LR
 | k3s-master | węzeł sterujący (control plane) | 2 | 4 GB | 40 GB |
 | k3s-worker-1 | węzeł roboczy | 2 | 6 GB | 40 GB |
 | k3s-worker-2 | węzeł roboczy | 2 | 6 GB | 40 GB |
+| k3s-worker-3 | węzeł roboczy (opcjonalny, `WORKER3_IP` w `lab.env`) | 2 | 6 GB | 40 GB |
 | monitoring | zewnętrzny monitoring (Docker) | 2 | 4 GB | 40 GB |
 
 System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMware Workstation

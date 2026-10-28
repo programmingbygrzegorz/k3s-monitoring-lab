@@ -21,7 +21,12 @@ Co ustawia skrypt:
 ```bash
 sudo ./scripts/02-install-worker.sh 192.168.1.52   # na k3s-worker-1
 sudo ./scripts/02-install-worker.sh 192.168.1.53   # na k3s-worker-2
+sudo ./scripts/02-install-worker.sh 192.168.1.55   # na k3s-worker-3 (opcjonalnie)
 ```
+
+Trzeci worker jest opcjonalny. Jeśli go dodajesz, ustaw `WORKER3_IP` w `lab.env` na **wszystkich**
+maszynach i uruchom na nich ponownie `00-prepare-node.sh` – dopisze nowy węzeł do `/etc/hosts`
+i do reguł firewalla. Skrypt `03-post-install.sh` poczeka wtedy na 4 węzły.
 
 ## Kontrola
 

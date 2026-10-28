@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Przygotowanie maszyny wirtualnej: nazwa hosta, /etc/hosts, aktualizacje, swap, firewall.
 # Użycie (na każdej maszynie): sudo ./scripts/00-prepare-node.sh <nazwa-hosta>
-# Nazwy hostów: k3s-master, k3s-worker-1, k3s-worker-2, monitoring
+# Nazwy hostów: k3s-master, k3s-worker-1, k3s-worker-2, (opcjonalnie k3s-worker-3), monitoring
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
@@ -20,6 +20,9 @@ ${WORKER1_IP:?} k3s-worker-1 # k3s-lab
 ${WORKER2_IP:?} k3s-worker-2 # k3s-lab
 ${MONITORING_IP:?} monitoring # k3s-lab
 HOSTS
+if [[ -n "${WORKER3_IP:-}" ]]; then
+  echo "${WORKER3_IP} k3s-worker-3 # k3s-lab" >> /etc/hosts
+fi
 
 log "Aktualizuję system i instaluję narzędzia"
 export DEBIAN_FRONTEND=noninteractive
@@ -48,7 +51,7 @@ if [[ "${NEW_HOSTNAME}" == "monitoring" ]]; then
   ufw allow from "${ADMIN_CIDR}" to any port 3001 proto tcp comment 'Uptime Kuma'
 else
   # Pełna komunikacja między węzłami klastra
-  for ip in "${MASTER_IP}" "${WORKER1_IP}" "${WORKER2_IP}"; do
+  for ip in "${MASTER_IP}" "${WORKER1_IP}" "${WORKER2_IP}" ${WORKER3_IP:+"${WORKER3_IP}"}; do
     ufw allow from "${ip}" comment 'węzeł k3s'
   done
   # Sieci podów i usług k3s (domyślne zakresy)
