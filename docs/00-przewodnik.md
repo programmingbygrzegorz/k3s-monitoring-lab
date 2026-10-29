@@ -22,6 +22,7 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 | Etap 3 – monitoring w klastrze | Prometheus, Alertmanager, Grafana, aplikacja demo | – | [docs/03](03-monitoring.md) |
 | Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
 | Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, alerty | – | [docs/05](05-scenariusze-awarii.md) |
+| Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
 
 Etapy 3–5 są na razie opisane w osobnych plikach; kroki w tym przewodniku zostaną dopisane po
 ich przejściu. Problemy z każdego etapu: [Najczęstsze problemy](#najczęstsze-problemy) i
