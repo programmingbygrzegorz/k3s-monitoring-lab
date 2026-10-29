@@ -117,6 +117,8 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 
 **Cała budowa krok po kroku, z każdym poleceniem do wpisania:
 [docs/00-przewodnik.md](docs/00-przewodnik.md).** Szczegóły poszczególnych etapów: [docs/](docs/).
+Problemy, które pojawiły się przy budowie, z diagnozą i rozwiązaniem:
+[docs/08-problemy-administratora.md](docs/08-problemy-administratora.md).
 
 ```bash
 # Na każdej maszynie

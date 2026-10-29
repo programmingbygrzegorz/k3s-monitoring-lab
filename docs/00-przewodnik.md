@@ -301,6 +301,9 @@ pipx install ansible-lint
 ansible --version
 ```
 
+Pierwszy raz z Ansible? Czym są pipx, kolekcje i ansible-lint – wyjaśnia
+[docs/06 – Narzędzia](06-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
+
 ### Krok 16. Klucz SSH dla Ansible
 
 🐧 monitoring:
@@ -497,6 +500,9 @@ Szczegóły: [docs/02-instalacja-k3s.md](02-instalacja-k3s.md).
 - Etap 5 – scenariusze awarii: [docs/05-scenariusze-awarii.md](05-scenariusze-awarii.md)
 
 ## Najczęstsze problemy
+
+Szerszy opis każdego problemu – przyczyna, diagnoza i wnioski:
+[docs/08-problemy-administratora.md](08-problemy-administratora.md).
 
 | Objaw | Przyczyna | Rozwiązanie |
 |---|---|---|

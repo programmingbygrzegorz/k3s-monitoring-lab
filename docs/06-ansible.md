@@ -20,6 +20,99 @@ to samo **na wszystkich maszynach naraz, z jednego miejsca**, a wynik jest zawsz
 - **Rola:** wielokrotnego użytku zestaw zadań, np. `common` przygotowuje każdy serwer.
 - **Idempotentność:** ponowne uruchomienie playbooka nie zmienia niczego, co już jest w porządku.
   Drugie uruchomienie powinno pokazać `changed=0`.
+- **Moduł:** gotowy kawałek kodu, który wie, jak zrobić jedną rzecz na maszynie (`apt`, `copy`, `ufw`).
+  Każde zadanie w roli to wywołanie modułu.
+- **Kolekcja:** paczka modułów, np. `community.general`. Pełna nazwa modułu to
+  `przestrzeń.kolekcja.moduł`, np. `community.general.timezone`.
+- **Become:** przejście na roota (`sudo`) na maszynie docelowej. Logowanie odbywa się kluczem,
+  ale `sudo` pyta o hasło – stąd `--ask-become-pass`.
+
+## Narzędzia: pipx, kolekcje i ansible-lint
+
+Jeśli instalujesz Ansible pierwszy raz, ta część wyjaśnia, co właściwie ląduje na dysku i dlaczego.
+
+### pipx – instalator programów w Pythonie
+
+Ansible i ansible-lint są napisane w Pythonie. Klasyczny `pip` instaluje biblioteki do jednego
+wspólnego miejsca, więc programy mogą sobie nawzajem psuć zależności – dlatego Ubuntu blokuje
+`pip install` poza środowiskiem wirtualnym. **pipx** instaluje każdy *program* do osobnego
+środowiska (*venv* – folder z własnym Pythonem i bibliotekami) i wystawia tylko jego polecenia:
+
+```
+~/.local/share/pipx/venvs/ansible/        ← ansible i jego biblioteki
+~/.local/share/pipx/venvs/ansible-lint/   ← ansible-lint i jego biblioteki (osobna kopia ansible-core)
+~/.local/bin/ansible, ansible-lint, ...   ← skróty do poleceń (pipx ensurepath dodaje je do PATH)
+```
+
+| Polecenie | Co robi |
+|---|---|
+| `pipx install --include-deps ansible` | instaluje Ansible; `--include-deps` wystawia też polecenia zależności (`ansible-playbook`, `ansible-galaxy`) |
+| `pipx install ansible-lint` | instaluje lint w osobnym środowisku |
+| `pipx ensurepath` | dopisuje `~/.local/bin` do `PATH` – działa po ponownym zalogowaniu |
+| `pipx list` / `pipx upgrade ansible` / `pipx uninstall ansible` | lista, aktualizacja, usunięcie (bez śladów w systemie) |
+
+### Pakiet `ansible` a `ansible-core` i kolekcje
+
+| Pakiet | Zawartość |
+|---|---|
+| `ansible-core` | silnik i moduły `ansible.builtin.*` (`copy`, `apt`, `command`, `template`) |
+| `ansible` | `ansible-core` **plus ok. 80 popularnych kolekcji**, m.in. `community.general` |
+
+Rola `common` używa modułów spoza rdzenia (`community.general.timezone`, `community.general.ufw`),
+dlatego projekt wymienia je w `requirements.yml`.
+
+Przez osobne środowiska pipx kolekcje z pakietu `ansible` widzi tylko `ansible`. `ansible-lint`
+ma w swoim środowisku samo `ansible-core` i zgłasza:
+
+```
+couldn't resolve module/action 'community.general.timezone'
+```
+
+Rozwiązanie: zainstalować kolekcję do katalogu, który przeszukują **wszystkie** narzędzia Ansible:
+
+```bash
+ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections --force
+ansible-galaxy collection list community.general
+```
+
+| Część | Znaczenie |
+|---|---|
+| `ansible-galaxy` | pobiera kolekcje z Ansible Galaxy (katalog dodatków) |
+| `-r requirements.yml` | lista kolekcji z projektu |
+| `-p ~/.ansible/collections` | katalog docelowy wspólny dla wszystkich narzędzi |
+| `--force` | instaluje, nawet jeśli kolekcja jest już w innym miejscu |
+
+`collection list` pokaże kolekcję w dwóch miejscach – to nie przeszkadza, Ansible bierze pierwszą
+znalezioną. Jeśli instalacja zatrzyma się na już zainstalowanej zależności, `Ctrl+C` jest bezpieczne.
+
+### ansible-lint – korektor kodu
+
+*Lint* czyta kod i szuka błędów **bez uruchamiania go**. ansible-lint robi to dla playbooków i ról:
+
+| Rodzaj | Przykład | Skutek bez lintu |
+|---|---|---|
+| błędy | literówka w nazwie modułu, brak kolekcji, zła składnia YAML | playbook przerywa się w połowie, na żywych maszynach |
+| dobre praktyki | zadanie bez `name`, `command` bez `changed_when`, plik bez jawnych uprawnień | działa, ale nieprzewidywalnie lub nieidempotentnie |
+| styl | wcięcia, krótkie nazwy modułów (`apt` zamiast `ansible.builtin.apt`) | trudniej czytać i utrzymać |
+
+```bash
+ansible-lint site.yml playbooks roles
+```
+
+Dobry wynik: `Passed: 0 failure(s), 0 warning(s) ... profile 'production'`. Profile to coraz
+ostrzejsze zestawy reguł (`min` → `basic` → `moderate` → `safety` → `shared` → `production`).
+Ostrzeżenie *Directory expansion discovered N file(s)* to tylko informacja o liczbie znalezionych plików.
+
+### Lint, próba na sucho, uruchomienie
+
+| | `ansible-lint` | `ansible-playbook --check --diff` | `ansible-playbook` |
+|---|---|---|---|
+| łączy się z maszynami | nie – czyta pliki | tak, przez SSH | tak |
+| sprawdza | czy **kod** jest poprawny | co by się **zmieniło** na maszynach | – wykonuje zmiany |
+| kiedy | po każdej zmianie kodu | przed uruchomieniem | na końcu |
+
+Ta kolejność to standard pracy z Ansible. W repozytorium lint uruchamia się też automatycznie
+w GitHub Actions przy każdym `git push`.
 
 ## 1. Węzeł sterujący
 
@@ -28,9 +121,12 @@ Najprościej użyć maszyny `monitoring` (na Windowsie możesz też użyć WSL):
 ```bash
 sudo apt update && sudo apt install -y pipx
 pipx install --include-deps ansible
+pipx install ansible-lint
 pipx ensurepath && source ~/.bashrc
 ansible --version
 ```
+
+Co instalują te polecenia: [Narzędzia: pipx, kolekcje i ansible-lint](#narzędzia-pipx-kolekcje-i-ansible-lint).
 
 ## 2. Klucze SSH
 
