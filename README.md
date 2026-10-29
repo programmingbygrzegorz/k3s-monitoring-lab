@@ -162,7 +162,8 @@ ansible-galaxy collection install -r requirements.yml
 ansible-playbook site.yml --ask-become-pass
 ```
 
-Szczegóły: [docs/06-ansible.md](docs/06-ansible.md).
+Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Pierwszy raz z Ansible? Wprowadzenie:
+[docs/teoria-ansible.md](docs/teoria-ansible.md).
 
 ## Scenariusze awarii
 

@@ -13,6 +13,9 @@ to samo **na wszystkich maszynach naraz, z jednego miejsca**, a wynik jest zawsz
 
 ## Najważniejsze pojęcia
 
+> Pełne wprowadzenie – architektura, inventory, moduły, role, zmienne, handlery, idempotentność,
+> czytanie wyniku: [docs/teoria-ansible.md](teoria-ansible.md).
+
 - **Węzeł sterujący (control node):** maszyna, z której uruchamiasz Ansible. Na pozostałych maszynach
   nic nie instalujesz – Ansible łączy się z nimi przez SSH.
 - **Inventory:** lista maszyn podzielonych na grupy (`k3s_server`, `k3s_agents`, `monitoring_vm`).

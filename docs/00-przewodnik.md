@@ -301,8 +301,8 @@ pipx install ansible-lint
 ansible --version
 ```
 
-Pierwszy raz z Ansible? Czym są pipx, kolekcje i ansible-lint – wyjaśnia
-[docs/06 – Narzędzia](06-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
+Pierwszy raz z Ansible? Jak działa i z czego się składa – [docs/teoria-ansible.md](teoria-ansible.md);
+czym są pipx, kolekcje i ansible-lint – [docs/06 – Narzędzia](06-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
 
 ### Krok 16. Klucz SSH dla Ansible
 
