@@ -340,8 +340,21 @@ Ma wypisać nazwy maszyn bez pytania o hasło.
 
 ```bash
 cd ~/k3s-monitoring-lab && git pull && cd ansible
-ansible-galaxy collection install -r requirements.yml
+ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections --force
 ```
+
+Kolekcja `community.general` (moduły `timezone` i `ufw`) trafia do wspólnego katalogu
+`~/.ansible/collections`. pipx trzyma `ansible` i `ansible-lint` w osobnych środowiskach:
+pakiet `ansible` ma kolekcje w swoim, a `ansible-lint` widzi tylko wspólny katalog – bez `-p`
+lint zgłosi *couldn't resolve module/action 'community.general.timezone'*. `--force` instaluje
+kolekcję, nawet jeśli jest już w środowisku `ansible`. Sprawdzenie:
+
+```bash
+ansible-galaxy collection list community.general   # ścieżka /home/<użytkownik>/.ansible/collections
+```
+
+Jeśli instalacja zawiśnie na zależności (*Skipping ... already installed*), `Ctrl+C` jest
+bezpieczne – główna kolekcja jest już zainstalowana.
 
 ### Krok 19. Inventory
 
@@ -376,7 +389,18 @@ admin_cidr=192.168.180.0/24
 ```
 
 `inventory.ini` jest w `.gitignore` – Twoje adresy nie trafią do repozytorium.
+Masz trzeciego workera? Usuń `#` przed `k3s-worker-3`.
 `admin_cidr` musi być Twoją siecią: tylko z niej firewall wpuści SSH i `kubectl`.
+`iface` i `admin_cidr` muszą być w inventory – bez nich playbook przerwie się na brakującej zmiennej.
+
+Sprawdzenie, czy Ansible czyta zmienne (cała wiadomość w cudzysłowie – spacja bez niego
+dzieli argumenty):
+
+```bash
+ansible all -m debug -a 'msg="{{ admin_cidr }} {{ iface }}"'
+```
+
+Każda maszyna: `"msg": "192.168.180.0/24 ens33"`.
 
 ### Krok 20. Połączenie i jakość kodu
 
@@ -386,6 +410,10 @@ admin_cidr=192.168.180.0/24
 ansible all -m ping                       # każda maszyna: "ping": "pong"
 ansible-lint site.yml playbooks roles     # kontrola playbooków i ról
 ```
+
+`ping` w Ansible to nie ICMP: łączy się przez SSH kluczem, uruchamia Pythona na maszynie
+i odsyła `pong`. Lint powinien skończyć się `Passed: 0 failure(s), 0 warning(s)`;
+ostrzeżenie *Directory expansion discovered ... file(s)* to tylko informacja.
 
 ### Krok 21. Próba na sucho
 
@@ -397,6 +425,22 @@ ansible-playbook playbooks/prepare.yml --check --diff --ask-become-pass
 
 `--check` niczego nie zmienia, `--diff` pokazuje różnice, `--ask-become-pass` pyta raz o hasło
 `sudo`. Po Etapie 1 powinno być głównie `ok`.
+
+Na pytanie `BECOME password:` wpisz hasło użytkownika do `sudo` (nic się nie wyświetla).
+SSH działa kluczem, ale `sudo` nadal wymaga hasła.
+
+Jak czytać wynik:
+
+| Wynik | Znaczenie |
+|---|---|
+| `ok` | już jest dobrze, Ansible nic nie zmienia |
+| `changed` | Ansible zmieniłby to (w `--check` tylko pokazuje); `--diff` wypisuje różnice w plikach |
+| `skipping` | zadanie nie dotyczy tej maszyny (np. porty 3000/3001 tylko na `monitoring`) |
+| `failed` / `unreachable` | błąd – patrz *Najczęstsze problemy* |
+
+Po Etapie 1 typowe `changed` to blok w `/etc/hosts` (zastępuje wpisy ze skryptu) i reguły ufw
+(Ansible dodaje je z komentarzem; ufw nie tworzy duplikatów). Ważne jest `failed=0`
+i `unreachable=0` w `PLAY RECAP`.
 
 > Ubuntu 25.10 i nowsze mają domyślnie **sudo-rs** (`sudo --version` pokazuje `sudo-rs`).
 > Ansible nie rozpoznaje jego pytania o hasło, dlatego `ansible.cfg` ustawia

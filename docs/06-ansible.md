@@ -52,8 +52,11 @@ logowanie hasłem przez SSH (`ssh_disable_password` w `group_vars/all.yml`).
 cd k3s-monitoring-lab/ansible
 cp inventory.ini.example inventory.ini
 nano inventory.ini              # adresy IP, użytkownik SSH, klucz, iface, admin_cidr
-ansible-galaxy collection install -r requirements.yml
+ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections --force
 ```
+
+`-p ~/.ansible/collections` instaluje kolekcję do katalogu wspólnego dla wszystkich narzędzi –
+inaczej `ansible-lint` (osobne środowisko pipx) nie znajdzie modułów `community.general`.
 
 Sprawdź połączenie ze wszystkimi maszynami:
 
