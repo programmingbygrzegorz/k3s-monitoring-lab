@@ -26,7 +26,8 @@
       ansible.builtin.command: k3s kubectl label node {{ item }} node-role.kubernetes.io/worker=worker --overwrite
       loop: "{{ groups['k3s_agents'] }}"
       register: label_result
-      changed_when: "'labeled' in label_result.stdout"
+      # Bez zmian kubectl wypisuje "node/... not labeled" – samo 'labeled' pasowałoby też wtedy.
+      changed_when: "'not labeled' not in label_result.stdout"
 
     - name: Pokaż stan klastra
       ansible.builtin.command: k3s kubectl get nodes -o wide
