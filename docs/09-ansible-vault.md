@@ -15,6 +15,7 @@ hasło w pliku **zaszyfrowanym** przez Ansible Vault – najpierw ręcznie, krok
 6. [Dobre praktyki i bezpieczeństwo](#6-dobre-praktyki-i-bezpieczeństwo)
 7. [Najczęstsze problemy](#7-najczęstsze-problemy)
 8. [Vault a rozwiązania produkcyjne](#8-vault-a-rozwiązania-produkcyjne)
+9. [Co chroni sejf i jak wyglądają hasła w firmie](#9-co-chroni-sejf-i-jak-wyglądają-hasła-w-firmie)
 
 ---
 
@@ -254,6 +255,69 @@ Ansible Vault to pierwszy stopień. Porównanie sposobów na hasło sudo w autom
 
 W praktyce te sposoby się łączy – np. AWX pobiera hasło do vaulta z menedżera sekretów,
 a playbooki z repozytorium odszyfrowują nim pliki vault.
+
+## 9. Co chroni sejf i jak wyglądają hasła w firmie
+
+### Co jest w sejfie
+
+Po konfiguracji w `vault.yml` jest **jedno hasło sudo, które działa na wszystkich maszynach** –
+wszystkie powstały z jednego szablonu z tym samym użytkownikiem i hasłem.
+
+**Nie ma tam kluczy SSH.** Do logowania służą klucze (`ansible`, `k3s-lab`), a logowanie hasłem
+przez SSH jest wyłączone – samo hasło sudo nikogo nie wpuści na maszynę. Żeby go użyć, trzeba
+najpierw być zalogowanym ([klucze SSH](teoria-ssh-klucze.md)).
+
+### Klucz do sejfu leży obok sejfu
+
+Na `monitoring` jest i `vault.yml`, i `~/.ansible/vault-pass`.
+
+| Sejf chroni przed | Sejf nie chroni przed |
+|---|---|
+| `vault.yml` przypadkiem w gicie, w kopii zapasowej, na pendrivie | przejęciem Twojego konta na `monitoring` – jest tam i sejf, i klucz |
+| podejrzeniem pliku w repozytorium lub edytorze | kimś z dostępem roota na `monitoring` |
+| hasłem zapisanym jawnym tekstem w jakimkolwiek pliku | |
+
+Kto przejmie węzeł sterujący, ma klucz SSH `ansible` i hasło sudo – czyli roota na wszystkich
+maszynach. To nie wada Vaulta, tylko natura automatyzacji: narzędzie, które zarządza
+wszystkim, ma dostęp do wszystkiego. Dlatego **węzeł sterujący chroni się jak sejf**, a na
+produkcji klucz do sejfu dostarcza osobna platforma (AWX, menedżer sekretów), a nie plik
+w katalogu domowym.
+
+### Jedno hasło na wszystkich maszynach – nie
+
+| Poziom | Jak | Ocena |
+|---|---|---|
+| ❌ jedno hasło na wszystkich maszynach | tak jest w labie (z szablonu) | jeden wyciek otwiera wszystko |
+| ✅ inne hasło na każdej maszynie | losowe hasła, każde zapisane w sejfie | wyciek dotyczy jednej maszyny |
+| ✅✅ brak lokalnych haseł do codziennej pracy | konta z centralnego katalogu, logowanie kluczem lub certyfikatem | standard w firmach |
+
+### Jak to wygląda w firmie
+
+- **Każdy administrator ma własne konto** – nie wspólne `admin`. Konta pochodzą z centralnego
+  katalogu (Active Directory, FreeIPA, LDAP), a serwery pobierają je przez SSSD. Ktoś odchodzi –
+  blokujesz jedno konto i traci dostęp do wszystkich serwerów naraz.
+- **Logowanie kluczem lub certyfikatem SSH**, hasło przez SSH wyłączone.
+- **Uprawnienia `sudo` nadaje się grupom** w katalogu, np. „grupa linux-admins może `sudo`
+  na serwerach produkcyjnych”.
+- **Lokalne konto awaryjne** (root lub admin) ma losowe hasło, **inne na każdej maszynie**,
+  przechowywane w sejfie i używane tylko w awarii (katalog nie działa, logowanie z konsoli).
+  Narzędzia zmieniają je regularnie – w świecie Windows **LAPS**, w Linuxie np. HashiCorp Vault.
+- **Automat (Ansible, CI) ma osobne konto** – bez wspólnego hasła, z wąskimi uprawnieniami.
+- **Każde użycie uprawnień zostawia ślad** – logi `sudo` i SSH trafiają do centralnego systemu.
+
+### Wspólne hasło w labie – świadome uproszczenie
+
+Wspólne hasło jest tu akceptowalne: maszyny są z jednego szablonu, a lab stoi w zamkniętej
+sieci NAT. Ćwiczenie według sztuki na później:
+
+1. playbook ustawia na każdej maszynie **losowe, inne** hasło sudo
+   (`ansible.builtin.user` z `password: "{{ ... | password_hash('sha512') }}"`),
+2. hasła zapisane są w osobnych plikach `host_vars/<maszyna>/vault.yml`,
+3. Ansible sam bierze z nich hasło właściwe dla danej maszyny (`ansible_become_password`
+   zdefiniowane per host ma pierwszeństwo przed `group_vars`).
+
+Alternatywa bez haseł: osobny użytkownik automatu z `sudo` bez hasła (`NOPASSWD` w
+`/etc/sudoers.d/`), logujący się wyłącznie kluczem i tylko z adresu `monitoring`.
 
 ## Co powiedzieć na rozmowie
 
