@@ -52,9 +52,11 @@ flowchart LR
 | k3s-worker-1 | węzeł roboczy | 2 | 6 GB | 40 GB |
 | k3s-worker-2 | węzeł roboczy | 2 | 6 GB | 40 GB |
 | k3s-worker-3 | węzeł roboczy (opcjonalny, `WORKER3_IP` w `lab.env`) | 2 | 6 GB | 40 GB |
-| monitoring | zewnętrzny monitoring (Docker) | 2 | 4 GB | 40 GB |
+| monitoring | zewnętrzny monitoring (Docker), węzeł sterujący Ansible | 2 | 4 GB | 40 GB |
+| gitlab | GitLab CE: repozytoria, CI/CD, rejestr obrazów (Etap 7, planowany) | 4 | 8 GB | 60 GB |
 
-System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMware Workstation
+System na wszystkich maszynach: **Ubuntu Server 24.04 LTS lub nowszy** (laboratorium działa na 26.04 –
+różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstation
 (działa też VirtualBox, Hyper-V lub Proxmox).
 
 ## Stos technologiczny
@@ -197,7 +199,8 @@ Opis krok po kroku: [docs/05-scenariusze-awarii.md](docs/05-scenariusze-awarii.m
 
 - [ ] Logi w Grafana Loki
 - [ ] Klaster HA – trzy węzły sterujące z wbudowanym etcd
-- [ ] GitOps z Argo CD
+- [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s), Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
+- [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, Argo CD
 - [ ] Instalacja monitoringu i aplikacji demo również w Ansible
 - [ ] Infrastruktura laboratorium w chmurze (Terraform, Azure)
 - [ ] Kopie zapasowe zasobów klastra w Velero

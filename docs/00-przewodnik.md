@@ -19,14 +19,48 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 | [Etap 0b – dostęp przez klucz SSH](#etap-0b--dostęp-przez-klucz-ssh) | logowanie z Windowsa kluczem, po nazwie | 5–8 | [klucze SSH](teoria-ssh-klucze.md) |
 | [Etap 1 – przygotowanie systemu](#etap-1--przygotowanie-systemu) | `/etc/hosts`, aktualizacje, swap wyłączony, SSH tylko kluczem, firewall | 9–14 | [00-prepare-node.sh](skrypty/00-prepare-node.md) |
 | [Etap 2 – klaster k3s przez Ansible](#etap-2--klaster-k3s-przez-ansible) | Ansible na `monitoring`, k3s: master + workery, opcjonalnie Vault | 15–25 | [docs/06](06-ansible.md), [teoria Ansible](teoria-ansible.md), [Vault](09-ansible-vault.md), [docs/02](02-instalacja-k3s.md) (skrypty) |
+| Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
 | Etap 3 – monitoring w klastrze | Prometheus, Alertmanager, Grafana, aplikacja demo | – | [docs/03](03-monitoring.md) |
 | Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
-| Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, alerty | – | [docs/05](05-scenariusze-awarii.md) |
-| Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
+| Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [docs/05](05-scenariusze-awarii.md) |
+| Etap 6 – zarządzanie przez GUI *(planowany)* | Headlamp (klaster k3s), Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | – |
+| Etap 7 – CI/CD i GitOps *(planowany)* | GitLab CE na maszynie `gitlab`, GitLab Runner, własny obraz Docker, Argo CD w k3s | – | [teoria GitOps poniżej](#etapy-6-i-7--plan) |
 
 Etapy 3–5 są na razie opisane w osobnych plikach; kroki w tym przewodniku zostaną dopisane po
 ich przejściu. Problemy z każdego etapu: [Najczęstsze problemy](#najczęstsze-problemy) i
 [docs/08](08-problemy-administratora.md).
+
+### Etapy 6 i 7 – plan
+
+**Etap 6 – zarządzanie przez GUI** (po awariach – najpierw diagnoza w terminalu, potem panele):
+
+| Narzędzie | Gdzie | Do czego | Nie dubluje |
+|---|---|---|---|
+| Headlamp | klaster k3s | obiekty klastra: pody, logi, skalowanie, YAML, zdarzenia | Grafany – ta pokazuje metryki w czasie |
+| Portainer | **tylko** `monitoring`, środowisko *Docker (local)* | kontenery Grafany, Uptime Kumy, Semaphore | Headlampa – bez środowiska Kubernetes i bez agenta w klastrze |
+| Semaphore UI | `monitoring` (Docker) | uruchamianie playbooków Ansible z GUI, historia, harmonogram | – |
+
+Na koniec etapu: powtórka 2–3 scenariuszy awarii w Headlampie, naprawa playbookiem z Semaphore
+i porównanie „terminal czy GUI”. Każde z tych narzędzi ma szerokie uprawnienia (token klastra,
+gniazdo Dockera, klucz SSH i hasło sudo), więc dostęp tylko z `admin_cidr`, osobne konta, RBAC.
+
+**Etap 7 – CI/CD i GitOps** (wszystko we własnym labie, GitHub zostaje portfolio):
+
+```
+gitlab (GitLab CE) ── repo z kodem + Dockerfile ── CI (.gitlab-ci.yml) ── GitLab Runner
+        │                                              │ buduje obraz → rejestr GitLaba
+        │                                              │ zmienia tag obrazu w repo z YAML
+        └── repo z manifestami Kubernetes ◀─────────────┘
+                     │
+                     ▼ pobiera i wyrównuje stan
+           Argo CD w k3s → wdraża nową wersję
+```
+
+1. maszyna `gitlab` z Packera, instalacja GitLab CE rolą Ansible,
+2. GitLab Runner (na `monitoring` albo jako pod w k3s),
+3. prosta aplikacja z `Dockerfile` i `.gitlab-ci.yml`,
+4. Argo CD przejmuje `kubernetes/demo-app/` (zamiast `05-deploy-demo.sh`) i nowe wersje aplikacji,
+5. GitLab wysyła repozytorium na GitHub (*push mirror*) – portfolio zostaje aktualne.
 
 ## Plan laboratorium
 
@@ -38,6 +72,7 @@ ich przejściu. Problemy z każdego etapu: [Najczęstsze problemy](#najczęstsze
 | k3s-worker-2 | węzeł roboczy | 2 | 6144 | 40 GB | 192.168.180.53 |
 | monitoring | monitoring zewnętrzny, węzeł sterujący Ansible | 2 | 4096 | 40 GB | 192.168.180.54 |
 | k3s-worker-3 | węzeł roboczy (opcjonalny) | 2 | 6144 | 40 GB | 192.168.180.55 |
+| gitlab | GitLab CE: repozytoria, CI/CD, rejestr obrazów *(Etap 7)* | 4 | 8192 | 60 GB | 192.168.180.56 |
 
 Adresy w przykładach dotyczą sieci NAT VMware `192.168.180.0/24`. Twoja sieć VMnet8 może mieć
 inny trzeci człon – sprawdzisz go w kroku 1 i wszędzie podstawisz własny.
