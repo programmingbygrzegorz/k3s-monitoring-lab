@@ -115,7 +115,8 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 
 ## Szybki start
 
-Szczegóły każdego kroku: [docs/](docs/).
+**Cała budowa krok po kroku, z każdym poleceniem do wpisania:
+[docs/00-przewodnik.md](docs/00-przewodnik.md).** Szczegóły poszczególnych etapów: [docs/](docs/).
 
 ```bash
 # Na każdej maszynie

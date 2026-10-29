@@ -1,5 +1,7 @@
 # 1. Maszyny wirtualne
 
+> Cała ścieżka od pustego VMware do klastra, z poleceniami w kolejności: [00-przewodnik.md](00-przewodnik.md).
+
 ## Wymagania sprzętowe
 
 Komputer z **minimum 32 GB RAM** (uruchomione maszyny zajmują razem 20 GB), procesorem z obsługą

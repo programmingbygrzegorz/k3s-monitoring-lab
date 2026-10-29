@@ -20,3 +20,7 @@ k3s_agents
 [all:vars]
 ansible_user=twoj-uzytkownik
 ansible_ssh_private_key_file=~/.ssh/k3s-lab
+# Interfejs sieciowy maszyn (sprawdź: ip a)
+iface=ens33
+# Sieć, z której łączysz się do laboratorium – tylko z niej firewall wpuści SSH i kubectl
+admin_cidr=192.168.1.0/24

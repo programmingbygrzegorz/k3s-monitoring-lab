@@ -51,8 +51,7 @@ logowanie hasłem przez SSH (`ssh_disable_password` w `group_vars/all.yml`).
 ```bash
 cd k3s-monitoring-lab/ansible
 cp inventory.ini.example inventory.ini
-nano inventory.ini              # adresy IP i użytkownik SSH
-nano group_vars/all.yml         # interfejs sieciowy, sieć administratora
+nano inventory.ini              # adresy IP, użytkownik SSH, klucz, iface, admin_cidr
 ansible-galaxy collection install -r requirements.yml
 ```
 
