@@ -154,6 +154,9 @@ ping -c 3 google.com       # internet działa
 
 ## Etap 0b – dostęp przez klucz SSH
 
+> Czym różni się klucz użytkownika od klucza hosta, co trafia do `authorized_keys`, a co do
+> `known_hosts`: [docs/teoria-ssh-klucze.md](teoria-ssh-klucze.md).
+
 ### Krok 5. Klucz na Twoim komputerze
 
 🪟 Windows:

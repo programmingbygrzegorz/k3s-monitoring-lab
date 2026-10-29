@@ -120,6 +120,9 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 Problemy, które pojawiły się przy budowie, z diagnozą i rozwiązaniem:
 [docs/08-problemy-administratora.md](docs/08-problemy-administratora.md).
 
+Teoria dla początkujących: [Ansible](docs/teoria-ansible.md) ·
+[klucze SSH – użytkownika i hosta](docs/teoria-ssh-klucze.md).
+
 ```bash
 # Na każdej maszynie
 git clone https://github.com/<twoj-login>/k3s-monitoring-lab.git && cd k3s-monitoring-lab
@@ -164,6 +167,7 @@ ansible-playbook site.yml --ask-become-pass
 
 Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Pierwszy raz z Ansible? Wprowadzenie:
 [docs/teoria-ansible.md](docs/teoria-ansible.md).
+
 
 ## Scenariusze awarii
 

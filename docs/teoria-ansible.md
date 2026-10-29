@@ -569,5 +569,6 @@ ansible-galaxy collection list
 ## Dalej
 
 - Praktyka krok po kroku: [docs/06-ansible.md](06-ansible.md) i Etap 2 w [przewodniku](00-przewodnik.md).
+- Klucze SSH, z których korzysta Ansible: [docs/teoria-ssh-klucze.md](teoria-ssh-klucze.md).
 - Problemy, które wystąpiły przy pracy z Ansible: [docs/08-problemy-administratora.md](08-problemy-administratora.md#automatyzacja-skrypty-i-ansible).
 - Oficjalna dokumentacja: <https://docs.ansible.com/>.

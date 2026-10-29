@@ -72,6 +72,8 @@ nano lab.env      # adresy IP, nazwa interfejsu, sieć administratora, hasło Gr
 
 ## Klucz SSH zamiast hasła
 
+> Jak działają klucze SSH (użytkownika i hosta): [teoria-ssh-klucze.md](teoria-ssh-klucze.md).
+
 Na swoim komputerze utwórz osobny klucz dla laboratorium:
 
 ```powershell
