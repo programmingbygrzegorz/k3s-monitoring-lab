@@ -24,7 +24,8 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 | Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
 | Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [docs/05](05-scenariusze-awarii.md) |
 | Etap 6 – zarządzanie przez GUI *(planowany)* | Headlamp (klaster k3s), Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | – |
-| Etap 7 – CI/CD i GitOps *(planowany)* | GitLab CE na maszynie `gitlab`, GitLab Runner, własny obraz Docker, Argo CD w k3s | – | [teoria GitOps poniżej](#etapy-6-i-7--plan) |
+| Etap 7 – CI/CD i GitOps *(planowany)* | GitLab CE na maszynie `gitlab`, GitLab Runner, własny obraz Docker, Argo CD w k3s | – | [plan poniżej](#etapy-6-i-7--plan) |
+| Etap 8 – AIOps *(planowany)* | Hermes Agent (Nous Research) jako asystent administratora: diagnoza po alercie, bez zmian bez zgody | – | [plan poniżej](#etap-8--plan) |
 
 Etapy 3–5 są na razie opisane w osobnych plikach; kroki w tym przewodniku zostaną dopisane po
 ich przejściu. Problemy z każdego etapu: [Najczęstsze problemy](#najczęstsze-problemy) i
@@ -61,6 +62,34 @@ gitlab (GitLab CE) ── repo z kodem + Dockerfile ── CI (.gitlab-ci.yml) �
 3. prosta aplikacja z `Dockerfile` i `.gitlab-ci.yml`,
 4. Argo CD przejmuje `kubernetes/demo-app/` (zamiast `05-deploy-demo.sh`) i nowe wersje aplikacji,
 5. GitLab wysyła repozytorium na GitHub (*push mirror*) – portfolio zostaje aktualne.
+
+### Etap 8 – plan
+
+**AIOps – asystent AI administratora** z [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+(open source, Nous Research), uruchomionym we własnym labie.
+
+```
+Alertmanager ── alert (webhook) ──▶ Hermes Agent ── tylko odczyt ──▶ kubectl describe / events / logs
+                                         │                         Prometheus (zapytania PromQL)
+                                         ▼
+                              podsumowanie: co się stało, prawdopodobna przyczyna, propozycja naprawy
+                                         │
+                                         ▼  zmiana tylko po Twojej akceptacji
+                              playbook w Semaphore / commit w GitLabie (Argo CD wdraża)
+```
+
+Zasady, bez których agent AI w infrastrukturze jest ryzykiem:
+
+- **Najmniejsze uprawnienia:** osobny ServiceAccount z RBAC tylko do odczytu, bez dostępu do
+  sekretów, bez klucza SSH z uprawnieniami sudo.
+- **Człowiek zatwierdza zmiany:** agent proponuje, a zmiana idzie istniejącą ścieżką
+  (Semaphore, commit + Argo CD) – z historią i możliwością wycofania.
+- **Dane:** świadomy wybór modelu – zewnętrzne API (logi i konfiguracja wychodzą z labu) albo
+  model lokalny (osobna maszyna, dużo RAM).
+- **Ślad:** każde polecenie agenta w logach.
+
+Test na koniec: scenariusze awarii z Etapu 5 – czy agent trafnie wskazuje przyczynę
+(np. `ImagePullBackOff`, `OOMKilled`) i czy jego propozycja naprawy jest poprawna.
 
 ## Plan laboratorium
 

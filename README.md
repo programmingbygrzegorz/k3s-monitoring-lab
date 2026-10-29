@@ -201,6 +201,7 @@ Opis krok po kroku: [docs/05-scenariusze-awarii.md](docs/05-scenariusze-awarii.m
 - [ ] Klaster HA – trzy węzły sterujące z wbudowanym etcd
 - [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s), Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
 - [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, Argo CD
+- [ ] Etap 8: AIOps – Hermes Agent jako asystent administratora (diagnoza po alercie, RBAC tylko do odczytu, zmiany po akceptacji)
 - [ ] Instalacja monitoringu i aplikacji demo również w Ansible
 - [ ] Infrastruktura laboratorium w chmurze (Terraform, Azure)
 - [ ] Kopie zapasowe zasobów klastra w Velero
