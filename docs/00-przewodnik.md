@@ -398,6 +398,10 @@ ansible-playbook playbooks/prepare.yml --check --diff --ask-become-pass
 `--check` niczego nie zmienia, `--diff` pokazuje różnice, `--ask-become-pass` pyta raz o hasło
 `sudo`. Po Etapie 1 powinno być głównie `ok`.
 
+> Ubuntu 25.10 i nowsze mają domyślnie **sudo-rs** (`sudo --version` pokazuje `sudo-rs`).
+> Ansible nie rozpoznaje jego pytania o hasło, dlatego `ansible.cfg` ustawia
+> `become_exe = sudo.ws` – klasyczne sudo, instalowane obok. Ty nadal używasz zwykłego `sudo`.
+
 ### Krok 22. Instalacja klastra
 
 🐧 monitoring:
@@ -463,3 +467,5 @@ Szczegóły: [docs/02-instalacja-k3s.md](02-instalacja-k3s.md).
 | test bez klucza pokazuje `(publickey,password)` po skrypcie | stara wersja skryptu (`99-lab.conf` przegrywa z `50-cloud-init.conf`) | `git pull` i ponownie krok 12 |
 | `packer build` pokazuje tylko `Usage:` | PowerShell rozbija `-var-file=plik.hcl` na kropce | argumenty w cudzysłowie: `"-var-file=plik.hcl"` |
 | `ansible` na Windowsie: `No module named 'fcntl'` | Ansible działa tylko na Linuksie | uruchamiaj z `monitoring` (krok 15) |
+| `ansible all -m debug -a "msg={{ a }} {{ b }}"`: *must resolve to a 'dict' not 'str'* | spacja dzieli argumenty na części | całą wiadomość w cudzysłowie: `-a 'msg="{{ a }} {{ b }}"'` |
+| `ansible-playbook`: *Timeout (12s) waiting for privilege escalation prompt* | sudo-rs w Ubuntu 25.10+ | `git pull` (`ansible.cfg` ma `become_exe = sudo.ws`) |

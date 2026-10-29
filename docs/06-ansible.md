@@ -112,6 +112,11 @@ Najpierw **próba na sucho** – Ansible pokaże, co by zmienił, nic nie zmieni
 ansible-playbook playbooks/prepare.yml --check --diff --ask-become-pass
 ```
 
+`--ask-become-pass` pyta raz o hasło `sudo` użytkownika na maszynach (SSH działa kluczem,
+ale `sudo` nadal wymaga hasła). Na Ubuntu 25.10+ domyślne jest sudo-rs, którego pytania o hasło
+Ansible nie rozpoznaje (*Timeout waiting for privilege escalation prompt*) – dlatego
+`ansible.cfg` ustawia `become_exe = sudo.ws`, czyli klasyczne sudo instalowane obok.
+
 Potem właściwe uruchomienie całego laboratorium:
 
 ```bash
