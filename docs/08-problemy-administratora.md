@@ -66,6 +66,28 @@ Tutaj jest szerszy kontekst.
 - **Wniosek:** szablon trzeba „uogólnić” przed klonowaniem – w świecie Windows to `sysprep`,
   w chmurze robi to cloud-init przy pierwszym starcie.
 
+### Wspólny klucz hosta wykryty dopiero po zbudowaniu klastra
+
+- **Objaw:** `ssh k3s-master` z nowej maszyny pyta o klucz i dodaje: *This host key is known by
+  the following other names/addresses* – ten sam klucz jest zapisany pod adresami innych maszyn.
+- **Przyczyna:** przy ręcznej konfiguracji klonów pominięto `ssh-keygen -A` – master, dwa workery
+  i `monitoring` miały klucz szablonu. Ansible tego nie zgłosił, bo miał `host_key_checking = False`.
+- **Diagnoza:** porównanie odcisków wszystkich maszyn z jednego miejsca:
+  ```bash
+  for ip in 51 52 53 54 55; do ssh-keyscan -t ed25519 192.168.180.$ip 2>/dev/null | ssh-keygen -lf -; done
+  ```
+- **Rozwiązanie:**
+  1. nowe klucze na klonach (master zachował swój):
+     `ansible k3s-worker-1,k3s-worker-2,monitoring -b -K -m shell -a "rm -f /etc/ssh/ssh_host_* && ssh-keygen -A && systemctl restart ssh"`,
+  2. stare wpisy usunięte z `known_hosts` (`ssh-keygen -R <nazwa lub adres>`) na każdym
+     komputerze, z którego się łączysz,
+  3. nowe odciski porównane z tym, co podaje sama maszyna
+     (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`, najlepiej w konsoli VMware), dopiero
+     potem `yes`,
+  4. w `ansible.cfg` włączone `host_key_checking = True` z `StrictHostKeyChecking=accept-new`.
+- **Wniosek:** wyłączone zabezpieczenie nie tylko otwiera lukę, ale też **ukrywa błędy**.
+  Ostrzeżenia SSH o kluczach czyta się, a nie odruchowo wpisuje `yes`.
+
 ### cloud-init przywraca stary adres i nazwę
 
 - **Objaw:** po restarcie maszyna wraca do adresu z DHCP albo do nazwy szablonu.

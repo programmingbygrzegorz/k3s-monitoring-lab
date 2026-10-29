@@ -455,8 +455,9 @@ Nasz `ansible/ansible.cfg`:
 | `roles_path = roles` | gdzie szukać ról |
 | `result_format = yaml` | czytelniejszy wynik |
 | `interpreter_python = auto_silent` | sam znajdź Pythona, bez ostrzeżeń |
-| `host_key_checking = False` | nie pytaj o klucz hosta przy pierwszym połączeniu (tylko lab!) |
+| `host_key_checking = True` | sprawdzaj klucze hostów w `~/.ssh/known_hosts` |
 | `pipelining = True` | mniej połączeń SSH na zadanie – szybciej |
+| `ssh_args = ... StrictHostKeyChecking=accept-new` | nową maszynę dopisz do `known_hosts`, zmieniony klucz odrzuć |
 | `become_exe = sudo.ws` | klasyczne sudo zamiast sudo-rs |
 
 Podgląd efektywnej konfiguracji: `ansible-config dump --only-changed`.

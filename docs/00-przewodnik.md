@@ -335,7 +335,19 @@ ssh monitoring "cat ~/.ssh/ansible.pub >> ~/.ssh/authorized_keys"
 for h in 192.168.180.51 192.168.180.52 192.168.180.53 192.168.180.54; do ssh -i ~/.ssh/ansible -o StrictHostKeyChecking=accept-new <użytkownik>@$h hostname; done
 ```
 
-Ma wypisać nazwy maszyn bez pytania o hasło.
+Ma wypisać nazwy maszyn bez pytania o hasło. `accept-new` zapisuje klucze hostów w
+`~/.ssh/known_hosts` – Ansible sprawdza je przy każdym połączeniu (`host_key_checking = True`).
+Jeśli dodajesz `k3s-worker-3`, dopisz `192.168.180.55` do pętli.
+
+Żeby na `monitoring` wystarczyło `ssh k3s-master` (jak na Windowsie), wskaż klucz w `~/.ssh/config`:
+
+```bash
+printf 'Host k3s-master k3s-worker-1 k3s-worker-2 k3s-worker-3 monitoring\n    User <użytkownik>\n    IdentityFile ~/.ssh/ansible\n    IdentitiesOnly yes\n' >> ~/.ssh/config
+chmod 600 ~/.ssh/config
+```
+
+Bez tego `ssh` szuka tylko kluczy o standardowych nazwach (`id_ed25519`) i kończy się
+*Connection closed* albo *Permission denied (publickey)*.
 
 ### Krok 18. Repozytorium i kolekcje
 
@@ -518,4 +530,7 @@ Szerszy opis każdego problemu – przyczyna, diagnoza i wnioski:
 | `packer build` pokazuje tylko `Usage:` | PowerShell rozbija `-var-file=plik.hcl` na kropce | argumenty w cudzysłowie: `"-var-file=plik.hcl"` |
 | `ansible` na Windowsie: `No module named 'fcntl'` | Ansible działa tylko na Linuksie | uruchamiaj z `monitoring` (krok 15) |
 | `ansible all -m debug -a "msg={{ a }} {{ b }}"`: *must resolve to a 'dict' not 'str'* | spacja dzieli argumenty na części | całą wiadomość w cudzysłowie: `-a 'msg="{{ a }} {{ b }}"'` |
+| `ssh`: *This host key is known by the following other names/addresses* | klony mają wspólny klucz hosta (pominięty `ssh-keygen -A` w kroku 4) | nowe klucze, `ssh-keygen -R`, porównanie odcisków – docs/08 |
+| `ssh k3s-master` na `monitoring`: *Connection closed* / *Permission denied (publickey)* | `ssh` nie zna klucza `~/.ssh/ansible` | `ssh -i ~/.ssh/ansible ...` albo `~/.ssh/config` na monitoring (krok 17) |
+| Ansible: *Host key verification failed* | klucz maszyny zmienił się (np. nowe klucze, odtworzona maszyna) | sprawdź odcisk, `ssh-keygen -R <adres>`, połącz się ponownie |
 | `ansible-playbook`: *Timeout (12s) waiting for privilege escalation prompt* | sudo-rs w Ubuntu 25.10+ | `git pull` (`ansible.cfg` ma `become_exe = sudo.ws`) |
