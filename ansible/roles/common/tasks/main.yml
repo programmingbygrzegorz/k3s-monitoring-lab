@@ -4,6 +4,14 @@
   ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
+# Wpisy dodane wcześniej skryptem 00-prepare-node.sh (z dopiskiem "# k3s-lab") zastępuje
+# blok poniżej – bez tego każda maszyna byłaby w /etc/hosts dwa razy.
+- name: Usuń wpisy dodane przez 00-prepare-node.sh
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '\s# k3s-lab$'
+    state: absent
+
 - name: Dodaj wszystkie maszyny laboratorium do /etc/hosts
   ansible.builtin.blockinfile:
     path: /etc/hosts
