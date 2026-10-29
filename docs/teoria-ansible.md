@@ -250,7 +250,7 @@ Zmienne pozwalają pisać role ogólne, a konkretne wartości trzymać osobno:
 ```yaml
 - name: Ustaw strefę czasową
   community.general.timezone:
-    name: "{{ timezone }}"         # wartość z group_vars/all.yml: Europe/Warsaw
+    name: "{{ timezone }}"         # wartość z group_vars/all/main.yml: Europe/Warsaw
 ```
 
 Gdzie można je zdefiniować (od **najniższego** do **najwyższego** priorytetu – wybrane):
@@ -259,7 +259,7 @@ Gdzie można je zdefiniować (od **najniższego** do **najwyższego** priorytetu
 |---|---|---|
 | 1 | `defaults/main.yml` roli | `roles/bootstrap/defaults/main.yml` |
 | 2 | zmienne grup w inventory (`[all:vars]`) | `iface`, `admin_cidr`, `ansible_user` |
-| 3 | `group_vars/all.yml` | `timezone`, `k3s_channel`, `enable_ufw` |
+| 3 | `group_vars/all/main.yml` | `timezone`, `k3s_channel`, `enable_ufw` |
 | 4 | `group_vars/<grupa>.yml` | – |
 | 5 | zmienne hosta w inventory / `host_vars/<host>.yml` | `ansible_host` |
 | 6 | facts (rozdział 9) | `ansible_distribution` |
@@ -267,7 +267,7 @@ Gdzie można je zdefiniować (od **najniższego** do **najwyższego** priorytetu
 | 8 | `set_fact`, `register` | `k3s_server_token` |
 | 9 | `-e` w wierszu poleceń (*extra vars*) | – zawsze wygrywa |
 
-Pułapka, która wystąpiła w tym labie: `admin_cidr` był i w inventory, i w `group_vars/all.yml`
+Pułapka, która wystąpiła w tym labie: `admin_cidr` był i w inventory, i w `group_vars/all/main.yml`
 – wygrywał `group_vars` (3 > 2), więc zmiana w inventory nic nie dawała. Dlatego wartości
 zależne od Twojej sieci są **tylko** w inventory. Sprawdzenie:
 
@@ -385,6 +385,7 @@ root – **become** to przejście na niego, domyślnie przez `sudo`.
 | w playu | `become: true` |
 | w wierszu poleceń | `-b` / `--become` |
 | hasło sudo | `-K` / `--ask-become-pass` – Ansible pyta raz, na starcie |
+| hasło bez wpisywania | `ansible_become_password` zaszyfrowane w Ansible Vault – [docs/09](09-ansible-vault.md) |
 | program | `become_exe` w `ansible.cfg` (w tym labie `sudo.ws` – patrz niżej) |
 
 Logowanie przez SSH odbywa się kluczem, ale `sudo` w Ubuntu i tak wymaga hasła – stąd
@@ -472,7 +473,7 @@ Podgląd efektywnej konfiguracji: `ansible-config dump --only-changed`.
 | `ansible-doc` | dokumentacja modułów offline |
 | `ansible-inventory` | podgląd inventory |
 | `ansible-config` | podgląd konfiguracji |
-| `ansible-vault` | szyfrowanie sekretów w plikach (hasła w repo) |
+| `ansible-vault` | szyfrowanie sekretów w plikach – [docs/09](09-ansible-vault.md) |
 | `ansible-lint` | kontrola jakości kodu |
 | `pipx` | instalacja Ansible w izolowanym środowisku |
 
@@ -504,7 +505,8 @@ ansible/
 ├── inventory.ini.example        # wzór listy maszyn (rozdz. 3) → kopiujesz do inventory.ini
 ├── inventory-bootstrap.ini.example  # inventory dla świeżych klonów (adresy z DHCP)
 ├── requirements.yml             # potrzebne kolekcje (rozdz. 4)
-├── group_vars/all.yml           # wspólne zmienne (rozdz. 8)
+├── group_vars/all/main.yml      # wspólne zmienne (rozdz. 8)
+├── group_vars/all/vault.yml     # hasło sudo zaszyfrowane Ansible Vault (docs/09, poza gitem)
 ├── site.yml                     # całe lab: prepare.yml + k3s.yml
 ├── playbooks/
 │   ├── bootstrap.yml            # klony → unikalne maszyny ze stałym IP

@@ -143,7 +143,7 @@ done
 ```
 
 Ścieżkę do klucza podaje `ansible_ssh_private_key_file` w inventory. Rola `common` wyłącza potem
-logowanie hasłem przez SSH (`ssh_disable_password` w `group_vars/all.yml`).
+logowanie hasłem przez SSH (`ssh_disable_password` w `group_vars/all/main.yml`).
 
 ## 3. Konfiguracja
 
@@ -230,6 +230,9 @@ podsumowanie `PLAY RECAP` – przy idempotentnych playbookach `changed` powinno 
 (poza krokiem wyłączania swapu, jeśli system go ponownie włączył).
 
 Dalsze kroki (monitoring, aplikacja demo) wykonujesz skryptami `04`–`06` jak dotychczas.
+
+Hasło sudo można zapisać w pliku zaszyfrowanym Ansible Vault – wtedy `--ask-become-pass`
+nie jest potrzebne: [docs/09-ansible-vault.md](09-ansible-vault.md).
 
 ## 6. Ćwiczenia
 

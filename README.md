@@ -89,7 +89,7 @@ System na wszystkich maszynach: **Ubuntu Server 24.04 LTS**. Wirtualizacja: VMwa
 ├── ansible/
 │   ├── site.yml                 # całe laboratorium jednym poleceniem
 │   ├── inventory.ini.example    # lista maszyn i grup
-│   ├── group_vars/all.yml       # wspólne ustawienia
+│   ├── group_vars/all/          # wspólne ustawienia (main.yml) i sekrety (vault.yml)
 │   ├── playbooks/               # prepare.yml, k3s.yml
 │   └── roles/                   # common, k3s_server, k3s_agent
 ├── scripts/
@@ -165,7 +165,7 @@ ansible-galaxy collection install -r requirements.yml
 ansible-playbook site.yml --ask-become-pass
 ```
 
-Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Pierwszy raz z Ansible? Wprowadzenie:
+Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Hasło sudo bez wpisywania (Ansible Vault): [docs/09-ansible-vault.md](docs/09-ansible-vault.md). Pierwszy raz z Ansible? Wprowadzenie:
 [docs/teoria-ansible.md](docs/teoria-ansible.md).
 
 

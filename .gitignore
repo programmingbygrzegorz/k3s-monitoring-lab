@@ -17,3 +17,6 @@ ansible/inventory-bootstrap.ini
 packer/*.pkrvars.hcl
 packer/output-*/
 packer_cache/
+
+# Ansible Vault: zaszyfrowane hasło sudo (docs/09-ansible-vault.md)
+ansible/group_vars/all/vault.yml

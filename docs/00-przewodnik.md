@@ -488,6 +488,11 @@ Wszystkie węzły klastra w stanie `Ready`.
 
 ### Krok 24. 📸 Snapshot wszystkich maszyn – `k3s-dziala`
 
+### Krok 25 (opcjonalny). Hasło sudo w Ansible Vault
+
+Żeby uruchamiać playbooki bez `--ask-become-pass`, zapisz hasło sudo w pliku zaszyfrowanym
+Ansible Vault – instrukcja krok po kroku: [docs/09-ansible-vault.md](09-ansible-vault.md).
+
 ### Wariant: Etap 2 skryptami (bez Ansible)
 
 🪟 Windows:

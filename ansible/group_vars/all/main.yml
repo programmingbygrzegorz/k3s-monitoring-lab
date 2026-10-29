@@ -1,6 +1,6 @@
 # Wspólne ustawienia laboratorium (odpowiednik lab.env dla Ansible).
 # Ustawienia zależne od Twojej sieci – iface i admin_cidr – są w inventory.ini ([all:vars]):
-# group_vars/all.yml ma wyższy priorytet niż inventory, więc tutaj by je nadpisywał.
+# group_vars/all/main.yml ma wyższy priorytet niż inventory, więc tutaj by je nadpisywał.
 
 timezone: Europe/Warsaw
 

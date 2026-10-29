@@ -8,5 +8,5 @@ bootstrap_dns:
   - 1.1.1.1
   - 8.8.8.8
 
-# Interfejs sieciowy (domyślnie ten sam co w group_vars/all.yml)
+# Interfejs sieciowy (domyślnie ten sam co w group_vars/all/main.yml)
 bootstrap_iface: "{{ iface | default('ens33') }}"

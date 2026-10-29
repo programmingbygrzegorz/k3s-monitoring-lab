@@ -193,7 +193,7 @@ Tutaj jest szerszy kontekst.
 ### Zmienna z inventory ignorowana
 
 - **Objaw:** w inventory jest `admin_cidr`, a playbook używa innej wartości.
-- **Przyczyna:** **pierwszeństwo zmiennych** – `group_vars/all.yml` wygrywa z `[all:vars]`
+- **Przyczyna:** **pierwszeństwo zmiennych** – `group_vars/all/main.yml` wygrywa z `[all:vars]`
   w inventory.
 - **Diagnoza:** `ansible all -m debug -a 'msg="{{ admin_cidr }}"'` – wartość, którą widzi Ansible.
 - **Rozwiązanie:** zmienne zależne od środowiska tylko w inventory, wspólne – w `group_vars`.
