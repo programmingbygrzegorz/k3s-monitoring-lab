@@ -126,7 +126,8 @@ Problemy, które pojawiły się przy budowie, z diagnozą i rozwiązaniem:
 
 Teoria dla początkujących: [Ansible](docs/teoria-ansible.md) ·
 [klucze SSH – użytkownika i hosta](docs/teoria-ssh-klucze.md) ·
-[Kubernetes i Helm](docs/teoria-kubernetes-helm.md).
+[Kubernetes i Helm](docs/teoria-kubernetes-helm.md) ·
+[monitoring: Prometheus, Grafana, Alertmanager](docs/teoria-monitoring.md).
 
 ```bash
 # Na każdej maszynie

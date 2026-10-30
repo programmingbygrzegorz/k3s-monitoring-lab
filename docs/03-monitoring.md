@@ -2,7 +2,8 @@
 
 Pierwszy raz z Kubernetesem lub Helmem? Pojęcia (chart, values, release, Traefik, CRD, operator)
 wyjaśnia [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md). Co robi każda linia pliku values –
-[docs/03a-values-monitoringu.md](03a-values-monitoringu.md).
+[docs/03a-values-monitoringu.md](03a-values-monitoringu.md). Co robi Prometheus, Grafana i Alertmanager –
+[docs/teoria-monitoring.md](teoria-monitoring.md).
 
 ## Co instalujemy
 

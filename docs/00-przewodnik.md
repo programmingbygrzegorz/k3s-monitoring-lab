@@ -20,7 +20,7 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 | [Etap 1 – przygotowanie systemu](#etap-1--przygotowanie-systemu) | `/etc/hosts`, aktualizacje, swap wyłączony, SSH tylko kluczem, firewall | 9–14 | [00-prepare-node.sh](skrypty/00-prepare-node.md) |
 | [Etap 2 – klaster k3s przez Ansible](#etap-2--klaster-k3s-przez-ansible) | Ansible na `monitoring`, k3s: master + workery, opcjonalnie Vault | 15–25 | [docs/06](06-ansible.md), [teoria Ansible](teoria-ansible.md), [Vault](09-ansible-vault.md), [docs/02](02-instalacja-k3s.md) (skrypty) |
 | Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
-| [Etap 3 – monitoring w klastrze](#etap-3--monitoring-w-klastrze) | Prometheus, Alertmanager, Grafana, aplikacja demo, Helm | 26–32 | [docs/03](03-monitoring.md), [plik values](03a-values-monitoringu.md), [teoria Kubernetes i Helm](teoria-kubernetes-helm.md) |
+| [Etap 3 – monitoring w klastrze](#etap-3--monitoring-w-klastrze) | Prometheus, Alertmanager, Grafana, aplikacja demo, Helm | 26–32 | [docs/03](03-monitoring.md), [plik values](03a-values-monitoringu.md), [teoria Kubernetes i Helm](teoria-kubernetes-helm.md), [teoria monitoringu](teoria-monitoring.md) |
 | Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
 | Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [docs/05](05-scenariusze-awarii.md) |
 | Etap 6 – zarządzanie przez GUI *(planowany)* | Headlamp (klaster k3s), Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | – |
