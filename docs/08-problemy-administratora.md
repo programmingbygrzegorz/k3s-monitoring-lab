@@ -176,6 +176,26 @@ Tutaj jest szerszy kontekst.
   Kubeconfig to klucz administratora klastra – uprawnienia `600`, nigdy w repozytorium.
   Teoria: [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md#6-kubeconfig--klucz-do-klastra).
 
+### ErrImagePull przez chwilowy błąd DNS
+
+- **Objaw:** w trakcie instalacji monitoringu jeden pod node-exportera (na worker-1) w stanie
+  `ErrImagePull`, potem `ImagePullBackOff`; pozostałe pody pobierają obrazy normalnie.
+- **Przyczyna:** w zdarzeniach poda:
+  `failed to do request: Get "https://cdn01.quay.io/...": dial tcp: lookup cdn01.quay.io: Try again`
+  – worker chwilowo nie rozwiązał nazwy serwera z obrazami. Prawdopodobnie wiele równoczesnych
+  zapytań DNS przez NAT VMware w chwili, gdy wszystkie węzły naraz pobierały obrazy.
+- **Diagnoza:** `kubectl get events -n monitoring --sort-by=.lastTimestamp` albo
+  `kubectl describe pod <nazwa>` – sekcja *Events*. Słowo `lookup` w błędzie oznacza DNS, a nie
+  zły obraz czy brak uprawnień (wtedy byłoby `not found`, `unauthorized` lub `manifest unknown`).
+- **Rozwiązanie:** żadne – Kubernetes sam ponawia pobieranie z rosnącymi przerwami
+  (`ImagePullBackOff` = „czekam i spróbuję znowu”). Pod wstał po kilkudziesięciu sekundach,
+  z `RESTARTS 0`. Gdyby błąd się utrzymywał: `resolvectl status` i
+  `resolvectl query cdn01.quay.io` na węźle, sprawdzenie bramy/DNS `.2` w VMnet8.
+- **Wniosek:** nie każdy czerwony status wymaga naprawy. Najpierw przeczytaj **przyczynę**
+  w zdarzeniach i odróżnij błąd przejściowy (sieć, DNS, limit zapytań) od trwałego (zła nazwa
+  obrazu, brak dostępu). W produkcji przed takimi błędami chroni lokalny rejestr obrazów albo
+  pamięć podręczna (mirror), żeby węzły nie zależały od internetu.
+
 ---
 
 ## Automatyzacja: skrypty i Ansible

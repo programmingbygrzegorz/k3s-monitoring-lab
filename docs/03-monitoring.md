@@ -267,6 +267,94 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --v
 Pierwsza instalacja trwa kilka minut – workery pobierają obrazy. W drugim terminalu pody
 przechodzą przez `Pending` → `ContainerCreating` → `Running`.
 
+**Przebieg w labie.** Helm od razu wypisał:
+
+```
+Release "monitoring" does not exist. Installing it now.
+```
+
+`upgrade --install` sprawdził, że release'u nie ma, więc go instaluje. Potem przez około 6 minut
+nic nie wypisywał – `--wait` czekał na pody.
+
+Stan po **19 sekundach** (`kubectl get pods -n monitoring -o wide`):
+
+```
+NAME                                                  READY   STATUS              NODE
+monitoring-grafana-99f8f8c4-h9zq9                     0/3     ContainerCreating   k3s-worker-3
+monitoring-kube-prometheus-operator-b5cf5ffdb-zv9jv   0/1     ContainerCreating   k3s-worker-2
+monitoring-kube-state-metrics-764584797b-qmnbx        0/1     ContainerCreating   k3s-worker-1
+monitoring-prometheus-node-exporter-499jd             0/1     ContainerCreating   k3s-worker-3
+monitoring-prometheus-node-exporter-56smq             0/1     ContainerCreating   k3s-worker-2
+monitoring-prometheus-node-exporter-brrrk             0/1     ErrImagePull        k3s-worker-1
+monitoring-prometheus-node-exporter-ndx8n             0/1     ContainerCreating   k3s-master
+```
+
+- node-exporter (DaemonSet) ma pod na **każdym** węźle, także na masterze – ma toleration na taint
+  mastera. Reszta tylko na workerach.
+- Prometheusa i Alertmanagera jeszcze nie ma – tworzy je **operator**, dopiero gdy sam wystartuje.
+- `ErrImagePull` na worker-1: w zdarzeniach (`kubectl get events -n monitoring --sort-by=.lastTimestamp`)
+  przyczyna `dial tcp: lookup cdn01.quay.io: Try again` – chwilowy błąd DNS. Kubernetes sam ponowił
+  pobieranie i pod wstał bez żadnej interwencji. Opis:
+  [docs/08](08-problemy-administratora.md#errimagepull-przez-chwilowy-błąd-dns).
+
+Koniec instalacji (około 6 minut):
+
+```
+$ helm list -n monitoring
+NAME        NAMESPACE   REVISION  STATUS    CHART                          APP VERSION
+monitoring  monitoring  1         deployed  kube-prometheus-stack-92.16.1  v0.94.2
+
+$ kubectl get pods -n monitoring -o wide
+NAME                                                     READY   STATUS    RESTARTS   NODE
+alertmanager-monitoring-kube-prometheus-alertmanager-0   2/2     Running   0          k3s-worker-1
+monitoring-grafana-99f8f8c4-h9zq9                        3/3     Running   0          k3s-worker-3
+monitoring-kube-prometheus-operator-b5cf5ffdb-zv9jv      1/1     Running   0          k3s-worker-2
+monitoring-kube-state-metrics-764584797b-qmnbx           1/1     Running   0          k3s-worker-1
+monitoring-prometheus-node-exporter-499jd                1/1     Running   0          k3s-worker-3
+monitoring-prometheus-node-exporter-56smq                1/1     Running   0          k3s-worker-2
+monitoring-prometheus-node-exporter-brrrk                1/1     Running   0          k3s-worker-1
+monitoring-prometheus-node-exporter-ndx8n                1/1     Running   0          k3s-master
+prometheus-monitoring-kube-prometheus-prometheus-0       2/2     Running   0          k3s-worker-2
+
+$ kubectl get statefulsets -n monitoring
+NAME                                                   READY
+alertmanager-monitoring-kube-prometheus-alertmanager   1/1
+prometheus-monitoring-kube-prometheus-prometheus       1/1
+```
+
+Jak to czytać:
+
+| Co widać | Znaczenie |
+|---|---|
+| `READY 3/3` przy Grafanie | pod ma 3 kontenery: Grafanę i dwa sidecary, które wczytują dashboardy i źródła danych z ConfigMap |
+| `2/2` przy Prometheusie i Alertmanagerze | główny program + `config-reloader`, który przeładowuje konfigurację po zmianie (np. nowym ServiceMonitorze) |
+| nazwy kończące się na `-0` | pody ze **StatefulSetu** – stała nazwa i kolejny numer, a nie losowa końcówka jak w Deploymencie. StatefulSety utworzył operator na podstawie obiektów `Prometheus` i `Alertmanager` |
+| `RESTARTS 0` | żaden kontener się nie wywrócił – także node-exporter na worker-1 po błędzie pobierania |
+
+W zdarzeniach zostały też ostrzeżenia `Readiness probe failed … connection refused` dla kilku
+podów. To normalne przy starcie: kubelet sprawdza gotowość, zanim program zdąży otworzyć port.
+Gdy pod jest `Running` i `READY` pełne, te ostrzeżenia można zignorować.
+
+Zasoby **po** instalacji (porównaj z krokiem 0):
+
+```
+NAME           CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)
+k3s-master     154m         7%       1888Mi          56%
+k3s-worker-1   112m         5%       792Mi           14%
+k3s-worker-2   52m          2%       1047Mi          19%
+k3s-worker-3   78m          3%       1332Mi          22%
+```
+
+| Węzeł | Pamięć przed → po | Co tam przybyło |
+|---|---|---|
+| master | 1319 → 1888 Mi | node-exporter, ale głównie **API server** – setki nowych obiektów, a operator, Prometheus i Grafana stale je odpytują |
+| worker-1 | 628 → 792 Mi | Alertmanager, kube-state-metrics |
+| worker-2 | 631 → 1047 Mi | **Prometheus**, operator |
+| worker-3 | 813 → 1332 Mi | **Grafana** |
+
+Pomiar zaraz po starcie – Prometheus będzie rósł, w miarę jak zbiera metryki. Master na 56% to
+sygnał, żeby go obserwować: control plane też kosztuje, gdy klaster rośnie.
+
 **4e. Usuń plik z hasłem:**
 
 ```bash
