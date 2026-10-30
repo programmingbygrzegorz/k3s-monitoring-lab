@@ -335,6 +335,56 @@ helm get values monitoring -n monitoring --all    # wszystko, łącznie z domyś
 Uwaga: `helm get values` pokazuje ustawienia **po** podstawieniu luk – czyli także hasło Grafany.
 Nie wklejaj tego wyniku w publiczne miejsca.
 
+### Co powstanie w klastrze – wynik z labu (chart 92.16.1)
+
+```
+$ helm show values prometheus-community/kube-prometheus-stack --version 92.16.1 | wc -l
+6340
+
+$ helm template monitoring prometheus-community/kube-prometheus-stack --version 92.16.1 \
+    -n monitoring -f monitoring/kube-prometheus-stack-values.yaml | grep '^kind:' | sort | uniq -c | sort -rn
+     30 kind: PrometheusRule
+     29 kind: ConfigMap
+      9 kind: ServiceMonitor
+      8 kind: ServiceAccount
+      7 kind: Service
+      5 kind: ClusterRoleBinding
+      5 kind: ClusterRole
+      3 kind: Secret
+      3 kind: Deployment
+      2 kind: Job
+      1 kind: ValidatingWebhookConfiguration
+      1 kind: RoleBinding
+      1 kind: Role
+      1 kind: Prometheus
+      1 kind: Pod
+      1 kind: MutatingWebhookConfiguration
+      1 kind: DaemonSet
+      1 kind: Alertmanager
+```
+
+6340 linii domyślnych ustawień – nasz plik zmienia z tego niecałe 80.
+
+| Obiekty | Co to jest |
+|---|---|
+| 30 × `PrometheusRule` | gotowe zestawy reguł alertów (węzły, pody, Deploymenty, dyski…) – bez tych wyłączonych w rozdziale 8 |
+| 29 × `ConfigMap` | głównie **dashboardy Grafany** zapisane jako JSON; sidecar Grafany wczytuje je automatycznie |
+| 9 × `ServiceMonitor` | co Prometheus ma zbierać: sam siebie, Alertmanagera, Grafanę, operator, kubelety, API server, CoreDNS, node-exporter, kube-state-metrics |
+| 8 × `ServiceAccount`, 5 × `ClusterRole` + `ClusterRoleBinding`, `Role` + `RoleBinding` | **tożsamości i uprawnienia (RBAC)** – np. Prometheus musi móc odczytać listę podów w całym klastrze |
+| 7 × `Service` | stałe adresy: Grafana, Prometheus, Alertmanager, operator, node-exporter, kube-state-metrics… |
+| 3 × `Secret` | m.in. hasło Grafany i konfiguracja Alertmanagera |
+| 3 × `Deployment` | **operator**, **Grafana**, **kube-state-metrics** |
+| 1 × `DaemonSet` | **node-exporter** – po jednym na każdym węźle |
+| 1 × `Prometheus`, 1 × `Alertmanager` | **obiekty typów z CRD** – nie Deploymenty. Operator czyta je i sam tworzy dla nich StatefulSety |
+| 2 × `Job`, `Validating…`/`MutatingWebhookConfiguration` | **webhook** operatora: sprawdza poprawność `PrometheusRule` przy `kubectl apply`; Joby tworzą dla niego certyfikat |
+| 1 × `Pod` | test Helma (`helm test monitoring`) – sprawdza, czy Grafana odpowiada; przy instalacji się nie uruchamia |
+
+Czego tu **nie widać**:
+- **CRD** – leżą w osobnym katalogu `crds/` chartu i `helm template` domyślnie ich nie
+  wypisuje. Jest ich 10: `helm show crds prometheus-community/kube-prometheus-stack --version 92.16.1 | grep -c '^kind: CustomResourceDefinition'`.
+- **StatefulSetów Prometheusa i Alertmanagera** – tworzy je dopiero operator, już w klastrze.
+  To pokazuje różnicę między Helmem (instaluje) a operatorem (zarządza na bieżąco).
+
 ## 11. Pytania, które mogą paść na rozmowie
 
 **Dlaczego nie edytujesz domyślnego `values.yaml` chartu, tylko masz własny plik?**
