@@ -25,6 +25,7 @@ w [docs/10](10-cwiczenia-kubectl.md).
 14. [Jak to się składa w Etapie 3](#14-jak-to-się-składa-w-etapie-3)
 15. [Słowniczek](#15-słowniczek)
 16. [Ściągawka poleceń Helm](#16-ściągawka-poleceń-helm)
+17. [Pytania, które mogą paść na rozmowie](#17-pytania-które-mogą-paść-na-rozmowie)
 
 ---
 
@@ -505,6 +506,172 @@ helm get values NAZWA -n NS                # z jakimi values zainstalowano
 helm rollback NAZWA 1 -n NS                # wróć do rewizji 1
 helm uninstall NAZWA -n NS                 # usuń wszystko, co założył release
 ```
+
+## 17. Pytania, które mogą paść na rozmowie
+
+Pytania z rozmów na stanowisko junior DevOps / administratora, z krótkimi odpowiedziami. Odpowiedź
+na rozmowie powinna mieć 2–4 zdania i – jeśli się da – przykład z labu („w moim labie…”).
+Nie ucz się ich na pamięć: zrozum i powiedz własnymi słowami.
+
+### Podstawy – pytania, które padają prawie zawsze
+
+**Czym jest pod, Deployment i Service?**
+Pod to najmniejsza jednostka – jeden lub kilka kontenerów ze wspólnym adresem IP. Deployment
+pilnuje, żeby działała określona liczba podów, i robi aktualizacje. Service daje grupie podów
+stały adres i nazwę DNS, bo pody zmieniają IP przy każdym restarcie.
+
+**Co się stanie, gdy usuniesz pod należący do Deploymentu?**
+Od razu powstanie nowy. ReplicaSet porównuje liczbę podów, która ma być, z tą, która jest,
+i wyrównuje różnicę. W labie nowy pod powstał w tej samej sekundzie ([docs/10](10-cwiczenia-kubectl.md), poziom 3).
+
+**Jakie znasz typy Service?**
+ClusterIP – adres widoczny tylko w klastrze (domyślny). NodePort – port 30000–32767 otwarty na
+każdym węźle. LoadBalancer – zewnętrzny adres IP, zwykle od chmury. W labie NodePort odpowiadał
+także na węzłach, na których nie było poda.
+
+**Czym różni się Deployment od DaemonSetu?**
+Deployment uruchamia N kopii gdziekolwiek. DaemonSet – po jednej kopii na każdym węźle; używa się
+go do agentów, które muszą być wszędzie, np. node-exporter albo zbieracz logów.
+
+**Do czego służy namespace?**
+To „folder” na obiekty: oddziela aplikacje, zespoły lub środowiska. Można na nim ustawić limity
+zasobów i uprawnienia. W labie: `kube-system`, `monitoring`, `demo`.
+
+**Czym jest master (control plane), a czym worker?**
+Control plane to mózg klastra: API server, scheduler, controller-manager i baza danych stanu
+(etcd, w k3s domyślnie SQLite). Workery uruchamiają aplikacje – działa na nich kubelet i runtime
+kontenerów.
+
+### Diagnostyka – sprawdzają, czy umiesz szukać przyczyny
+
+**Pod nie startuje. Co robisz?**
+`kubectl get pods` – status. `kubectl describe pod` – zdarzenia (Events) na dole zwykle mówią
+dlaczego. `kubectl logs`, a gdy kontener się restartował – `kubectl logs --previous`. Do tego
+`kubectl get events --sort-by=.lastTimestamp`.
+
+**Co znaczą ImagePullBackOff, CrashLoopBackOff, OOMKilled, Pending?**
+ImagePullBackOff – nie da się pobrać obrazu (zła nazwa, tag, brak dostępu). CrashLoopBackOff –
+kontener startuje i od razu kończy się błędem, w kółko. OOMKilled – przekroczył limit pamięci
+i został zabity. Pending – scheduler nie znalazł węzła: za mało zasobów, taint albo brak wolumenu.
+
+**Aplikacja działa, ale Service nie odpowiada. Gdzie szukasz?**
+Sprawdzam, czy selektor Service'u pasuje do etykiet podów: `kubectl get endpointslices` – jeśli
+lista adresów jest pusta, selektor nie pasuje albo pody nie są gotowe (readiness probe). Potem
+port docelowy (`targetPort`) i firewall na węzłach.
+
+**Czym różnią się requests od limits?**
+Requests to rezerwacja – scheduler stawia pod tylko tam, gdzie tyle jest wolne. Limits to sufit –
+po przekroczeniu limitu pamięci kontener zostaje zabity (OOMKilled), a CPU jest dławione.
+
+**Czym różni się liveness probe od readiness probe?**
+Liveness – „czy żyjesz?”; gdy nie odpowiada, kubelet restartuje kontener. Readiness – „czy jesteś
+gotowy przyjmować ruch?”; gdy nie, pod znika z Service'u, ale nie jest restartowany.
+
+### Węzły i harmonogram
+
+**Czym jest taint i toleration?**
+Taint na węźle mówi schedulerowi „nie stawiaj tu podów”. Toleration w podzie to przepustka na
+ten zakaz. Mój master ma taint `NoSchedule`, więc aplikacje działają tylko na workerach,
+a node-exporter (DaemonSet z toleration) działa wszędzie.
+
+**Jak bezpiecznie wyłączyć węzeł do konserwacji?**
+`kubectl drain` – oznacza węzeł jako niedostępny i przenosi pody na inne węzły. Po konserwacji
+`kubectl uncordon`. Ćwiczyłem to w labie ([docs/10](10-cwiczenia-kubectl.md), poziom 7).
+
+**Jak zaktualizować aplikację bez przerwy w działaniu?**
+Rolling update: Deployment wymienia pody po kolei, więc część zawsze działa. Gdy nowa wersja jest
+zepsuta, `kubectl rollout undo`. W labie podałem nieistniejący obraz – stare pody działały dalej.
+
+### Helm
+
+**Czym jest Helm i po co go używać?**
+To menedżer paczek dla Kubernetesa. Zamiast setek plików YAML instaluję jedną paczkę (chart)
+i podaję tylko swoje ustawienia (values). Helm pamięta instalację, więc mogę ją zaktualizować,
+cofnąć albo usunąć jednym poleceniem.
+
+**Czym są chart, values i release?**
+Chart – paczka: szablony YAML z lukami i domyślne ustawienia. Values – moje ustawienia, które
+wypełniają luki. Release – zainstalowana kopia chartu pod nazwą; ten sam chart mogę zainstalować
+kilka razy jako różne release'y.
+
+**Czym różni się `helm install` od `helm upgrade --install`?**
+`install` zwraca błąd, gdy release już istnieje. `upgrade --install` instaluje, a jeśli release
+istnieje – aktualizuje. Dzięki temu polecenie jest idempotentne i nadaje się do skryptów i CI/CD.
+
+**Jak cofnąć nieudaną aktualizację w Helmie?**
+`helm history NAZWA` – lista rewizji, potem `helm rollback NAZWA <numer>`. Rollback tworzy nową
+rewizję z ustawieniami starej.
+
+**Czym różni się CHART VERSION od APP VERSION?**
+Chart version to wersja paczki (szablonów i ustawień), app version – wersja aplikacji w środku.
+Przy aktualizacji chartu aplikacja nie musi się zmienić i odwrotnie.
+
+**Jak sprawdzić, co Helm zainstaluje, zanim to zrobisz?**
+`helm template` – pokazuje gotowy YAML bez instalacji. `helm show values` – domyślne ustawienia
+chartu. `helm upgrade --install --dry-run` – symulacja na klastrze.
+
+**Gdzie Helm przechowuje informacje o release'ach?**
+W klastrze, jako Secrety typu `helm.sh/release.v1` w namespace release'u. Helm 3 i nowsze nie
+mają już serwera po stronie klastra (Tiller z Helma 2 usunięto).
+
+### Ruch z zewnątrz
+
+**Czym różni się Ingress od Service typu NodePort?**
+NodePort otwiera osobny port na każdym węźle dla każdej aplikacji. Ingress to jedno wejście
+(80/443), które po nazwie domeny lub ścieżce kieruje ruch do właściwej aplikacji, i może
+obsługiwać HTTPS.
+
+**Czym jest Ingress Controller? Dlaczego sam obiekt Ingress nie wystarcza?**
+Ingress to tylko reguła. Ingress Controller to program, który przyjmuje ruch i wykonuje reguły –
+np. Traefik (domyślny w k3s) albo ingress-nginx. Bez kontrolera reguły Ingress nic nie robią.
+
+### Rozszerzanie Kubernetesa
+
+**Czym jest CRD?**
+Custom Resource Definition – dodaje do API Kubernetesa nowy typ obiektu. Potem można tworzyć
+obiekty tego typu przez YAML i `kubectl apply`, tak jak Deploymenty.
+
+**Czym jest operator?**
+To CRD plus program (kontroler), który czyta obiekty nowego typu i doprowadza klaster do opisanego
+stanu. Przykład z labu: prometheus-operator widzi obiekt ServiceMonitor i sam dopisuje aplikację
+do konfiguracji Prometheusa.
+
+### Dostęp i bezpieczeństwo
+
+**Czym jest kubeconfig i jak go chronić?**
+Plik z adresem API klastra i certyfikatem użytkownika. Kto go ma, ma dostęp do klastra, więc
+uprawnienia `600` i nigdy w repozytorium. W firmie każdy użytkownik ma własny kubeconfig
+z ograniczonymi uprawnieniami (RBAC), a nie certyfikat administratora.
+
+**Czym jest RBAC?**
+Role-Based Access Control – uprawnienia w Kubernetesie. Role (lub ClusterRole) mówi, co wolno
+robić z jakimi obiektami, a RoleBinding przypisuje ją użytkownikowi lub ServiceAccountowi.
+Zasada najmniejszych uprawnień: tylko to, co potrzebne.
+
+**Jak przechowywać hasła w Kubernetesie?**
+W obiektach Secret – ale to tylko base64, nie szyfrowanie. W produkcji: szyfrowanie Secretów
+w etcd, RBAC ograniczające odczyt i zewnętrzny sejf (np. Vault, Sealed Secrets, External
+Secrets). W labie hasło do Grafany jest w `lab.env`, który nie trafia do gita.
+
+### Pytania-pułapki
+
+**„Czy k3s to prawdziwy Kubernetes?”**
+Tak – to certyfikowana dystrybucja Kubernetesa (przechodzi testy zgodności CNCF). Jest lżejsza:
+jeden plik binarny, domyślnie SQLite zamiast etcd, wbudowane Traefik i metrics-server. Polecenia
+kubectl i manifesty są takie same jak w dużych klastrach.
+
+**„Co się stanie, gdy padnie master w twoim labie?”**
+Aplikacje na workerach działają dalej, ale nie da się nic zmienić: nie zadziała kubectl, nie
+powstaną nowe pody, a padnięty pod nie zostanie odtworzony. Dlatego w produkcji control plane ma
+3 węzły (HA). W labie jest jeden master – świadomie, dla prostoty.
+
+**„Dlaczego masz monitoring poza klastrem?”**
+Bo monitoring w klastrze pada razem z klastrem. Zewnętrzna maszyna i dead man's switch informują,
+że cały klaster przestał działać.
+
+**„Czy kubectl wystarczy, żeby zarządzać klastrem w firmie?”**
+Do diagnostyki tak, ale zmiany robi się deklaratywnie: pliki YAML lub charty w gicie i wdrożenie
+przez CI/CD albo GitOps (Argo CD). Wtedy każda zmiana ma historię i przegląd – to plan Etapu 7.
 
 ## Dalej
 
