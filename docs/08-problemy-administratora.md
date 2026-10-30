@@ -158,6 +158,24 @@ Tutaj jest szerszy kontekst.
 - **Wniosek:** najnowsza wersja systemu potrafi wyprzedzić narzędzia. W produkcji wybiera się
   wersje LTS i testuje aktualizacje na kopii.
 
+### kubectl działa, a Helm nie widzi klastra
+
+- **Objaw:** na masterze `kubectl get nodes` działa, a `helm list -A` kończy się błędem
+  `kubernetes cluster unreachable: Get "http://localhost:8080/version": ... connection refused`.
+- **Przyczyna:** `kubectl` na masterze to dowiązanie do programu k3s
+  (`/usr/local/bin/kubectl -> k3s`), który sam wie, że kubeconfig leży w
+  `/etc/rancher/k3s/k3s.yaml`. Helm to osobny program – szuka `~/.kube/config`, a gdy go nie ma,
+  próbuje starego domyślnego adresu `localhost:8080`, pod którym nic nie nasłuchuje.
+- **Diagnoza:** `ls -l ~/.kube/config /etc/rancher/k3s/k3s.yaml`, `echo $KUBECONFIG`,
+  `ls -l $(command -v kubectl)`.
+- **Rozwiązanie:** kopia kubeconfigu z uprawnieniami tylko dla właściciela:
+  `mkdir -p ~/.kube && install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config`.
+- **Przy okazji:** `/etc/rancher/k3s/k3s.yaml` ma w labie uprawnienia `644` – każdy użytkownik
+  mastera może go przeczytać i zostać administratorem klastra. Dlatego kubectl działał bez `sudo`.
+- **Wniosek:** to, że jedno narzędzie działa, nie znaczy, że drugie użyje tej samej konfiguracji.
+  Kubeconfig to klucz administratora klastra – uprawnienia `600`, nigdy w repozytorium.
+  Teoria: [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md#6-kubeconfig--klucz-do-klastra).
+
 ---
 
 ## Automatyzacja: skrypty i Ansible
