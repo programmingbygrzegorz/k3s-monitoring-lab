@@ -123,6 +123,8 @@ Problemy, które pojawiły się przy budowie, z diagnozą i rozwiązaniem:
 [docs/08-problemy-administratora.md](docs/08-problemy-administratora.md).
 
 Ćwiczenia z klastrem krok po kroku, ze zrzutami: [docs/10-cwiczenia-kubectl.md](docs/10-cwiczenia-kubectl.md).
+Ćwiczenia z monitoringu (Prometheus, Grafana, Alertmanager): [docs/11](docs/11-cwiczenia-monitoring.md),
+wykonanie ze zrzutami: [docs/11a](docs/11a-cwiczenia-monitoring-wykonanie.md).
 
 Teoria dla początkujących: [Ansible](docs/teoria-ansible.md) ·
 [klucze SSH – użytkownika i hosta](docs/teoria-ssh-klucze.md) ·
