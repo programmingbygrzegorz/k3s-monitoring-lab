@@ -20,7 +20,7 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 | [Etap 1 – przygotowanie systemu](#etap-1--przygotowanie-systemu) | `/etc/hosts`, aktualizacje, swap wyłączony, SSH tylko kluczem, firewall | 9–14 | [00-prepare-node.sh](skrypty/00-prepare-node.md) |
 | [Etap 2 – klaster k3s przez Ansible](#etap-2--klaster-k3s-przez-ansible) | Ansible na `monitoring`, k3s: master + workery, opcjonalnie Vault | 15–25 | [docs/06](06-ansible.md), [teoria Ansible](teoria-ansible.md), [Vault](09-ansible-vault.md), [docs/02](02-instalacja-k3s.md) (skrypty) |
 | Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
-| Etap 3 – monitoring w klastrze | Prometheus, Alertmanager, Grafana, aplikacja demo | – | [docs/03](03-monitoring.md), [plik values](03a-values-monitoringu.md), [teoria Kubernetes i Helm](teoria-kubernetes-helm.md) |
+| [Etap 3 – monitoring w klastrze](#etap-3--monitoring-w-klastrze) | Prometheus, Alertmanager, Grafana, aplikacja demo, Helm | 26–32 | [docs/03](03-monitoring.md), [plik values](03a-values-monitoringu.md), [teoria Kubernetes i Helm](teoria-kubernetes-helm.md) |
 | Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
 | Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [docs/05](05-scenariusze-awarii.md) |
 | Etap 6 – zarządzanie przez GUI *(planowany)* | Headlamp (klaster k3s), Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | – |
@@ -594,6 +594,26 @@ Szczegóły: [docs/02-instalacja-k3s.md](02-instalacja-k3s.md).
 
 ---
 
+## Etap 3 – monitoring w klastrze
+
+Prometheus, Alertmanager i Grafana z chartu Helm **kube-prometheus-stack** oraz aplikacja demo
+z własnymi alertami. Wszystkie polecenia na `k3s-master`. Każde polecenie z objaśnieniem
+i wynikami z labu: [docs/03-monitoring.md](03-monitoring.md#instalacja-ręczna-krok-po-kroku).
+Pojęcia: [teoria Kubernetes i Helm](teoria-kubernetes-helm.md), plik values linia po linii:
+[docs/03a](03a-values-monitoringu.md).
+
+| Krok | Co robisz |
+|---|---|
+| 26 | `git pull`, `kubectl top nodes` – zasoby workerów przed instalacją |
+| 27 | Helm: pobranie archiwum, sprawdzenie sumy SHA-256, `install` do `/usr/local/bin` |
+| 28 | `~/.kube/config` dla Helma (`install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config`), `helm list -A` |
+| 29 | `helm repo add`, `helm search repo`, podgląd: `helm show values`, `helm template` |
+| 30 | 📸 snapshot, `lab.env` → `envsubst` → `helm upgrade --install … --version 92.16.1 --wait` |
+| 31 | `kubectl apply` aplikacji demo i reguł alertów |
+| 32 | Grafana `:30300`, Prometheus `:30090` (Targets), Alertmanager `:30093`, podinfo `:30898`; 📸 snapshot |
+
+---
+
 ## Dalej
 
 - Etap 3 – monitoring w klastrze: [docs/03-monitoring.md](03-monitoring.md)
@@ -607,6 +627,8 @@ Szerszy opis każdego problemu – przyczyna, diagnoza i wnioski:
 
 | Objaw | Przyczyna | Rozwiązanie |
 |---|---|---|
+| `helm`: *cluster unreachable … localhost:8080* | Helm szuka `~/.kube/config`, a k3s trzyma kubeconfig w `/etc/rancher/k3s/k3s.yaml` | krok 28 – `install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config` |
+| `kubectl top nodes`: *Metrics API not available* | metrics-server zbiera pierwsze pomiary po starcie maszyn | odczekaj 1–2 minuty |
 | maszyna nie ma internetu po ustawieniu IP | adres z innej sieci niż VMnet8 albo zła brama | krok 1 – sieć i brama `.2` z VMnet8 |
 | brama `.2` niedostępna, kilka klonów | ten sam MAC na kilku maszynach | krok 3 – **Generate** MAC |
 | po restarcie wraca stary adres / nazwa | cloud-init nadpisuje sieć i nazwę albo zostały stare pliki Netplan | krok 4.2 i 4.4 |
