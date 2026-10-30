@@ -377,14 +377,50 @@ kubectl -n demo get pods -o wide
 | `rollout status` | czekaj, aż wszystkie 3 repliki podinfo będą gotowe |
 | `apply -f kubernetes/monitoring/` | ServiceMonitor (Prometheus zbiera metryki podinfo) i PrometheusRule (5 alertów labu) – obiekty typów z CRD, które obsługuje operator |
 
+Wynik w labie – po jednej replice na każdym workerze:
+
+```
+$ kubectl -n demo get pods -o wide
+NAME                      READY   STATUS    RESTARTS   IP           NODE
+podinfo-c9cdb7df5-5rqmf   1/1     Running   0          10.42.2.19   k3s-worker-1
+podinfo-c9cdb7df5-c99rj   1/1     Running   0          10.42.3.11   k3s-worker-3
+podinfo-c9cdb7df5-xcrnq   1/1     Running   0          10.42.1.15   k3s-worker-2
+```
+
 ### Krok 6. Sprawdzenie w przeglądarce
+
+Hasło do Grafany jest w `lab.env` **na masterze** (nie ma go na Windowsie – plik jest poza gitem):
+
+```bash
+grep GRAFANA_ADMIN_PASSWORD ~/k3s-monitoring-lab/lab.env
+```
+
+albo z klastra – Helm zapisał je w Secrecie:
+
+```bash
+kubectl get secret -n monitoring monitoring-grafana -o jsonpath='{.data.admin-password}' | base64 -d; echo
+```
+
+`base64 -d` odkodowuje wartość – Secret to **base64, a nie szyfrowanie**: każdy, kto może czytać
+Secrety w namespace, odczyta hasło.
 
 | Adres | Co sprawdzić |
 |---|---|
-| `http://192.168.180.51:30300` | **Grafana** – login `admin`, hasło z `lab.env`; dashboardy w sekcji *Dashboards* |
-| `http://192.168.180.51:30090` | **Prometheus** – *Status → Targets*: `serviceMonitor/demo/podinfo` w stanie **UP** |
+| `http://192.168.180.51:30300` | **Grafana** – login `admin`; dashboardy w sekcji *Dashboards*, np. *Node Exporter / Nodes* |
+| `http://192.168.180.51:30090` | **Prometheus** – *Status → Target health*: wszystkie cele **UP**, w tym `serviceMonitor/demo/podinfo` (3 cele); *Status → Rule health*: wszystkie reguły `ok`; *Alerts*: reguły labu (`PodinfoDown`…) w stanie *inactive* |
 | `http://192.168.180.51:30093` | **Alertmanager** – aktywny alert `Watchdog` (tak ma być) |
 | `http://192.168.180.51:30898` | **podinfo** – strona aplikacji demo |
+
+Stan w labie: 225 reguł (139 alertowych, 86 nagrywających), wszystkie `ok`; wszystkie cele **UP**.
+Aktywne alerty:
+
+| Alert | Czy to problem |
+|---|---|
+| `Watchdog` | nie – zawsze aktywny (dead man's switch) |
+| `AlertmanagerFailedToSendAlerts`, `AlertmanagerClusterFailedToSendAlerts` | tak, ale spodziewany: `HEALTHCHECKS_URL` to adres przykładowy, healthchecks.io odpowiada `400 invalid url format`. Znikną po założeniu konta w Etapie 4 – [docs/08](08-problemy-administratora.md#alertmanagerfailedtosendalerts-zaraz-po-instalacji) |
+
+Skąd wzięły się te reguły i cele oraz czym różnią się *Target health*, *Rule health* i *Alerts* –
+[teoria monitoringu](teoria-monitoring.md#skąd-w-prometheusie-wzięły-się-alerty-target-health-i-rule-health).
 
 ```bash
 helm list -A

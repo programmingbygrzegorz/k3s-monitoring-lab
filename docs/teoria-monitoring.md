@@ -213,6 +213,74 @@ W Etapie 4 druga Grafana na maszynie `monitoring` będzie czytać z **tego sameg
 | | *Explore* | wpisywanie zapytań PromQL z podpowiedziami |
 | | *Connections → Data sources* | źródło danych Prometheus |
 
+### Skąd w Prometheusie wzięły się alerty, Target health i Rule health
+
+Po instalacji Prometheus od razu ma dziesiątki celów i ponad sto alertów, choć nikt ich ręcznie
+nie wpisywał. Skąd?
+
+```
+helm install ──▶ 30 obiektów PrometheusRule  ─┐
+kubectl apply ─▶  1 obiekt PrometheusRule (lab)┤
+                                               ├─▶ operator ──▶ pliki reguł w podzie Prometheusa
+helm install ──▶ 9 obiektów ServiceMonitor  ───┤
+kubectl apply ─▶ 1 ServiceMonitor (podinfo) ───┘    i lista celów do pobierania
+```
+
+Operator czyta obiekty `PrometheusRule` i `ServiceMonitor` z całego klastra, zamienia je na
+konfigurację Prometheusa, a `config-reloader` (drugi kontener w podzie Prometheusa) przeładowuje
+ją bez restartu.
+
+Trzy strony Prometheusa pokazują trzy różne rzeczy:
+
+| Strona (menu *Status* / *Alerts*) | Pytanie, na które odpowiada | Skąd się bierze |
+|---|---|---|
+| **Target health** (dawniej *Targets*) | „czy Prometheus **dostaje dane** z każdego źródła?” – każdy cel **UP** lub **DOWN**, czas ostatniego pobrania, błąd | z obiektów **ServiceMonitor** / PodMonitor |
+| **Rule health** (dawniej *Rules*) | „czy reguły **dają się obliczyć**?” – każda reguła `ok` albo `err` (np. błąd w zapytaniu PromQL) i ile trwało obliczenie | z obiektów **PrometheusRule** |
+| **Alerts** | „czy jakiś warunek **jest spełniony**?” – reguły alertów w stanie *inactive*, *pending* albo *firing* | z tych samych PrometheusRule, tylko reguły typu `alert` |
+
+**Rule health a Alerts:** reguła może być zdrowa (`ok` – zapytanie działa) i jednocześnie
+*firing* (warunek spełniony – jest problem). `err` w Rule health oznacza, że reguła jest zepsuta
+i **nigdy nie zaalarmuje** – to groźniejsze niż firing.
+
+**Dwa rodzaje reguł** na stronie Rule health:
+
+| Rodzaj | Co robi | Przykład |
+|---|---|---|
+| **alerting** (alertowe) | sprawdza warunek i wysyła alert | `PodinfoDown`, `KubePodCrashLooping` |
+| **recording** (nagrywające) | regularnie liczy zapytanie i zapisuje wynik jako **nową metrykę** – dashboardy liczą się szybciej | `node_namespace_pod_container:container_cpu_usage_seconds_total:sum_irate` |
+
+Stan w labie zaraz po instalacji (z API Prometheusa):
+
+```
+grupy reguł:        33   (30 z chartu + reguły labu + wbudowane)
+reguły alertowe:   139
+reguły nagrywające: 86
+Rule health:       225 × ok
+obiekty PrometheusRule: 31 (30 z chartu + prometheusrule-lab)
+```
+
+Cele (Target health), wszystkie **UP**:
+
+| Cel (scrape pool) | Ile | Co to jest |
+|---|---|---|
+| `serviceMonitor/demo/podinfo/0` | 3 | 3 repliki aplikacji demo |
+| `…/monitoring-prometheus-node-exporter/0` | 4 | node-exporter na każdym węźle |
+| `…/monitoring-kube-prometheus-kubelet/0,1,2` | 4 × 3 | kubelet każdego węzła: jego metryki, cAdvisor (kontenery), sondy |
+| `…/monitoring-kube-prometheus-apiserver/0` | 1 | API server |
+| `…/monitoring-kube-prometheus-coredns/0` | 1 | DNS klastra |
+| `…/monitoring-kube-state-metrics/0` | 1 | stan obiektów Kubernetesa |
+| `…/prometheus`, `…/alertmanager`, `…/operator`, `…/grafana` | po 1–2 | monitoring monitoruje sam siebie |
+
+Alerty aktywne (*firing*) zaraz po instalacji:
+
+| Alert | Dlaczego |
+|---|---|
+| `Watchdog` | zawsze aktywny – dead man's switch; **tak ma być** |
+| `AlertmanagerFailedToSendAlerts`, `AlertmanagerClusterFailedToSendAlerts` | Alertmanager nie może wysłać Watchdoga, bo `HEALTHCHECKS_URL` to jeszcze adres przykładowy (`hc-ping.com/0000…`) – serwer odpowiada `400 invalid url format`. Znikną po wpisaniu prawdziwego adresu z healthchecks.io (Etap 4) |
+
+To dobry przykład, że **monitoring monitoruje sam siebie**: błędna konfiguracja powiadomień
+sama wywołała alert.
+
 ## 11. Czego Prometheus nie robi
 
 | Nie robi | Co się do tego używa |
@@ -256,6 +324,14 @@ pochodnych i alerty tylko na objawy, które wymagają reakcji człowieka.
 **Jak wyciszyć alerty na czas prac serwisowych?**
 Silence w Alertmanagerze – na określony czas, dla alertów pasujących do etykiet, np. konkretnego
 węzła.
+
+**Czym różni się Target health od Rule health?**
+Target health mówi, czy Prometheus dostaje dane z każdego celu (UP/DOWN). Rule health mówi, czy
+reguły dają się obliczyć. Reguła z błędem nigdy nie zaalarmuje, więc trzeba to też monitorować.
+
+**Czym jest reguła nagrywająca (recording rule)?**
+Zapytaniem liczonym regularnie i zapisywanym jako nowa metryka. Przyspiesza dashboardy i złożone
+alerty, bo ciężkie obliczenie robi się raz, a nie przy każdym odświeżeniu.
 
 **Co zrobisz, gdy padnie sam monitoring?**
 Dead man's switch: alert Watchdog co minutę trafia do zewnętrznej usługi; gdy przestanie

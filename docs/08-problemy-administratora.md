@@ -196,6 +196,30 @@ Tutaj jest szerszy kontekst.
   obrazu, brak dostępu). W produkcji przed takimi błędami chroni lokalny rejestr obrazów albo
   pamięć podręczna (mirror), żeby węzły nie zależały od internetu.
 
+### AlertmanagerFailedToSendAlerts zaraz po instalacji
+
+- **Objaw:** chwilę po instalacji monitoringu w Prometheusie (*Alerts*) w stanie *firing* są
+  `AlertmanagerFailedToSendAlerts` (warning) i `AlertmanagerClusterFailedToSendAlerts` (critical),
+  choć w klastrze nic się nie dzieje.
+- **Przyczyna:** Alertmanager co minutę wysyła alert Watchdog na adres z `HEALTHCHECKS_URL`,
+  a w `lab.env` jest jeszcze adres przykładowy z `lab.env.example`
+  (`https://hc-ping.com/00000000-…`). healthchecks.io odrzuca go, a nieudane wysyłki wykrywa
+  reguła z chartu.
+- **Diagnoza:** logi Alertmanagera:
+  ```bash
+  kubectl -n monitoring logs alertmanager-monitoring-kube-prometheus-alertmanager-0 -c alertmanager | grep -i notify
+  ```
+  ```
+  msg="Notify for alerts failed" ... aggrGroup="{}/{alertname=\"Watchdog\"}..."
+  err="deadmans-switch/webhook[0]: notify retry canceled due to unrecoverable error after 1 attempts: unexpected status code 400: invalid url format"
+  ```
+  `deadmans-switch/webhook[0]` – nazwa odbiorcy z pliku values; `400` – serwer odrzucił adres.
+- **Rozwiązanie:** konto na healthchecks.io, prawdziwy adres w `lab.env`, ponowne wypełnienie
+  luk i `helm upgrade --install` (Etap 4). Do tego czasu alert jest spodziewany.
+- **Wniosek:** monitoring monitoruje sam siebie – błąd w konfiguracji powiadomień sam wywołał
+  alert. Zanim uznasz system za gotowy, sprawdź, czy powiadomienia **naprawdę dochodzą** –
+  inaczej pierwsza prawdziwa awaria przejdzie bez echa.
+
 ---
 
 ## Automatyzacja: skrypty i Ansible
