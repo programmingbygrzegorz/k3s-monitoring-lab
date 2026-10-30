@@ -279,6 +279,30 @@ Cele (Target health), wszystkie **UP**:
 | `…/monitoring-kube-state-metrics/0` | 1 | stan obiektów Kubernetesa |
 | `…/prometheus`, `…/alertmanager`, `…/operator`, `…/grafana` | po 1–2 | monitoring monitoruje sam siebie |
 
+ServiceMonitory to zwykłe obiekty w klastrze – można je wylistować i obejrzeć jak Deploymenty:
+
+```
+$ kubectl get servicemonitors -A
+NAMESPACE    NAME                                      AGE
+demo         podinfo                                   20m
+monitoring   monitoring-grafana                        62m
+monitoring   monitoring-kube-prometheus-alertmanager   62m
+monitoring   monitoring-kube-prometheus-apiserver      62m
+monitoring   monitoring-kube-prometheus-coredns        62m
+monitoring   monitoring-kube-prometheus-kubelet        62m
+monitoring   monitoring-kube-prometheus-operator       62m
+monitoring   monitoring-kube-prometheus-prometheus     62m
+monitoring   monitoring-kube-state-metrics             62m
+monitoring   monitoring-prometheus-node-exporter       62m
+
+$ kubectl get servicemonitor podinfo -n demo -o yaml     # treść jednego
+$ kubectl get prometheusrules -A                          # to samo dla reguł
+```
+
+9 z chartu (namespace `monitoring`, utworzone przy `helm install`) + 1 z labu (`demo/podinfo`,
+utworzony przez `kubectl apply` w kroku 5). Jeden ServiceMonitor może dawać kilka celów: `podinfo`
+→ 3 cele (3 repliki), `kubelet` → 3 ścieżki × 4 węzły.
+
 Alerty aktywne (*firing*) zaraz po instalacji:
 
 | Alert | Dlaczego |
