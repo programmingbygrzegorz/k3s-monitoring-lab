@@ -476,15 +476,46 @@ kubectl -n demo logs <nazwa-poda> --previous
 
 ## Własne alerty
 
-Plik `kubernetes/monitoring/prometheusrule-lab.yaml`:
+Z ~225 reguł w Prometheusie tylko **5** jest napisanych dla tego labu – w pliku
+[kubernetes/monitoring/prometheusrule-lab.yaml](../kubernetes/monitoring/prometheusrule-lab.yaml).
+Pozostałe przyszły z chartu kube-prometheus-stack (projekt społeczności prometheus-community,
+sprawdzony w wielu firmach) i obejmują m.in. `KubeNodeNotReady`, `KubePodCrashLooping`,
+`KubePodNotReady`.
 
-| Alert | Warunek |
+| Alert | Warunek (PromQL) | Po ludzku | Dlaczego taki |
+|---|---|---|---|
+| `PodRestartingTooOften` | `increase(kube_pod_container_status_restarts_total[10m]) > 3` | kontener zrestartował się więcej niż 3 razy w 10 minut | reaguje szybciej niż wbudowany `KubePodCrashLooping` (~15 min) |
+| `ContainerOOMKilled` | powód ostatniego zakończenia = `OOMKilled` **i** restart w ostatnich 10 minutach | kontener zabity za przekroczenie limitu pamięci | sam pierwszy warunek wisiałby bez końca po jednym starym OOM; drugi ogranicza alert do świeżych przypadków |
+| `PodinfoDegraded` | `kube_deployment_status_replicas_available{…podinfo} < 3`, `for: 2m` | aplikacja działa, ale nie wszystkimi replikami | `warning` – trzeba się przyjrzeć, ale nie budzić nikogo w nocy |
+| `PodinfoDown` | to samo `== 0`, `for: 1m` | aplikacja nie działa | `critical`, krótszy czas – to prawdziwa awaria |
+| `NodeMemoryHigh` | `(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9`, `for: 5m` | węzeł zużywa ponad 90% pamięci | `5m`, żeby nie alarmować przy chwilowym skoku |
+
+Budowa jednej reguły:
+
+```yaml
+- alert: PodinfoDown                      # nazwa alertu
+  expr: kube_deployment_status_replicas_available{namespace="demo", deployment="podinfo"} == 0
+  for: 1m                                 # warunek musi trwać minutę (do tego czasu: pending)
+  labels:
+    severity: critical                    # po etykietach Alertmanager kieruje alert do odbiorców
+  annotations:
+    summary: "Aplikacja podinfo nie działa"            # treść powiadomienia
+    description: "Brak dostępnych replik aplikacji podinfo."
+```
+
+| Element | Znaczenie |
 |---|---|
-| `PodRestartingTooOften` | więcej niż 3 restarty w 10 minut |
-| `ContainerOOMKilled` | kontener zabity za przekroczenie limitu pamięci |
-| `PodinfoDegraded` | mniej niż 3 dostępne repliki przez 2 minuty |
-| `PodinfoDown` | brak dostępnych replik przez 1 minutę |
-| `NodeMemoryHigh` | zużycie pamięci węzła powyżej 90% przez 5 minut |
+| `expr` | zapytanie PromQL; alert jest aktywny, gdy zapytanie zwraca **jakikolwiek wynik** |
+| `and on (namespace, pod, container)` | (w `ContainerOOMKilled`) łączy dwie metryki: oba warunki muszą dotyczyć **tego samego** kontenera |
+| `for` | jak długo warunek musi trwać, zanim alert przejdzie z *pending* do *firing* |
+| `labels.severity` | ważność: `warning`, `critical` (chart używa też `info` i `none`) |
+| `annotations` | tekst dla człowieka; `{{ $labels.pod }}` wstawia nazwę poda, `{{ $value }}` – wartość z zapytania |
+
+Reguły są obiektem typu **PrometheusRule** (CRD). Po zmianie pliku wystarczy
+`kubectl apply -f kubernetes/monitoring/` – operator przekaże regułę Prometheusowi bez restartu,
+a pojawi się w *Status → Rule health*.
+
+Własną regułę napiszesz w ćwiczeniu w [Etapie 5](05-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).
 
 Aktywne alerty: Prometheus → *Alerts* (`:30090`) lub Alertmanager (`:30093`).
 

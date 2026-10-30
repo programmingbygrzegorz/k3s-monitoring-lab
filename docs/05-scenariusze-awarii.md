@@ -70,6 +70,73 @@ Skrypt wdraża nieistniejącą wersję obrazu, pokazuje historię wdrożeń i wy
 Wyłącz wszystkie węzły. Oczekiwane: alarm w Uptime Kuma i powiadomienie z healthchecks.io
 (brak alertu `Watchdog`).
 
+## Ćwiczenie: własna reguła alertu
+
+Reguły w labie przyszły z chartu albo z repozytorium ([docs/03](03-monitoring.md#własne-alerty)).
+W tym ćwiczeniu piszesz **własną** – od zapytania do alertu w stanie *firing*.
+
+Cel: alert `NodeDiskAlmostFull`, gdy główny dysk (`/`) któregoś węzła jest zapełniony w ponad 85%.
+
+**1. Najpierw zapytanie – w Prometheusie** (`http://192.168.180.51:30090`, *Query*):
+
+```
+(1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100
+```
+
+Zobaczysz zajętość dysku w % dla każdego węzła. Zawsze zaczynaj od samego zapytania: jeśli nie
+zwraca danych, reguła też nic nie wykryje.
+
+| Część | Znaczenie |
+|---|---|
+| `node_filesystem_avail_bytes` | wolne miejsce w bajtach (z node-exportera) |
+| `node_filesystem_size_bytes` | rozmiar systemu plików |
+| `{mountpoint="/"}` | tylko główny dysk, bez `/boot` i systemów tymczasowych |
+| `1 - wolne/rozmiar` | ułamek zajętego miejsca; `* 100` – procenty |
+
+**2. Reguła – dopisz na końcu pliku** `kubernetes/monitoring/prometheusrule-lab.yaml`
+(na masterze: `nano ~/k3s-monitoring-lab/kubernetes/monitoring/prometheusrule-lab.yaml`),
+z takimi samymi wcięciami jak grupa `lab.nodes`:
+
+```yaml
+        - alert: NodeDiskAlmostFull
+          expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Dysk na {{ $labels.instance }} prawie pełny"
+            description: "Zajęte {{ $value | humanizePercentage }} głównego systemu plików."
+```
+
+`humanizePercentage` zamienia `0.87` na `87%`. Wcięcia w YAML to spacje – zła liczba spacji to
+najczęstszy błąd.
+
+**3. Sprawdzenie i wdrożenie:**
+
+```bash
+kubectl apply --dry-run=server -f ~/k3s-monitoring-lab/kubernetes/monitoring/prometheusrule-lab.yaml
+kubectl apply -f ~/k3s-monitoring-lab/kubernetes/monitoring/prometheusrule-lab.yaml
+```
+
+`--dry-run=server` wysyła obiekt do API bez zapisywania – **webhook operatora** sprawdzi przy
+tym poprawność reguły (zły PromQL = błąd od razu, a nie zepsuta reguła w Prometheusie).
+
+Po ~1 minucie: *Status → Rule health* – reguła `NodeDiskAlmostFull` w stanie `ok`;
+*Alerts* – w stanie *inactive*.
+
+**4. Wywołanie alertu.** Żeby zobaczyć *pending* → *firing* bez zapełniania dysku, zmień
+tymczasowo próg z `0.85` na wartość **niższą** niż obecna zajętość (np. `0.10`) i `for` na `1m`,
+wykonaj `kubectl apply`, obserwuj stronę *Alerts*. Potem przywróć `0.85` i `10m`.
+
+**5. Do gita** – to Twoja reguła:
+
+```bash
+cd ~/k3s-monitoring-lab && git diff && git add kubernetes/monitoring/prometheusrule-lab.yaml && git commit -m "Alert NodeDiskAlmostFull"
+```
+
+Na rozmowie: *"I wrote a custom alert rule – I tested the PromQL query in Prometheus first,
+validated it with a server-side dry run and deployed it as a PrometheusRule."*
+
 ## Sprzątanie
 
 ```bash
