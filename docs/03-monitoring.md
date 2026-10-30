@@ -1,5 +1,8 @@
 # 3. Monitoring w klastrze
 
+Pierwszy raz z Kubernetesem lub Helmem? Pojęcia (chart, values, release, Traefik, CRD, operator)
+wyjaśnia [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md).
+
 ## Instalacja
 
 ```bash
