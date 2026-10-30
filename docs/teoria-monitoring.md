@@ -173,6 +173,14 @@ podów dostałbyś 10 SMS-ów co minutę. Alertmanager temu zapobiega:
 | **wyciszanie** (silences) | celowo ucisza alerty na czas | „wyłączam worker-2 na godzinę do konserwacji” – przez stronę `:30093` |
 | **tłumienie** (inhibition) | gdy jest alert ważniejszy, ukrywa pochodne | węzeł padł → nie pokazuj osobno alertów o każdym podzie na nim |
 
+**Cluster Status: disabled** na stronie *Status* Alertmanagera (`:30093/#/status`) jest w labie
+poprawne. W produkcji uruchamia się kilka kopii Alertmanagera (zwykle 3), które łączą się
+w **klaster** i wymieniają informacje (protokół gossip): kto już wysłał powiadomienie i jakie są
+wyciszenia – żeby przy awarii jednej kopii alerty dalej szły, a ludzie nie dostawali duplikatów.
+W labie działa **1 replika** (`kubectl -n monitoring get alertmanager` → `replicas: 1`), więc
+operator uruchamia ją z pustym `--cluster.listen-address=` i tryb klastra jest wyłączony.
+Gdyby była to produkcja: `alertmanager.alertmanagerSpec.replicas: 3` w pliku values.
+
 W labie domyślnym odbiorcą jest `null` – alerty widać na stronach, ale nikt nie dostaje
 wiadomości. Wyjątek to **Watchdog** – alert, który jest zawsze aktywny i co minutę trafia do
 healthchecks.io (**dead man's switch**). Gdy przestanie docierać, healthchecks.io zaalarmuje, że
