@@ -112,6 +112,61 @@ czegoś i wystawia go jako metryki pod `/metrics`.
 Własne aplikacje wystawiają metryki same – dodaje się do nich bibliotekę Prometheusa. Tak robi
 podinfo.
 
+### ServiceMonitor – skąd Prometheus wie, gdzie pobierać
+
+Pody w Kubernetesie ciągle się zmieniają: nowe repliki, nowe adresy IP po każdym restarcie.
+Wpisywanie adresów ręcznie do konfiguracji Prometheusa nie miałoby sensu. **ServiceMonitor** to
+obiekt (typ z CRD operatora), który mówi:
+
+> „Znajdź Service z taką etykietą, i z każdego poda za nim pobieraj `/metrics` z tego portu co 15 sekund.”
+
+Porównanie: zamiast dawać listonoszowi listę konkretnych mieszkań (adresy IP podów), dajesz mu
+regułę: „roznieś do każdego mieszkania z tabliczką *podinfo*”. Gdy ktoś się wprowadzi albo
+wyprowadzi, reguła dalej działa.
+
+Łańcuch w labie – trzy obiekty połączone **etykietami**:
+
+```
+ServiceMonitor podinfo            Service podinfo                 Pody podinfo (3 repliki)
+(kubernetes/monitoring/)          (kubernetes/demo-app/)          (Deployment)
+  selector:                         labels:                         labels:
+    matchLabels:          ───▶        app: podinfo                    app: podinfo
+      app: podinfo                  selector:              ───▶     ports:
+  endpoints:                          app: podinfo                    - name: http
+    - port: http          ───▶      ports:                              containerPort: 9898
+      path: /metrics                  - name: http ─────────────▶
+      interval: 15s                     port: 9898
+```
+
+1. ServiceMonitor szuka Service'u z etykietą `app: podinfo` w namespace `demo`.
+2. Service przez swój `selector` wie, które pody są „za nim” (lista w EndpointSlice).
+3. Port wskazany **nazwą** `http` – nie numerem – więc zmiana numeru portu nic nie psuje.
+4. Operator zamienia to na konfigurację Prometheusa, a Prometheus pobiera
+   `http://<IP-poda>:9898/metrics` z każdej repliki. Stąd 3 cele w *Target health*.
+
+Gdy przeskalujesz podinfo do 5 replik, cele same zmienią się na 5 – bez dotykania Prometheusa.
+
+**Po co obiekt, a nie wpis w pliku Prometheusa?**
+
+| Zaleta | Znaczenie |
+|---|---|
+| konfiguracja **obok aplikacji** | zespół aplikacji dodaje swój ServiceMonitor w tym samym repozytorium co Deployment – nie musi edytować centralnego pliku Prometheusa |
+| **bez restartu** | operator i config-reloader przeładowują konfigurację w kilka sekund |
+| **deklaratywnie** | `kubectl apply`, `kubectl get servicemonitors -A`, historia w gicie, GitOps |
+
+**PodMonitor** robi to samo, ale wybiera pody bezpośrednio, bez Service'u – dla aplikacji, które
+nie mają Service'u.
+
+**Gdy cel się nie pojawia w Target health – co sprawdzić po kolei:**
+
+1. Czy Prometheus „widzi” ten ServiceMonitor – w kube-prometheus-stack domyślnie tylko z etykietą
+   `release: <nazwa release'u>`; w labie wyłączone przez `serviceMonitorSelectorNilUsesHelmValues: false`
+   ([docs/03a](03a-values-monitoringu.md#trzy-linie-selectorniluseshelmvalues-false)).
+2. Czy `selector` ServiceMonitora pasuje do **etykiet Service'u** (nie podów!).
+3. Czy nazwa portu (`port: http`) istnieje w Service.
+4. Czy Service ma pody: `kubectl get endpointslices -n demo`.
+5. Czy aplikacja naprawdę wystawia `/metrics`: `curl http://<IP-poda>:9898/metrics`.
+
 ## 6. PromQL – pytania do Prometheusa
 
 PromQL to język zapytań. Wpisujesz go w Prometheusie (zakładka *Query*) albo w Grafanie
