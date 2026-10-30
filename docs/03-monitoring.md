@@ -216,7 +216,7 @@ cd ~/k3s-monitoring-lab && git pull && set -a && source lab.env && set +a
 
 ```bash
 umask 077 && envsubst '${GRAFANA_ADMIN_PASSWORD} ${HEALTHCHECKS_URL}' < monitoring/kube-prometheus-stack-values.yaml > /tmp/kps-values.yaml
-grep -c '\${' /tmp/kps-values.yaml
+grep -n '\${' /tmp/kps-values.yaml
 ```
 
 | Część | Znaczenie |
@@ -224,7 +224,19 @@ grep -c '\${' /tmp/kps-values.yaml
 | `umask 077` | nowe pliki powstają z uprawnieniami `600` – w pliku będzie hasło |
 | `envsubst '…'` | zamień `${…}` na wartości – **tylko** tych dwóch zmiennych ([docs/03a, rozdział 3](03a-values-monitoringu.md#3-luki--i-envsubst)) |
 | `<` / `>` | czytaj z pliku values, zapisz wynik do `/tmp/kps-values.yaml` |
-| `grep -c '\${'` | policz linie, w których została luka – musi wyjść `0` |
+| `grep -n '\${'` | pokaż linie (z numerami), w których został napis `${` |
+
+Poprawny wynik to **jedna linia – komentarz**:
+
+```
+2:# Zmienne ${...} podstawia skrypt scripts/04-install-monitoring.sh z pliku lab.env.
+```
+
+`${...}` w komentarzu to nie nazwa zmiennej, więc `envsubst` go nie rusza – a YAML i tak pomija
+komentarze. Gdyby na liście była linia z `adminPassword` albo `url:`, luka nie została wypełniona
+(zmienna nie została wczytana z `lab.env` – powtórz 4a). Wcześniejsza wersja tej instrukcji
+liczyła trafienia (`grep -c`) i oczekiwała `0` – w labie wyszło `1` właśnie przez ten komentarz.
+Wniosek: polecenie sprawdzające musi pokazywać **co** znalazło, a nie tylko **ile**.
 
 **4c. Obserwacja – drugi terminal** (`ssh k3s-master`):
 
