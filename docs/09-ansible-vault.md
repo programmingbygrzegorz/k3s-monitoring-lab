@@ -240,6 +240,7 @@ robi to platforma (AWX, CI z sekretami, menedżer sekretów), a nie plik w katal
 | `-K` nie pomaga przy złym haśle | zmienna `ansible_become_password` z vaulta ma pierwszeństwo przed `-K` | popraw hasło w vaulcie albo tymczasowo przenieś `vault.yml` poza `group_vars/all/` |
 | `ansible-vault create` otwiera `vi` | brak `EDITOR` | `export EDITOR=nano` (krok 3) |
 | *ERROR! input is not vault encrypted data* | `view`/`edit` na zwykłym pliku | najpierw `ansible-vault encrypt plik.yml` |
+| `ssh monitoring "ansible-vault view …"` z Windowsa pyta o hasło do vaulta albo kończy się błędem, choć po zalogowaniu działa | polecenie przez `ssh "…"` uruchamia powłokę **nieinteraktywną**, a `~/.bashrc` na Ubuntu kończy się na początku dla takich powłok (`case $- in *i*`) – `export` z kroku 3 (na końcu pliku) się nie wykonuje | podaj plik wprost: `ansible-vault view --vault-password-file ~/.ansible/vault-pass …` albo zaloguj się `ssh monitoring` i dopiero wtedy wpisz polecenie |
 
 ## 8. Vault a rozwiązania produkcyjne
 
