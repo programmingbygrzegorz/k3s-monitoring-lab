@@ -3,7 +3,7 @@
 W tym laboratorium występują **dwa rodzaje kluczy SSH**, które łatwo pomylić: klucze
 **użytkownika** i klucze **hosta**. Ten plik tłumaczy oba od zera, na przykładach z labu.
 
-Instrukcje krok po kroku są w [przewodniku](00-przewodnik.md) (kroki 4–8 i 16–17).
+Instrukcje krok po kroku są w [przewodniku](../00-przewodnik.md) (kroki 4–8 i 16–17).
 
 ## Spis treści
 
@@ -209,7 +209,7 @@ Naprawa:
 
 Zapobieganie: generowanie kluczy w procedurze klonowania (przewodnik, krok 4) albo rola
 `bootstrap` w Ansible, która wykrywa powtórzenia. Pełny opis przypadku:
-[docs/08](08-problemy-administratora.md#wspólny-klucz-hosta-wykryty-dopiero-po-zbudowaniu-klastra).
+[problemy](../etap-0-maszyny-wirtualne/problemy.md#wspólny-klucz-hosta-wykryty-dopiero-po-zbudowaniu-klastra).
 
 ## 8. Dobre praktyki
 
@@ -271,5 +271,5 @@ type $env:USERPROFILE\.ssh\k3s-lab.pub | ssh user@host "mkdir -p ~/.ssh && chmod
 
 ## Dalej
 
-- Teoria Ansible (jak Ansible korzysta z SSH): [docs/teoria-ansible.md](teoria-ansible.md)
-- Problemy z kluczami, które wystąpiły w labie: [docs/08-problemy-administratora.md](08-problemy-administratora.md#ssh-i-uprawnienia)
+- Teoria Ansible (jak Ansible korzysta z SSH): [docs/etap-2-k3s-ansible/01-teoria-ansible.md](../etap-2-k3s-ansible/01-teoria-ansible.md)
+- Problemy z kluczami, które wystąpiły w labie: [docs/problemy-ogolne.md](../etap-1-przygotowanie-systemu/problemy.md)

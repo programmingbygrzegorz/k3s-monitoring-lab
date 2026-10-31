@@ -1,4 +1,4 @@
-# 10. Ćwiczenia z klastrem – kubectl od podstaw
+# Etap 2 – ćwiczenia z kubectl od podstaw
 
 Osiem poziomów ćwiczeń na działającym klastrze k3s: od oglądania węzłów, przez pierwszą
 aplikację, samonaprawę i skalowanie, po aktualizacje, konserwację węzła i pracę z YAML.
@@ -57,7 +57,7 @@ kubectl top nodes
 kubectl get deployments,services -n kube-system
 ```
 
-![Węzły klastra i taint mastera](img/cwiczenia/1-wezly.png)
+![Węzły klastra i taint mastera](img/1-wezly.png)
 
 - **`STATUS Ready`** – węzeł działa i przyjmuje pracę.
 - **`ROLES`** – `control-plane` to master, `worker` nadał playbook Ansible (`k3s.yml`).
@@ -66,7 +66,7 @@ kubectl get deployments,services -n kube-system
 - **Taint `NoSchedule` na masterze** – „nie umieszczaj tu zwykłych aplikacji”. Workery nie mają
   taintów (`<none>`).
 
-![Wszystkie pody i zużycie zasobów](img/cwiczenia/1-pody.png)
+![Wszystkie pody i zużycie zasobów](img/1-pody.png)
 
 - `-A` – wszystkie przestrzenie nazw. Na razie są tylko pody systemowe w `kube-system`:
   **CoreDNS** (DNS w klastrze), **Traefik** (Ingress – ruch HTTP z zewnątrz),
@@ -88,7 +88,7 @@ kubectl -n cwiczenia create deployment web --image=nginx --replicas=3
 kubectl -n cwiczenia get deployment,replicaset,pods -o wide
 ```
 
-![Tworzenie aplikacji – jeden pod jeszcze się tworzy](img/cwiczenia/2-tworzenie.png)
+![Tworzenie aplikacji – jeden pod jeszcze się tworzy](img/2-tworzenie.png)
 
 Trzy obiekty, jeden w drugim:
 
@@ -105,7 +105,7 @@ Pody rozłożyły się na trzy workery – **scheduler** wybiera węzeł dla ka�
 kubectl -n cwiczenia describe pod <nazwa-poda>
 ```
 
-![Aplikacja działa – zdarzenia poda](img/cwiczenia/2-dziala.png)
+![Aplikacja działa – zdarzenia poda](img/2-dziala.png)
 
 Sekcja **`Events`** w `describe` to pierwsze miejsce, w którym szukasz przyczyny problemu.
 Tutaj widać: `Scheduled` (przydzielony do węzła) → `Pulling` → `Pulled` **po 3 min 58 s** →
@@ -117,7 +117,7 @@ kubectl -n cwiczenia logs <nazwa-poda> --tail=3
 kubectl -n cwiczenia exec <nazwa-poda> -- sh -c 'hostname; nginx -v; head -2 /etc/os-release'
 ```
 
-![Logi i polecenia wewnątrz kontenera](img/cwiczenia/2-logi-exec.png)
+![Logi i polecenia wewnątrz kontenera](img/2-logi-exec.png)
 
 - **`logs`** – to, co aplikacja wypisuje (tu: dziennik zapytań nginx – `200` dla strony
   głównej, `404` dla nieistniejącej).
@@ -136,7 +136,7 @@ kubectl -n cwiczenia get pods -o wide
 kubectl -n cwiczenia get events --sort-by=.lastTimestamp | tail -6
 ```
 
-![Usunięty pod natychmiast zastąpiony nowym](img/cwiczenia/3-samonaprawa.png)
+![Usunięty pod natychmiast zastąpiony nowym](img/3-samonaprawa.png)
 
 Pod z `k3s-worker-1` został usunięty, a **w tej samej sekundzie** ReplicaSet utworzył nowy
 (`SuccessfulCreate`). Kubernetes stale porównuje stan **pożądany** (3 kopie) z
@@ -157,7 +157,7 @@ kubectl -n cwiczenia scale deployment web --replicas=2
 kubectl -n cwiczenia get pods -o wide
 ```
 
-![Skalowanie z 3 do 6 i z powrotem do 2](img/cwiczenia/4-skalowanie.png)
+![Skalowanie z 3 do 6 i z powrotem do 2](img/4-skalowanie.png)
 
 - Nowe pody trafiły po dwa na każdy worker – scheduler rozkłada obciążenie.
 - Uruchomiły się w **2 sekundy**, bo obraz był już na węzłach.
@@ -186,7 +186,7 @@ kubectl -n cwiczenia logs test
 kubectl -n cwiczenia delete pod test
 ```
 
-![Service, jego punkty końcowe i DNS](img/cwiczenia/5-service.png)
+![Service, jego punkty końcowe i DNS](img/5-service.png)
 
 | Element | Znaczenie |
 |---|---|
@@ -212,7 +212,7 @@ Odpowiadają **wszystkie** węzły – także master i `k3s-worker-1`, na który
 było żadnego poda `web`. Ruch przychodzący na NodePort dowolnego węzła jest przekazywany do
 podów, gdziekolwiek działają.
 
-![Strona nginx otwarta w przeglądarce przez NodePort](img/cwiczenia/5-nginx-nodeport.png)
+![Strona nginx otwarta w przeglądarce przez NodePort](img/5-nginx-nodeport.png)
 
 Zrzut przeglądarki pochodzi z ponownego utworzenia usługi, dlatego port jest inny (30317) –
 Kubernetes losuje NodePort przy każdym tworzeniu usługi, o ile nie podasz go w YAML
@@ -229,7 +229,7 @@ kubectl -n cwiczenia rollout status deployment/web
 kubectl -n cwiczenia rollout history deployment/web
 ```
 
-![Aktualizacja krocząca do nginx 1.27](img/cwiczenia/6-aktualizacja.png)
+![Aktualizacja krocząca do nginx 1.27](img/6-aktualizacja.png)
 
 **Rolling update** – wymiana kopia po kopii: nowy pod startuje, stary jest usuwany, dopiero
 potem następny. Aplikacja działa przez cały czas. Każda zmiana szablonu poda to nowa
@@ -243,7 +243,7 @@ kubectl -n cwiczenia get pods
 kubectl -n cwiczenia get events --field-selector reason=Failed --sort-by=.lastTimestamp | tail -3
 ```
 
-![Zły obraz – ImagePullBackOff, a stare pody działają dalej](img/cwiczenia/6-zly-obraz.png)
+![Zły obraz – ImagePullBackOff, a stare pody działają dalej](img/6-zly-obraz.png)
 
 - Nowy pod utknął w **`ImagePullBackOff`** – Kubernetes próbuje pobrać obraz coraz rzadziej
   (*back-off*).
@@ -256,7 +256,7 @@ kubectl -n cwiczenia rollout undo deployment/web
 kubectl -n cwiczenia get pods -o custom-columns=POD:.metadata.name,OBRAZ:.spec.containers[0].image,STAN:.status.phase,WEZEL:.spec.nodeName
 ```
 
-![Wycofanie do poprzedniej wersji](img/cwiczenia/6-wycofanie.png)
+![Wycofanie do poprzedniej wersji](img/6-wycofanie.png)
 
 `rollout undo` wraca do poprzedniej rewizji (`nginx:1.27`); zepsuty pod jest usuwany.
 `-o custom-columns` pozwala wybrać własne kolumny wyniku.
@@ -276,7 +276,7 @@ kubectl -n cwiczenia get pods -o wide
 kubectl uncordon k3s-worker-1
 ```
 
-![drain i uncordon worker-1](img/cwiczenia/7-drain.png)
+![drain i uncordon worker-1](img/7-drain.png)
 
 | Etap | Co się dzieje |
 |---|---|
@@ -332,7 +332,7 @@ cat api.yaml
 kubectl apply -f api.yaml
 ```
 
-![Plik YAML z --dry-run i apply](img/cwiczenia/8-yaml.png)
+![Plik YAML z --dry-run i apply](img/8-yaml.png)
 
 Zmiana w pliku, podgląd różnic, wdrożenie i ponowne wdrożenie bez zmian:
 
@@ -343,7 +343,7 @@ kubectl apply -f api.yaml
 kubectl apply -f api.yaml
 ```
 
-![kubectl diff, apply i unchanged](img/cwiczenia/8-diff-apply.png)
+![kubectl diff, apply i unchanged](img/8-diff-apply.png)
 
 - **`kubectl diff`** – odpowiednik `ansible-playbook --check --diff`: co się zmieni, zanim się zmieni.
 - **`apply`** – doprowadza klaster do stanu z pliku (`created` / `configured`).
@@ -363,7 +363,7 @@ kubectl get namespaces
 kubectl get nodes
 ```
 
-![Klaster po sprzątaniu](img/cwiczenia/9-sprzatanie.png)
+![Klaster po sprzątaniu](img/9-sprzatanie.png)
 
 Usunięcie przestrzeni nazw usuwa **wszystko**, co w niej było: Deploymenty, ReplicaSety, pody,
 Service. Klaster wraca do czterech systemowych przestrzeni i czterech węzłów `Ready`.

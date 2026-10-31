@@ -4,8 +4,8 @@ Ten plik jest dla osoby, która **pierwszy raz** widzi Kubernetesa. Tłumaczy od
 które pojawiają się w Etapie 3: węzeł, taint, kubeconfig, Helm, chart, values, release,
 Traefik, Ingress, CRD i operator. Każde pojęcie jest pokazane na przykładzie z tego labu.
 
-Polecenia do wpisania są w [przewodniku](00-przewodnik.md), a ćwiczenia z kubectl
-w [docs/10](10-cwiczenia-kubectl.md).
+Polecenia do wpisania są w [przewodniku](../00-przewodnik.md), a ćwiczenia z kubectl
+w [ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md).
 
 ## Spis treści
 
@@ -59,7 +59,7 @@ spec:
   ...
 ```
 
-Najważniejsze typy, które znasz z [ćwiczeń](10-cwiczenia-kubectl.md):
+Najważniejsze typy, które znasz z [ćwiczeń](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md):
 
 | Typ | Rola |
 |---|---|
@@ -233,7 +233,7 @@ nodePort: {{ .Values.grafana.service.nodePort }}
 
 ### Values – Twoje wypełnienie
 
-Plik [monitoring/kube-prometheus-stack-values.yaml](../monitoring/kube-prometheus-stack-values.yaml)
+Plik [monitoring/kube-prometheus-stack-values.yaml](../../monitoring/kube-prometheus-stack-values.yaml)
 **nadpisuje tylko to, co chcesz zmienić** – reszta zostaje domyślna:
 
 ```yaml
@@ -345,7 +345,7 @@ przeglądarka → podinfo.lab.local:80 → Traefik → Service podinfo → pod p
               grafana.lab.local:80 → Traefik → Service grafana → pod grafana
 ```
 
-Reguła dla aplikacji demo – [kubernetes/demo-app/30-ingress.yaml](../kubernetes/demo-app/30-ingress.yaml):
+Reguła dla aplikacji demo – [kubernetes/demo-app/30-ingress.yaml](../../kubernetes/demo-app/30-ingress.yaml):
 
 ```yaml
 kind: Ingress
@@ -408,7 +408,7 @@ kube-prometheus-stack instaluje **prometheus-operator** i jego słowa:
 | `ServiceMonitor` | „Prometheusie, zbieraj metryki z tej aplikacji” |
 | `PrometheusRule` | „oto reguły alertów” |
 
-Przykład z labu – [kubernetes/monitoring/servicemonitor-podinfo.yaml](../kubernetes/monitoring/servicemonitor-podinfo.yaml):
+Przykład z labu – [kubernetes/monitoring/servicemonitor-podinfo.yaml](../../kubernetes/monitoring/servicemonitor-podinfo.yaml):
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -522,7 +522,7 @@ stały adres i nazwę DNS, bo pody zmieniają IP przy każdym restarcie.
 
 **Co się stanie, gdy usuniesz pod należący do Deploymentu?**
 Od razu powstanie nowy. ReplicaSet porównuje liczbę podów, która ma być, z tą, która jest,
-i wyrównuje różnicę. W labie nowy pod powstał w tej samej sekundzie ([docs/10](10-cwiczenia-kubectl.md), poziom 3).
+i wyrównuje różnicę. W labie nowy pod powstał w tej samej sekundzie ([ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md), poziom 3).
 
 **Jakie znasz typy Service?**
 ClusterIP – adres widoczny tylko w klastrze (domyślny). NodePort – port 30000–32767 otwarty na
@@ -576,7 +576,7 @@ a node-exporter (DaemonSet z toleration) działa wszędzie.
 
 **Jak bezpiecznie wyłączyć węzeł do konserwacji?**
 `kubectl drain` – oznacza węzeł jako niedostępny i przenosi pody na inne węzły. Po konserwacji
-`kubectl uncordon`. Ćwiczyłem to w labie ([docs/10](10-cwiczenia-kubectl.md), poziom 7).
+`kubectl uncordon`. Ćwiczyłem to w labie ([ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md), poziom 7).
 
 **Jak zaktualizować aplikację bez przerwy w działaniu?**
 Rolling update: Deployment wymienia pody po kolei, więc część zawsze działa. Gdy nowa wersja jest
@@ -675,6 +675,6 @@ przez CI/CD albo GitOps (Argo CD). Wtedy każda zmiana ma historię i przegląd 
 
 ## Dalej
 
-- Etap 3 krok po kroku: [docs/00-przewodnik.md](00-przewodnik.md), opis monitoringu: [docs/03-monitoring.md](03-monitoring.md)
-- Ćwiczenia z kubectl: [docs/10-cwiczenia-kubectl.md](10-cwiczenia-kubectl.md)
-- Problemy, które wystąpiły w labie: [docs/08-problemy-administratora.md](08-problemy-administratora.md)
+- Etap 3 krok po kroku: [docs/00-przewodnik.md](../00-przewodnik.md), opis monitoringu: [docs/etap-3-monitoring/01-instalacja-monitoringu.md](01-instalacja-monitoringu.md)
+- Ćwiczenia z kubectl: [docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md)
+- Problemy, które wystąpiły w labie: [docs/problemy-ogolne.md](../problemy-ogolne.md)

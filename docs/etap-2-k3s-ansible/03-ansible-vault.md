@@ -1,4 +1,4 @@
-# 9. Ansible Vault – hasło sudo bez wpisywania
+# Etap 2 – Ansible Vault – hasło sudo bez wpisywania
 
 Do tej pory każde uruchomienie playbooka zaczynało się od `--ask-become-pass` i wpisania hasła
 `sudo`. W labie to wystarcza, ale automatyzacja na produkcji ma działać **bez człowieka przy
@@ -266,7 +266,7 @@ wszystkie powstały z jednego szablonu z tym samym użytkownikiem i hasłem.
 
 **Nie ma tam kluczy SSH.** Do logowania służą klucze (`ansible`, `k3s-lab`), a logowanie hasłem
 przez SSH jest wyłączone – samo hasło sudo nikogo nie wpuści na maszynę. Żeby go użyć, trzeba
-najpierw być zalogowanym ([klucze SSH](teoria-ssh-klucze.md)).
+najpierw być zalogowanym ([klucze SSH](../etap-0b-klucze-ssh/01-klucze-ssh.md)).
 
 ### Klucz do sejfu leży obok sejfu
 

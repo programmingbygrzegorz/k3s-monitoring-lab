@@ -27,7 +27,7 @@ dublowania wpisów.
 
 Wszystkie polecenia wydajesz z **PowerShell na swoim komputerze** (znak zachęty `PS C:\...>`),
 nie na maszynie Linux. Zakładają klucz SSH i plik `~/.ssh/config` z nazwami maszyn
-(`docs/01`, *Klucz SSH zamiast hasła*). Przykłady są dla `k3s-master` – na pozostałych maszynach
+([maszyny wirtualne](../etap-0-maszyny-wirtualne/01-maszyny-wirtualne.md), *Klucz SSH zamiast hasła*). Przykłady są dla `k3s-master` – na pozostałych maszynach
 zmieniasz tylko nazwę.
 
 ### 0. Maszyny włączone i osiągalne
@@ -278,7 +278,7 @@ sed -i.bak '/\sswap\s/ s/^#*/#/' /etc/fstab
   `-i.bak` zostawia kopię pliku jako `/etc/fstab.bak`.
 
 **Dlaczego:** Kubernetes planuje pody na podstawie dostępnej pamięci RAM. Gdy system przenosi
-pamięć na dysk, limity pamięci i alerty (np. OOMKilled z `docs/05`) przestają zachowywać się
+pamięć na dysk, limity pamięci i alerty (np. OOMKilled z [Etapu 5](../etap-5-scenariusze-awarii/01-scenariusze-awarii.md)) przestają zachowywać się
 przewidywalnie; kubelet domyślnie nie startuje przy włączonym swapie.
 
 Sprawdzenie: `swapon --show` nic nie wypisuje.
@@ -408,6 +408,6 @@ Oczekiwane: nazwa maszyny, `active`, pusty wynik `swapon`, wpisy wszystkich masz
 
 ## Czego skrypt nie robi
 
-- nie ustawia adresu IP ani Netplanu (maszyna musi mieć już sieć – `docs/01`),
+- nie ustawia adresu IP ani Netplanu (maszyna musi mieć już sieć – [Etap 0](../etap-0-maszyny-wirtualne/README.md)),
 - nie instaluje k3s (`01-install-master.sh`, `02-install-worker.sh`),
 - nie restartuje maszyny.

@@ -1,11 +1,11 @@
-# 6. Automatyzacja w Ansible (Infrastructure as Code)
+# Etap 2 – klaster k3s przez Ansible (Infrastructure as Code)
 
 Skrypty Bash z folderu `scripts/` uruchamiasz na każdej maszynie osobno. Playbooki Ansible robią
 to samo **na wszystkich maszynach naraz, z jednego miejsca**, a wynik jest zawsze taki sam.
 
 | Skrypt Bash | Odpowiednik w Ansible |
 |---|---|
-| ręczna konfiguracja klonów (docs/01) | `playbooks/bootstrap.yml` (rola `bootstrap`) – patrz niżej |
+| ręczna konfiguracja klonów (maszyny wirtualne) | `playbooks/bootstrap.yml` (rola `bootstrap`) – patrz niżej |
 | `00-prepare-node.sh` | `playbooks/prepare.yml` (rola `common`) |
 | `01-install-master.sh` | rola `k3s_server` |
 | `02-install-worker.sh` | rola `k3s_agent` – token przekazywany automatycznie |
@@ -14,7 +14,7 @@ to samo **na wszystkich maszynach naraz, z jednego miejsca**, a wynik jest zawsz
 ## Najważniejsze pojęcia
 
 > Pełne wprowadzenie – architektura, inventory, moduły, role, zmienne, handlery, idempotentność,
-> czytanie wyniku: [docs/teoria-ansible.md](teoria-ansible.md).
+> czytanie wyniku: [docs/etap-2-k3s-ansible/01-teoria-ansible.md](01-teoria-ansible.md).
 
 - **Węzeł sterujący (control node):** maszyna, z której uruchamiasz Ansible. Na pozostałych maszynach
   nic nie instalujesz – Ansible łączy się z nimi przez SSH.
@@ -201,7 +201,7 @@ nic się na nich nie zmieni i nie zostaną zrestartowane.
 
 > Jeśli szablon nie miał wyczyszczonego `machine-id`, klony mogą dostać z DHCP **ten sam adres**.
 > Uruchamiaj je wtedy po kolei i odczytuj adres każdego, zanim włączysz następny – albo wyczyść
-> `machine-id` na szablonie przed klonowaniem (docs/01).
+> `machine-id` na szablonie przed klonowaniem (maszyny wirtualne).
 
 W VMware zmień też każdemu klonowi adres MAC karty (**Network Adapter → Advanced → Generate**) –
 tego Ansible nie zrobi, bo to ustawienie maszyny wirtualnej, a nie systemu.
@@ -232,7 +232,7 @@ podsumowanie `PLAY RECAP` – przy idempotentnych playbookach `changed` powinno 
 Dalsze kroki (monitoring, aplikacja demo) wykonujesz skryptami `04`–`06` jak dotychczas.
 
 Hasło sudo można zapisać w pliku zaszyfrowanym Ansible Vault – wtedy `--ask-become-pass`
-nie jest potrzebne: [docs/09-ansible-vault.md](09-ansible-vault.md).
+nie jest potrzebne: [docs/etap-2-k3s-ansible/03-ansible-vault.md](03-ansible-vault.md).
 
 ## 6. Ćwiczenia
 

@@ -1,4 +1,4 @@
-# 7. Nowa maszyna z Packera
+# Etap 0 – nowa maszyna z Packera
 
 Zamiast klonować szablon i poprawiać każdy klon ręcznie (machine-id, klucze SSH, MAC, nazwa, IP),
 Packer instaluje maszynę **od zera z ISO** – bez klikania, od razu z właściwą konfiguracją.
@@ -15,7 +15,7 @@ Pliki w `packer/`:
 | `k3s-worker-3.pkrvars.hcl.example` | parametry maszyny (nazwa, IP, MAC, RAM, ISO) |
 | `secrets.pkrvars.hcl.example` | użytkownik i hasło |
 
-Szczegółowo, co z czym się łączy i skąd bierze się każda wartość: [packer/README.md](../packer/README.md).
+Szczegółowo, co z czym się łączy i skąd bierze się każda wartość: [packer/README.md](../../packer/README.md).
 
 Przebieg `packer build`:
 
@@ -44,7 +44,7 @@ W `k3s-worker-3.pkrvars.hcl` uzupełnij ścieżkę do ISO, sumę kontrolną
 (`Get-FileHash plik.iso`), adresy i `output_directory`. MAC musi być unikalny i z puli VMware
 dla adresów statycznych: `00:50:56:00:00:00` – `00:50:56:3F:FF:FF`.
 
-Przepis wgrywa na maszynę klucz `~/.ssh/k3s-lab.pub` (docs/01, *Klucz SSH zamiast hasła*) – utwórz go przed budową.
+Przepis wgrywa na maszynę klucz `~/.ssh/k3s-lab.pub` (maszyny wirtualne, *Klucz SSH zamiast hasła*) – utwórz go przed budową.
 
 W `secrets.pkrvars.hcl` wpisz użytkownika, hasło i jego hash. Hash wygenerujesz na dowolnej
 maszynie labu:
@@ -75,7 +75,7 @@ packer build "-var-file=k3s-worker-3.pkrvars.hcl" "-var-file=secrets.pkrvars.hcl
 1. VMware: **File → Open** → `k3s-worker-3.vmx` z `output_directory` i uruchom maszynę.
 2. Sprawdź: `hostname`, `ip a`, `ping -c 3 k3s-master`.
 3. Na pozostałych maszynach dopisz nowy węzeł do `/etc/hosts` i ustaw `WORKER3_IP` w `lab.env`
-   (patrz [docs/02](02-instalacja-k3s.md)).
+   (patrz [k3s skryptami](../etap-2-k3s-ansible/04-k3s-skryptami.md)).
 4. Dalej jak z każdym workerem: `00-prepare-node.sh k3s-worker-3`, potem `02-install-worker.sh`.
 
 ## Najczęstsze problemy

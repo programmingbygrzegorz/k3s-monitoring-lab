@@ -1,8 +1,8 @@
 # Teoria Ansible – wprowadzenie dla początkujących
 
 Ten plik tłumaczy, **czym jest Ansible i jak działa**, na przykładach z tego repozytorium.
-Nie musisz go czytać, żeby przejść laboratorium – instrukcje są w [przewodniku](00-przewodnik.md)
-i w [docs/06](06-ansible.md). Ale po lekturze będziesz rozumieć, co robią polecenia, które wpisujesz.
+Nie musisz go czytać, żeby przejść laboratorium – instrukcje są w [przewodniku](../00-przewodnik.md)
+i w [k3s przez Ansible](02-k3s-przez-ansible.md). Ale po lekturze będziesz rozumieć, co robią polecenia, które wpisujesz.
 
 ## Spis treści
 
@@ -385,7 +385,7 @@ root – **become** to przejście na niego, domyślnie przez `sudo`.
 | w playu | `become: true` |
 | w wierszu poleceń | `-b` / `--become` |
 | hasło sudo | `-K` / `--ask-become-pass` – Ansible pyta raz, na starcie |
-| hasło bez wpisywania | `ansible_become_password` zaszyfrowane w Ansible Vault – [docs/09](09-ansible-vault.md) |
+| hasło bez wpisywania | `ansible_become_password` zaszyfrowane w Ansible Vault – [Ansible Vault](03-ansible-vault.md) |
 | program | `become_exe` w `ansible.cfg` (w tym labie `sudo.ws` – patrz niżej) |
 
 Logowanie przez SSH odbywa się kluczem, ale `sudo` w Ubuntu i tak wymaga hasła – stąd
@@ -473,12 +473,12 @@ Podgląd efektywnej konfiguracji: `ansible-config dump --only-changed`.
 | `ansible-doc` | dokumentacja modułów offline |
 | `ansible-inventory` | podgląd inventory |
 | `ansible-config` | podgląd konfiguracji |
-| `ansible-vault` | szyfrowanie sekretów w plikach – [docs/09](09-ansible-vault.md) |
+| `ansible-vault` | szyfrowanie sekretów w plikach – [Ansible Vault](03-ansible-vault.md) |
 | `ansible-lint` | kontrola jakości kodu |
 | `pipx` | instalacja Ansible w izolowanym środowisku |
 
 Instalacja i działanie pipx, kolekcji i ansible-lint:
-[docs/06 – Narzędzia](06-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
+[k3s przez Ansible – Narzędzia](02-k3s-przez-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
 
 ## 19. Ansible na tle innych narzędzi
 
@@ -506,7 +506,7 @@ ansible/
 ├── inventory-bootstrap.ini.example  # inventory dla świeżych klonów (adresy z DHCP)
 ├── requirements.yml             # potrzebne kolekcje (rozdz. 4)
 ├── group_vars/all/main.yml      # wspólne zmienne (rozdz. 8)
-├── group_vars/all/vault.yml     # hasło sudo zaszyfrowane Ansible Vault (docs/09, poza gitem)
+├── group_vars/all/vault.yml     # hasło sudo zaszyfrowane Ansible Vault (Ansible Vault, poza gitem)
 ├── site.yml                     # całe lab: prepare.yml + k3s.yml
 ├── playbooks/
 │   ├── bootstrap.yml            # klony → unikalne maszyny ze stałym IP
@@ -570,7 +570,7 @@ ansible-galaxy collection list
 
 ## Dalej
 
-- Praktyka krok po kroku: [docs/06-ansible.md](06-ansible.md) i Etap 2 w [przewodniku](00-przewodnik.md).
-- Klucze SSH, z których korzysta Ansible: [docs/teoria-ssh-klucze.md](teoria-ssh-klucze.md).
-- Problemy, które wystąpiły przy pracy z Ansible: [docs/08-problemy-administratora.md](08-problemy-administratora.md#automatyzacja-skrypty-i-ansible).
+- Praktyka krok po kroku: [docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md](02-k3s-przez-ansible.md) i Etap 2 w [przewodniku](../00-przewodnik.md).
+- Klucze SSH, z których korzysta Ansible: [docs/etap-0b-klucze-ssh/01-klucze-ssh.md](../etap-0b-klucze-ssh/01-klucze-ssh.md).
+- Problemy, które wystąpiły przy pracy z Ansible: [docs/problemy-ogolne.md](problemy.md).
 - Oficjalna dokumentacja: <https://docs.ansible.com/>.

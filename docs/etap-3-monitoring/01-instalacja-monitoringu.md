@@ -1,9 +1,9 @@
-# 3. Monitoring w klastrze
+# Etap 3 – instalacja monitoringu w klastrze
 
 Pierwszy raz z Kubernetesem lub Helmem? Pojęcia (chart, values, release, Traefik, CRD, operator)
-wyjaśnia [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md). Co robi każda linia pliku values –
-[docs/03a-values-monitoringu.md](03a-values-monitoringu.md). Co robi Prometheus, Grafana i Alertmanager –
-[docs/teoria-monitoring.md](teoria-monitoring.md).
+wyjaśnia [docs/etap-3-monitoring/03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md). Co robi każda linia pliku values –
+[docs/etap-3-monitoring/02-plik-values.md](02-plik-values.md). Co robi Prometheus, Grafana i Alertmanager –
+[docs/etap-3-monitoring/04-teoria-monitoringu.md](04-teoria-monitoringu.md).
 
 **Zadania do przećwiczenia w tym etapie** – zobacz [Ćwiczenia do Etapu 3](#ćwiczenia-do-etapu-3) na końcu pliku.
 
@@ -54,7 +54,7 @@ k3s-worker-3   14m          0%       813Mi           13%
 
 Liczy się **wolna pamięć workerów** (każdy ma ~4,5 GiB wolnego) – master ma taint `NoSchedule`
 i nie dostanie podów monitoringu (poza node-exporterem). Jak czytać `32m` i `Mi` –
-[teoria, rozdział 5](teoria-kubernetes-helm.md#5-zasoby-węzłów-i-kubectl-top).
+[teoria, rozdział 5](03-teoria-kubernetes-helm.md#5-zasoby-węzłów-i-kubectl-top).
 
 ### Krok 1. Instalacja Helma
 
@@ -153,8 +153,8 @@ traefik-crd  kube-system  1         2026-10-29 14:44:15 UTC  deployed  traefik-c
 - Tych dwóch nie instalował administrator – zrobił to wbudowany w k3s helm-controller. Nie
   aktualizuj ich ręcznie: k3s nadpisze zmiany.
 - Jak czytać kolumny i czym jest `traefik-crd` –
-  [teoria, rozdziały 8, 11 i 12](teoria-kubernetes-helm.md#8-chart-values-i-release).
-- Szczegóły problemu: [docs/08](08-problemy-administratora.md#kubectl-działa-a-helm-nie-widzi-klastra).
+  [teoria, rozdziały 8, 11 i 12](03-teoria-kubernetes-helm.md#8-chart-values-i-release).
+- Szczegóły problemu: [problemy](problemy.md#kubectl-działa-a-helm-nie-widzi-klastra).
 
 ### Krok 3. Repozytorium chartów i podgląd instalacji
 
@@ -189,13 +189,13 @@ helm template monitoring prometheus-community/kube-prometheus-stack --version 92
 | Polecenie | Co robi |
 |---|---|
 | `helm show values … \| wc -l` | ile linii mają domyślne ustawienia chartu (6340) |
-| `cat …values.yaml` | nasze nadpisania – opis każdej linii: [docs/03a](03a-values-monitoringu.md) |
+| `cat …values.yaml` | nasze nadpisania – opis każdej linii: [plik values](02-plik-values.md) |
 | `helm template` | wypełnia szablony i wypisuje gotowy YAML **bez wysyłania do klastra** |
 | `grep '^kind:'` | wybiera linie z typem obiektu |
 | `sort \| uniq -c \| sort -rn` | grupuje, liczy i sortuje od najliczniejszych |
 
 Wynik i opis każdego typu obiektu:
-[docs/03a – co powstanie w klastrze](03a-values-monitoringu.md#co-powstanie-w-klastrze--wynik-z-labu-chart-92161).
+[plik values – co powstanie w klastrze](02-plik-values.md#co-powstanie-w-klastrze--wynik-z-labu-chart-92161).
 W skrócie: 30 zestawów reguł alertów, 29 dashboardów, 9 ServiceMonitorów, 3 Deploymenty,
 DaemonSet node-exportera i obiekty `Prometheus` oraz `Alertmanager`, z których operator zbuduje pody.
 
@@ -225,7 +225,7 @@ grep -n '\${' /tmp/kps-values.yaml
 | Część | Znaczenie |
 |---|---|
 | `umask 077` | nowe pliki powstają z uprawnieniami `600` – w pliku będzie hasło |
-| `envsubst '…'` | zamień `${…}` na wartości – **tylko** tych dwóch zmiennych ([docs/03a, rozdział 3](03a-values-monitoringu.md#3-luki--i-envsubst)) |
+| `envsubst '…'` | zamień `${…}` na wartości – **tylko** tych dwóch zmiennych ([plik values, rozdział 3](02-plik-values.md#3-luki--i-envsubst)) |
 | `<` / `>` | czytaj z pliku values, zapisz wynik do `/tmp/kps-values.yaml` |
 | `grep -n '\${'` | pokaż linie (z numerami), w których został napis `${` |
 
@@ -298,7 +298,7 @@ monitoring-prometheus-node-exporter-ndx8n             0/1     ContainerCreating 
 - `ErrImagePull` na worker-1: w zdarzeniach (`kubectl get events -n monitoring --sort-by=.lastTimestamp`)
   przyczyna `dial tcp: lookup cdn01.quay.io: Try again` – chwilowy błąd DNS. Kubernetes sam ponowił
   pobieranie i pod wstał bez żadnej interwencji. Opis:
-  [docs/08](08-problemy-administratora.md#errimagepull-przez-chwilowy-błąd-dns).
+  [problemy](problemy.md#errimagepull-przez-chwilowy-błąd-dns).
 
 Koniec instalacji (około 6 minut):
 
@@ -419,10 +419,10 @@ Aktywne alerty:
 | Alert | Czy to problem |
 |---|---|
 | `Watchdog` | nie – zawsze aktywny (dead man's switch) |
-| `AlertmanagerFailedToSendAlerts`, `AlertmanagerClusterFailedToSendAlerts` | tak, ale spodziewany: `HEALTHCHECKS_URL` to adres przykładowy, healthchecks.io odpowiada `400 invalid url format`. Znikną po założeniu konta w Etapie 4 – [docs/08](08-problemy-administratora.md#alertmanagerfailedtosendalerts-zaraz-po-instalacji) |
+| `AlertmanagerFailedToSendAlerts`, `AlertmanagerClusterFailedToSendAlerts` | tak, ale spodziewany: `HEALTHCHECKS_URL` to adres przykładowy, healthchecks.io odpowiada `400 invalid url format`. Znikną po założeniu konta w Etapie 4 – [problemy](problemy.md#alertmanagerfailedtosendalerts-zaraz-po-instalacji) |
 
 Skąd wzięły się te reguły i cele oraz czym różnią się *Target health*, *Rule health* i *Alerts* –
-[teoria monitoringu](teoria-monitoring.md#skąd-w-prometheusie-wzięły-się-alerty-target-health-i-rule-health).
+[teoria monitoringu](04-teoria-monitoringu.md#skąd-w-prometheusie-wzięły-się-alerty-target-health-i-rule-health).
 
 ```bash
 helm list -A
@@ -479,7 +479,7 @@ kubectl -n demo logs <nazwa-poda> --previous
 ## Własne alerty
 
 Z ~225 reguł w Prometheusie tylko **5** jest napisanych dla tego labu – w pliku
-[kubernetes/monitoring/prometheusrule-lab.yaml](../kubernetes/monitoring/prometheusrule-lab.yaml).
+[kubernetes/monitoring/prometheusrule-lab.yaml](../../kubernetes/monitoring/prometheusrule-lab.yaml).
 Pozostałe przyszły z chartu kube-prometheus-stack (projekt społeczności prometheus-community,
 sprawdzony w wielu firmach) i obejmują m.in. `KubeNodeNotReady`, `KubePodCrashLooping`,
 `KubePodNotReady`.
@@ -517,7 +517,7 @@ Reguły są obiektem typu **PrometheusRule** (CRD). Po zmianie pliku wystarczy
 `kubectl apply -f kubernetes/monitoring/` – operator przekaże regułę Prometheusowi bez restartu,
 a pojawi się w *Status → Rule health*.
 
-Własną regułę napiszesz w ćwiczeniu w [Etapie 5](05-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).
+Własną regułę napiszesz w ćwiczeniu w [Etapie 5](../etap-5-scenariusze-awarii/01-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).
 
 Aktywne alerty: Prometheus → *Alerts* (`:30090`) lub Alertmanager (`:30093`).
 
@@ -536,12 +536,12 @@ Po instalacji przejdź samodzielnie dwa zestawy ćwiczeń, w tej kolejności (zr
 
 | Plik | Co ćwiczysz | Gdzie | Czas |
 |---|---|---|---|
-| [docs/10 – ćwiczenia z kubectl](10-cwiczenia-kubectl.md) | 8 poziomów: rozglądanie się, Deployment, samonaprawa, skalowanie, Service, aktualizacja i wycofanie, drain węzła, YAML i apply | terminal na `k3s-master` | 1–2 h |
-| [docs/11 – ćwiczenia z monitoringu](11-cwiczenia-monitoring.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30030`) i `k3s-master` | 1–2 h |
+| [ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md) | 8 poziomów: rozglądanie się, Deployment, samonaprawa, skalowanie, Service, aktualizacja i wycofanie, drain węzła, YAML i apply | terminal na `k3s-master` | 1–2 h |
+| [ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30030`) i `k3s-master` | 1–2 h |
 
-Przykładowe wykonanie ćwiczeń z monitoringu ze zrzutami ekranu: [docs/11a](11a-cwiczenia-monitoring-wykonanie.md).
+Przykładowe wykonanie ćwiczeń z monitoringu ze zrzutami ekranu: [rozwiązania ćwiczeń z monitoringu](06-cwiczenia-monitoringu-rozwiazania.md).
 Zaglądaj tam dopiero po zrobieniu poziomu, żeby porównać wynik. Poziomy 5 i 8 (Grafana) nie mają
 przykładowego wykonania, zrób je sam.
 
 Dodatkowe ćwiczenie z pisania własnej reguły alertu (`NodeDiskAlmostFull`) jest w
-[Etapie 5](05-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).
+[Etapie 5](../etap-5-scenariusze-awarii/01-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).

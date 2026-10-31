@@ -2,7 +2,7 @@
 
 Ten folder buduje nową maszynę laboratorium **od zera z ISO Ubuntu Server** w VMware Workstation.
 Instalacja idzie bez klikania, a maszyna od pierwszego startu ma swoją nazwę, stały adres IP
-i sklonowane repozytorium. Instrukcja krok po kroku: [docs/07-packer.md](../docs/07-packer.md).
+i sklonowane repozytorium. Instrukcja krok po kroku: [docs/etap-0-maszyny-wirtualne/02-packer.md](../docs/etap-0-maszyny-wirtualne/02-packer.md).
 
 ## Pliki i ich role
 

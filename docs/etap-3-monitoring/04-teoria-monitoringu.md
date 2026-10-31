@@ -1,7 +1,7 @@
 # Monitoring – Prometheus, Grafana i Alertmanager
 
 Ten plik tłumaczy od zera, **co robi każdy z trzech programów** monitoringu z Etapu 3 i jak ze sobą
-współpracują. Instalacja krok po kroku: [docs/03](03-monitoring.md).
+współpracują. Instalacja krok po kroku: [instalacja monitoringu](01-instalacja-monitoringu.md).
 
 ## Spis treści
 
@@ -161,7 +161,7 @@ nie mają Service'u.
 
 1. Czy Prometheus „widzi” ten ServiceMonitor – w kube-prometheus-stack domyślnie tylko z etykietą
    `release: <nazwa release'u>`; w labie wyłączone przez `serviceMonitorSelectorNilUsesHelmValues: false`
-   ([docs/03a](03a-values-monitoringu.md#trzy-linie-selectorniluseshelmvalues-false)).
+   ([plik values](02-plik-values.md#trzy-linie-selectorniluseshelmvalues-false)).
 2. Czy `selector` ServiceMonitora pasuje do **etykiet Service'u** (nie podów!).
 3. Czy nazwa portu (`port: http`) istnieje w Service.
 4. Czy Service ma pody: `kubectl get endpointslices -n demo`.
@@ -193,7 +193,7 @@ Najważniejsze elementy:
 ## 7. Reguły alertów
 
 Reguła to zapytanie PromQL z warunkiem i czasem trwania. Przykład z labu
-([kubernetes/monitoring/prometheusrule-lab.yaml](../kubernetes/monitoring/prometheusrule-lab.yaml)):
+([kubernetes/monitoring/prometheusrule-lab.yaml](../../kubernetes/monitoring/prometheusrule-lab.yaml)):
 
 ```yaml
 - alert: PodinfoDown
@@ -239,7 +239,7 @@ Gdyby była to produkcja: `alertmanager.alertmanagerSpec.replicas: 3` w pliku va
 W labie domyślnym odbiorcą jest `null` – alerty widać na stronach, ale nikt nie dostaje
 wiadomości. Wyjątek to **Watchdog** – alert, który jest zawsze aktywny i co minutę trafia do
 healthchecks.io (**dead man's switch**). Gdy przestanie docierać, healthchecks.io zaalarmuje, że
-padł cały monitoring. Szczegóły konfiguracji: [docs/03a, rozdział 6](03a-values-monitoringu.md#6-alertmanager--trasy-i-odbiorcy).
+padł cały monitoring. Szczegóły konfiguracji: [plik values, rozdział 6](02-plik-values.md#6-alertmanager--trasy-i-odbiorcy).
 
 ## 9. Grafana – pokazuje dane na wykresach
 
@@ -430,6 +430,6 @@ Google SRE to minimum, które warto mierzyć dla każdej usługi.
 
 ## Dalej
 
-- Instalacja krok po kroku: [docs/03-monitoring.md](03-monitoring.md)
-- Plik values linia po linii: [docs/03a-values-monitoringu.md](03a-values-monitoringu.md)
-- Pojęcia Kubernetes i Helm: [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md)
+- Instalacja krok po kroku: [docs/etap-3-monitoring/01-instalacja-monitoringu.md](01-instalacja-monitoringu.md)
+- Plik values linia po linii: [docs/etap-3-monitoring/02-plik-values.md](02-plik-values.md)
+- Pojęcia Kubernetes i Helm: [docs/etap-3-monitoring/03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md)

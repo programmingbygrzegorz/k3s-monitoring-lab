@@ -1,9 +1,9 @@
 # Plik values monitoringu – co robi każda linia
 
-Opis pliku [monitoring/kube-prometheus-stack-values.yaml](../monitoring/kube-prometheus-stack-values.yaml),
-z którym instalujesz chart **kube-prometheus-stack** w [Etapie 3](03-monitoring.md).
+Opis pliku [monitoring/kube-prometheus-stack-values.yaml](../../monitoring/kube-prometheus-stack-values.yaml),
+z którym instalujesz chart **kube-prometheus-stack** w [Etapie 3](01-instalacja-monitoringu.md).
 
-Czym jest chart, values i release – [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md#8-chart-values-i-release).
+Czym jest chart, values i release – [docs/etap-3-monitoring/03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md#8-chart-values-i-release).
 
 ## Spis treści
 
@@ -140,7 +140,7 @@ To najczęstsza pułapka tego chartu. Domyślnie Prometheus zbiera tylko te Serv
 PodMonitory i reguły, które mają etykietę `release: monitoring` – czyli te założone przez
 **ten sam** release Helma.
 
-Nasz ServiceMonitor dla podinfo i nasze reguły alertów ([kubernetes/monitoring/](../kubernetes/monitoring/))
+Nasz ServiceMonitor dla podinfo i nasze reguły alertów ([kubernetes/monitoring/](../../kubernetes/monitoring))
 nie mają tej etykiety. Bez tych trzech linii Prometheus by je **po cichu pominął** – bez błędu,
 po prostu podinfo nie pojawiłoby się w *Status → Targets*.
 

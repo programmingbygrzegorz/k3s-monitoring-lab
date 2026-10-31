@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Przygotowanie maszyny wirtualnej: nazwa hosta, /etc/hosts, aktualizacje, swap, firewall.
 # Użycie (na każdej maszynie): sudo ./scripts/00-prepare-node.sh <nazwa-hosta>
-# Opis każdej części: docs/skrypty/00-prepare-node.md
+# Opis każdej części: docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md
 # Nazwy hostów: k3s-master, k3s-worker-1, k3s-worker-2, (opcjonalnie k3s-worker-3), monitoring
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -49,7 +49,7 @@ if [[ -s "${AUTHORIZED_KEYS}" ]]; then
   echo 'PasswordAuthentication no' > /etc/ssh/sshd_config.d/01-lab.conf
   systemctl reload ssh
 else
-  log "UWAGA: ${ADMIN_USER} nie ma klucza SSH – logowanie hasłem zostaje włączone (docs/01, Klucz SSH)"
+  log "UWAGA: ${ADMIN_USER} nie ma klucza SSH – logowanie hasłem zostaje włączone (docs/etap-0-maszyny-wirtualne/01-maszyny-wirtualne.md, Klucz SSH)"
 fi
 
 if [[ "${ENABLE_UFW:-yes}" != "yes" ]]; then

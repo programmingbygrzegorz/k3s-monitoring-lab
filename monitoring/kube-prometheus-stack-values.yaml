@@ -1,6 +1,6 @@
 # Wartości dla chartu kube-prometheus-stack dopasowane do k3s.
 # Zmienne ${...} podstawia skrypt scripts/04-install-monitoring.sh z pliku lab.env.
-# Opis każdej linii: docs/03a-values-monitoringu.md
+# Opis każdej linii: docs/etap-3-monitoring/02-plik-values.md
 
 grafana:
   enabled: true

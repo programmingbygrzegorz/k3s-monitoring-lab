@@ -114,24 +114,29 @@ różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstati
 │   ├── kube-prometheus-stack-values.yaml
 │   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
 ├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu (opis: packer/README.md)
-└── docs/                        # szczegółowe instrukcje krok po kroku
+└── docs/                        # przewodnik + folder dla każdego etapu (etap-0-…, etap-1-…)
 ```
 
 ## Szybki start
 
 **Cała budowa krok po kroku, z każdym poleceniem do wpisania:
-[docs/00-przewodnik.md](docs/00-przewodnik.md).** Szczegóły poszczególnych etapów: [docs/](docs/).
-Problemy, które pojawiły się przy budowie, z diagnozą i rozwiązaniem:
-[docs/08-problemy-administratora.md](docs/08-problemy-administratora.md).
+[docs/00-przewodnik.md](docs/00-przewodnik.md).**
 
-Ćwiczenia z klastrem krok po kroku, ze zrzutami: [docs/10-cwiczenia-kubectl.md](docs/10-cwiczenia-kubectl.md).
-Ćwiczenia z monitoringu (Prometheus, Grafana, Alertmanager): [docs/11](docs/11-cwiczenia-monitoring.md),
-wykonanie ze zrzutami: [docs/11a](docs/11a-cwiczenia-monitoring-wykonanie.md).
+Każdy etap ma w `docs/` swój folder. W nim są instrukcja, teoria, ćwiczenia z rozwiązaniami
+i problemy z tego etapu, ponumerowane w kolejności czytania:
 
-Teoria dla początkujących: [Ansible](docs/teoria-ansible.md) ·
-[klucze SSH – użytkownika i hosta](docs/teoria-ssh-klucze.md) ·
-[Kubernetes i Helm](docs/teoria-kubernetes-helm.md) ·
-[monitoring: Prometheus, Grafana, Alertmanager](docs/teoria-monitoring.md).
+| Etap | Folder | Teoria | Ćwiczenia |
+|---|---|---|---|
+| 0 – sieć i maszyny wirtualne, Packer | [etap-0-maszyny-wirtualne](docs/etap-0-maszyny-wirtualne/README.md) | – | – |
+| 0b – klucze SSH | [etap-0b-klucze-ssh](docs/etap-0b-klucze-ssh/README.md) | [klucze SSH](docs/etap-0b-klucze-ssh/01-klucze-ssh.md) | – |
+| 1 – przygotowanie systemu | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | – | – |
+| 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md) | [kubectl, z rozwiązaniami](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md) |
+| 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
+| 4 – monitoring poza klastrem | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | – | – |
+| 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | – | własna reguła alertu |
+
+Metoda diagnozowania i spis wszystkich problemów według etapów:
+[docs/problemy-ogolne.md](docs/problemy-ogolne.md).
 
 ```bash
 # Na każdej maszynie
@@ -175,8 +180,8 @@ ansible-galaxy collection install -r requirements.yml
 ansible-playbook site.yml --ask-become-pass
 ```
 
-Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Hasło sudo bez wpisywania (Ansible Vault): [docs/09-ansible-vault.md](docs/09-ansible-vault.md). Pierwszy raz z Ansible? Wprowadzenie:
-[docs/teoria-ansible.md](docs/teoria-ansible.md).
+Szczegóły: [docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md). Hasło sudo bez wpisywania (Ansible Vault): [docs/etap-2-k3s-ansible/03-ansible-vault.md](docs/etap-2-k3s-ansible/03-ansible-vault.md). Pierwszy raz z Ansible? Wprowadzenie:
+[docs/etap-2-k3s-ansible/01-teoria-ansible.md](docs/etap-2-k3s-ansible/01-teoria-ansible.md).
 
 
 ## Scenariusze awarii
@@ -191,7 +196,7 @@ Szczegóły: [docs/06-ansible.md](docs/06-ansible.md). Hasło sudo bez wpisywani
 | Błędne wdrożenie | `sudo ./scripts/chaos.sh bad-deploy` | historia wdrożeń, `rollout undo` |
 | Awaria całego klastra | wyłącz wszystkie węzły | powiadomienie z healthchecks.io, alarm w Uptime Kuma |
 
-Opis krok po kroku: [docs/05-scenariusze-awarii.md](docs/05-scenariusze-awarii.md).
+Opis krok po kroku: [docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md](docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md).
 
 ## Czego się nauczyłem
 

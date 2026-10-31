@@ -9,21 +9,21 @@ wpisania. Przy każdym kroku jest napisane **gdzie** go wykonać:
 | 🖥️ **konsola VMware** | okno maszyny w VMware (logowanie hasłem) | `login:` / `user@nazwa:~$` |
 | 🐧 **maszyna** | terminal Linuxa przez SSH (`ssh <nazwa>` z Windowsa) | `user@nazwa:~$` |
 
-Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ścieżka.
+Szczegóły i wyjaśnienia są w folderach etapów `docs/etap-…` – każdy etap ma swój folder z instrukcją, teorią, ćwiczeniami i problemami. Tutaj jest sama ścieżka.
 
 ## Mapa etapów
 
 | Etap | Co powstaje | Kroki | Szczegóły |
 |---|---|---|---|
-| [Etap 0 – sieć i maszyny wirtualne](#etap-0--sieć-i-maszyny-wirtualne) | sieć NAT, szablon Ubuntu, klony ze stałymi adresami | 1–4 | [docs/01](01-maszyny-wirtualne.md), [Packer](07-packer.md) |
-| [Etap 0b – dostęp przez klucz SSH](#etap-0b--dostęp-przez-klucz-ssh) | logowanie z Windowsa kluczem, po nazwie | 5–8 | [klucze SSH](teoria-ssh-klucze.md) |
-| [Etap 1 – przygotowanie systemu](#etap-1--przygotowanie-systemu) | `/etc/hosts`, aktualizacje, swap wyłączony, SSH tylko kluczem, firewall | 9–14 | [00-prepare-node.sh](skrypty/00-prepare-node.md) |
-| [Etap 2 – klaster k3s przez Ansible](#etap-2--klaster-k3s-przez-ansible) | Ansible na `monitoring`, k3s: master + workery, opcjonalnie Vault | 15–25 | [docs/06](06-ansible.md), [teoria Ansible](teoria-ansible.md), [Vault](09-ansible-vault.md), [docs/02](02-instalacja-k3s.md) (skrypty) |
-| Ćwiczenia z kubectl (między etapami 2 i 3) | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [docs/10](10-cwiczenia-kubectl.md) |
-| [Etap 3 – monitoring w klastrze](#etap-3--monitoring-w-klastrze) | Prometheus, Alertmanager, Grafana, aplikacja demo, Helm | 26–32 | [docs/03](03-monitoring.md), [plik values](03a-values-monitoringu.md), [teoria Kubernetes i Helm](teoria-kubernetes-helm.md), [teoria monitoringu](teoria-monitoring.md) |
-| Ćwiczenia z monitoringu (po Etapie 3) | 8 poziomów: Target health, PromQL, wykresy, reguły, dashboardy, alert i wyciszenie, własny wykres | – | [docs/11](11-cwiczenia-monitoring.md), [wykonanie ze zrzutami](11a-cwiczenia-monitoring-wykonanie.md) |
-| Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [docs/04](04-monitoring-zewnetrzny.md) |
-| Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [docs/05](05-scenariusze-awarii.md) |
+| [Etap 0 – sieć i maszyny wirtualne](#etap-0--sieć-i-maszyny-wirtualne) | sieć NAT, szablon Ubuntu, klony ze stałymi adresami | 1–4 | [📁 folder](etap-0-maszyny-wirtualne/README.md), [maszyny wirtualne](etap-0-maszyny-wirtualne/01-maszyny-wirtualne.md), [Packer](etap-0-maszyny-wirtualne/02-packer.md) |
+| [Etap 0b – dostęp przez klucz SSH](#etap-0b--dostęp-przez-klucz-ssh) | logowanie z Windowsa kluczem, po nazwie | 5–8 | [📁 folder](etap-0b-klucze-ssh/README.md), [klucze SSH](etap-0b-klucze-ssh/01-klucze-ssh.md) |
+| [Etap 1 – przygotowanie systemu](#etap-1--przygotowanie-systemu) | `/etc/hosts`, aktualizacje, swap wyłączony, SSH tylko kluczem, firewall | 9–14 | [📁 folder](etap-1-przygotowanie-systemu/README.md), [00-prepare-node.sh](etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md) |
+| [Etap 2 – klaster k3s przez Ansible](#etap-2--klaster-k3s-przez-ansible) | Ansible na `monitoring`, k3s: master + workery, opcjonalnie Vault | 15–25 | [📁 folder](etap-2-k3s-ansible/README.md), [k3s przez Ansible](etap-2-k3s-ansible/02-k3s-przez-ansible.md), [teoria Ansible](etap-2-k3s-ansible/01-teoria-ansible.md), [Vault](etap-2-k3s-ansible/03-ansible-vault.md), [k3s skryptami](etap-2-k3s-ansible/04-k3s-skryptami.md) (skrypty) |
+| ↳ Etap 2 – ćwiczenia z kubectl | 8 poziomów: pody, skalowanie, Service, aktualizacje, drain, YAML | – | [ćwiczenia z kubectl](etap-2-k3s-ansible/05-cwiczenia-kubectl.md) |
+| [Etap 3 – monitoring w klastrze](#etap-3--monitoring-w-klastrze) | Prometheus, Alertmanager, Grafana, aplikacja demo, Helm | 26–32 | [📁 folder](etap-3-monitoring/README.md), [instalacja monitoringu](etap-3-monitoring/01-instalacja-monitoringu.md), [plik values](etap-3-monitoring/02-plik-values.md), [teoria Kubernetes i Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md), [teoria monitoringu](etap-3-monitoring/04-teoria-monitoringu.md) |
+| ↳ Etap 3 – ćwiczenia z monitoringu | 8 poziomów: Target health, PromQL, wykresy, reguły, dashboardy, alert i wyciszenie, własny wykres | – | [ćwiczenia z monitoringu](etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania ze zrzutami](etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
+| Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [📁 folder](etap-4-monitoring-zewnetrzny/README.md), [monitoring zewnętrzny](etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md) |
+| Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [📁 folder](etap-5-scenariusze-awarii/README.md), [scenariusze awarii](etap-5-scenariusze-awarii/01-scenariusze-awarii.md) |
 | Etap 6 – zarządzanie przez GUI *(planowany)* | Headlamp (klaster k3s), Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | – |
 | Etap 7 – CI/CD i GitOps *(planowany)* | GitLab CE na maszynie `gitlab`, GitLab Runner, własny obraz Docker, skan Trivy w pipeline, Argo CD w k3s | – | [plan poniżej](#etapy-6-i-7--plan) |
 | Etap 8 – AIOps *(planowany)* | Hermes Agent (Nous Research) jako asystent administratora: diagnoza po alercie, bez zmian bez zgody | – | [plan poniżej](#etap-8--plan) |
@@ -33,7 +33,7 @@ Szczegóły i wyjaśnienia są w plikach `docs/01`–`09`; tutaj jest sama ście
 
 Etapy 3–5 są na razie opisane w osobnych plikach; kroki w tym przewodniku zostaną dopisane po
 ich przejściu. Problemy z każdego etapu: [Najczęstsze problemy](#najczęstsze-problemy) i
-[docs/08](08-problemy-administratora.md).
+[problemy](problemy-ogolne.md).
 
 ### Etapy 6 i 7 – plan
 
@@ -118,7 +118,7 @@ bezpieczeństwa na pytanie „czy ktoś robi coś, czego nie powinien”.
 **Etap 9 – bezpieczeństwo klastra** (w k3s, bez nowych maszyn):
 
 1. kube-bench – raport CIS, poprawki (np. uprawnienia `644` kubeconfigu z
-   [docs/08](08-problemy-administratora.md#kubectl-działa-a-helm-nie-widzi-klastra)), raport po poprawkach,
+   [problemy](etap-3-monitoring/problemy.md#kubectl-działa-a-helm-nie-widzi-klastra)), raport po poprawkach,
 2. Falco – reguły wykrywania, alerty do Alertmanagera (połączenie z Etapem 3),
 3. Kyverno – 2–3 polityki: wymagane limity zasobów, zakaz obrazu `:latest`, zakaz kontenerów
    uprzywilejowanych.
@@ -238,7 +238,7 @@ Bramę potwierdzisz w VMware: **Edit → Virtual Network Editor → VMnet8 → N
    Szablonu od tej chwili nie uruchamiaj.
 
 > Zamiast szablonu i klonów możesz budować maszyny **Packerem** – instalacja z ISO bez
-> klikania, od razu ze stałym IP i kluczem SSH: [docs/07-packer.md](07-packer.md).
+> klikania, od razu ze stałym IP i kluczem SSH: [docs/etap-0-maszyny-wirtualne/02-packer.md](etap-0-maszyny-wirtualne/02-packer.md).
 
 ### Krok 3. Klony
 
@@ -308,7 +308,7 @@ cat /etc/machine-id        # inny na każdej maszynie
 ping -c 3 google.com       # internet działa
 ```
 
-> Ten krok automatyzuje rola Ansible `bootstrap` (docs/06, *Klony szablonu*), a Packer
+> Ten krok automatyzuje rola Ansible `bootstrap` (k3s przez Ansible, *Klony szablonu*), a Packer
 > w ogóle go eliminuje.
 
 ---
@@ -316,7 +316,7 @@ ping -c 3 google.com       # internet działa
 ## Etap 0b – dostęp przez klucz SSH
 
 > Czym różni się klucz użytkownika od klucza hosta, co trafia do `authorized_keys`, a co do
-> `known_hosts`: [docs/teoria-ssh-klucze.md](teoria-ssh-klucze.md).
+> `known_hosts`: [docs/etap-0b-klucze-ssh/01-klucze-ssh.md](etap-0b-klucze-ssh/01-klucze-ssh.md).
 
 ### Krok 5. Klucz na Twoim komputerze
 
@@ -424,7 +424,7 @@ ssh -t k3s-master "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh 
 
 `-t` daje terminal, w którym `sudo` zapyta o hasło. Skrypt: nazwa hosta, `/etc/hosts`,
 aktualizacje, swap, **wyłączenie logowania hasłem przez SSH** (tylko gdy jest klucz), firewall.
-Opis każdej linii: [docs/skrypty/00-prepare-node.md](skrypty/00-prepare-node.md).
+Opis każdej linii: [docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md](etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md).
 
 ### Krok 13. Sprawdzenie
 
@@ -465,8 +465,8 @@ pipx install ansible-lint
 ansible --version
 ```
 
-Pierwszy raz z Ansible? Jak działa i z czego się składa – [docs/teoria-ansible.md](teoria-ansible.md);
-czym są pipx, kolekcje i ansible-lint – [docs/06 – Narzędzia](06-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
+Pierwszy raz z Ansible? Jak działa i z czego się składa – [docs/etap-2-k3s-ansible/01-teoria-ansible.md](etap-2-k3s-ansible/01-teoria-ansible.md);
+czym są pipx, kolekcje i ansible-lint – [k3s przez Ansible – Narzędzia](etap-2-k3s-ansible/02-k3s-przez-ansible.md#narzędzia-pipx-kolekcje-i-ansible-lint).
 
 ### Krok 16. Klucz SSH dla Ansible
 
@@ -652,7 +652,7 @@ Wszystkie węzły klastra w stanie `Ready`.
 ### Krok 25 (opcjonalny). Hasło sudo w Ansible Vault
 
 Żeby uruchamiać playbooki bez `--ask-become-pass`, zapisz hasło sudo w pliku zaszyfrowanym
-Ansible Vault – instrukcja krok po kroku: [docs/09-ansible-vault.md](09-ansible-vault.md).
+Ansible Vault – instrukcja krok po kroku: [docs/etap-2-k3s-ansible/03-ansible-vault.md](etap-2-k3s-ansible/03-ansible-vault.md).
 
 ### Wariant: Etap 2 skryptami (bez Ansible)
 
@@ -670,7 +670,7 @@ ssh -t k3s-worker-2 "cd ~/k3s-monitoring-lab && sudo ./scripts/02-install-worker
 ssh -t k3s-master "cd ~/k3s-monitoring-lab && sudo ./scripts/03-post-install.sh"
 ```
 
-Szczegóły: [docs/02-instalacja-k3s.md](02-instalacja-k3s.md).
+Szczegóły: [docs/etap-2-k3s-ansible/04-k3s-skryptami.md](etap-2-k3s-ansible/04-k3s-skryptami.md).
 
 ---
 
@@ -678,9 +678,9 @@ Szczegóły: [docs/02-instalacja-k3s.md](02-instalacja-k3s.md).
 
 Prometheus, Alertmanager i Grafana z chartu Helm **kube-prometheus-stack** oraz aplikacja demo
 z własnymi alertami. Wszystkie polecenia na `k3s-master`. Każde polecenie z objaśnieniem
-i wynikami z labu: [docs/03-monitoring.md](03-monitoring.md#instalacja-ręczna-krok-po-kroku).
-Pojęcia: [teoria Kubernetes i Helm](teoria-kubernetes-helm.md), plik values linia po linii:
-[docs/03a](03a-values-monitoringu.md).
+i wynikami z labu: [docs/etap-3-monitoring/01-instalacja-monitoringu.md](etap-3-monitoring/01-instalacja-monitoringu.md#instalacja-ręczna-krok-po-kroku).
+Pojęcia: [teoria Kubernetes i Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md), plik values linia po linii:
+[plik values](etap-3-monitoring/02-plik-values.md).
 
 | Krok | Co robisz |
 |---|---|
@@ -696,14 +696,14 @@ Pojęcia: [teoria Kubernetes i Helm](teoria-kubernetes-helm.md), plik values lin
 
 ## Dalej
 
-- Etap 3 – monitoring w klastrze: [docs/03-monitoring.md](03-monitoring.md)
-- Etap 4 – monitoring poza klastrem: [docs/04-monitoring-zewnetrzny.md](04-monitoring-zewnetrzny.md)
-- Etap 5 – scenariusze awarii: [docs/05-scenariusze-awarii.md](05-scenariusze-awarii.md)
+- Etap 3 – monitoring w klastrze: [docs/etap-3-monitoring/01-instalacja-monitoringu.md](etap-3-monitoring/01-instalacja-monitoringu.md)
+- Etap 4 – monitoring poza klastrem: [docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md](etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md)
+- Etap 5 – scenariusze awarii: [docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md](etap-5-scenariusze-awarii/01-scenariusze-awarii.md)
 
 ## Najczęstsze problemy
 
 Szerszy opis każdego problemu – przyczyna, diagnoza i wnioski:
-[docs/08-problemy-administratora.md](08-problemy-administratora.md).
+[docs/problemy-ogolne.md](problemy-ogolne.md).
 
 | Objaw | Przyczyna | Rozwiązanie |
 |---|---|---|
@@ -721,7 +721,7 @@ Szerszy opis każdego problemu – przyczyna, diagnoza i wnioski:
 | `packer build` pokazuje tylko `Usage:` | PowerShell rozbija `-var-file=plik.hcl` na kropce | argumenty w cudzysłowie: `"-var-file=plik.hcl"` |
 | `ansible` na Windowsie: `No module named 'fcntl'` | Ansible działa tylko na Linuksie | uruchamiaj z `monitoring` (krok 15) |
 | `ansible all -m debug -a "msg={{ a }} {{ b }}"`: *must resolve to a 'dict' not 'str'* | spacja dzieli argumenty na części | całą wiadomość w cudzysłowie: `-a 'msg="{{ a }} {{ b }}"'` |
-| `ssh`: *This host key is known by the following other names/addresses* | klony mają wspólny klucz hosta (pominięty `ssh-keygen -A` w kroku 4) | nowe klucze, `ssh-keygen -R`, porównanie odcisków – docs/08 |
+| `ssh`: *This host key is known by the following other names/addresses* | klony mają wspólny klucz hosta (pominięty `ssh-keygen -A` w kroku 4) | nowe klucze, `ssh-keygen -R`, porównanie odcisków – [problemy Etapu 0](etap-0-maszyny-wirtualne/problemy.md#wspólny-klucz-hosta-wykryty-dopiero-po-zbudowaniu-klastra) |
 | `ssh k3s-master` na `monitoring`: *Connection closed* / *Permission denied (publickey)* | `ssh` nie zna klucza `~/.ssh/ansible` | `ssh -i ~/.ssh/ansible ...` albo `~/.ssh/config` na monitoring (krok 17) |
 | Ansible: *Host key verification failed* | klucz maszyny zmienił się (np. nowe klucze, odtworzona maszyna) | sprawdź odcisk, `ssh-keygen -R <adres>`, połącz się ponownie |
 | `ansible-playbook`: *Timeout (12s) waiting for privilege escalation prompt* | sudo-rs w Ubuntu 25.10+ | `git pull` (`ansible.cfg` ma `become_exe = sudo.ws`) |

@@ -1,4 +1,4 @@
-# 4. Monitoring poza klastrem
+# Etap 4 – monitoring poza klastrem
 
 ## Dlaczego
 

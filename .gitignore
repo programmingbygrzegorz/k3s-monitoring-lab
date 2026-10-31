@@ -18,5 +18,5 @@ packer/*.pkrvars.hcl
 packer/output-*/
 packer_cache/
 
-# Ansible Vault: zaszyfrowane hasło sudo (docs/09-ansible-vault.md)
+# Ansible Vault: zaszyfrowane hasło sudo (docs/etap-2-k3s-ansible/03-ansible-vault.md)
 ansible/group_vars/all/vault.yml

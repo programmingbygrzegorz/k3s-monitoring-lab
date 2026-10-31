@@ -1,6 +1,6 @@
-# 11a. Ćwiczenia z monitoringu – wykonanie ze zrzutami
+# Etap 3 – rozwiązania ćwiczeń z monitoringu (wykonanie ze zrzutami)
 
-Wykonanie poziomów z [docs/11](11-cwiczenia-monitoring.md) na klastrze labu, 30.10.2026, ze
+Wykonanie poziomów z [ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md) na klastrze labu, 30.10.2026, ze
 zrzutami ekranu i prawdziwymi wynikami. Służy do porównania: zrób poziom sam, potem zajrzyj tutaj.
 
 **Jak powstały zrzuty.** Poziomy 1–4, 6 i 7 wykonano automatycznie: polecenia `kubectl` przez SSH
@@ -23,7 +23,7 @@ Na końcu przywrócono stan wyjściowy: podinfo ma 3 repliki, brak aktywnych wyc
 
 *Status → Target health*:
 
-![Target health – podinfo, Grafana, Alertmanager](img/monitoring/1-target-health.png)
+![Target health – podinfo, Grafana, Alertmanager](img/1-target-health.png)
 
 - `serviceMonitor/demo/podinfo/0` – **3 / 3 up**: trzy repliki, każda pod własnym adresem poda
   (`10.42.2.19`, `10.42.3.11`, `10.42.1.15`) na porcie `9898`, ścieżka `/metrics`.
@@ -33,7 +33,7 @@ Na końcu przywrócono stan wyjściowy: podinfo ma 3 repliki, brak aktywnych wyc
 
 Filtr `node-exporter`:
 
-![Target health – node-exporter](img/monitoring/1-target-health-node-exporter.png)
+![Target health – node-exporter](img/1-target-health-node-exporter.png)
 
 Cztery cele z adresami **maszyn** (`192.168.180.51/52/53/55:9100`) – node-exporter działa
 w sieci maszyny (`hostNetwork`), bo mierzy samą maszynę.
@@ -57,13 +57,13 @@ Jedna strona node-exportera to ~1350 linii – Prometheus pobiera ją z każdego
 
 `up` – zakładka *Table*:
 
-![Zapytanie up](img/monitoring/2-query-up.png)
+![Zapytanie up](img/2-query-up.png)
 
 Każdy wiersz to jeden cel z poziomu 1, wartość `1` – odpowiada.
 
 `node_memory_MemAvailable_bytes / 1024 / 1024`:
 
-![Wolna pamięć węzłów w MiB](img/monitoring/2-query-pamiec.png)
+![Wolna pamięć węzłów w MiB](img/2-query-pamiec.png)
 
 | Część wiersza | Przykład | Co to jest |
 |---|---|---|
@@ -93,7 +93,7 @@ metryka z jądra (`MemAvailable` z `/proc/meminfo`).
 
 Wolna pamięć, zakładka *Graph*, zakres `1h`:
 
-![Wykres wolnej pamięci z ostatniej godziny](img/monitoring/3-graph-pamiec.png)
+![Wykres wolnej pamięci z ostatniej godziny](img/3-graph-pamiec.png)
 
 Cztery prawie płaskie linie – lab nic nie robi. Dolna (~1,75 GiB) to master.
 
@@ -103,7 +103,7 @@ Zużycie CPU w procentach:
 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100
 ```
 
-![Wykres CPU węzłów](img/monitoring/3-graph-cpu.png)
+![Wykres CPU węzłów](img/3-graph-cpu.png)
 
 `node_cpu_seconds_total{mode="idle"}` to licznik sekund bezczynności procesora. `rate(...[5m])`
 zamienia go na „ile sekund bezczynności na sekundę” (0–1 na rdzeń), `avg by (instance)` uśrednia
@@ -111,7 +111,7 @@ rdzenie maszyny, a `100 - … * 100` odwraca bezczynność w zajętość w proce
 
 Restarty kontenerów (`kube_pod_container_status_restarts_total`, *Table*):
 
-![Liczniki restartów kontenerów](img/monitoring/3-graph-restarty.png)
+![Liczniki restartów kontenerów](img/3-graph-restarty.png)
 
 Licznik tylko rośnie – dlatego reguła `PodRestartingTooOften` liczy `increase(...[10m])`, czyli
 przyrost w ostatnich 10 minutach, a nie samą wartość.
@@ -120,37 +120,37 @@ przyrost w ostatnich 10 minutach, a nie samą wartość.
 
 *Status → Rule health*:
 
-![Rule health](img/monitoring/4-rule-health.png)
+![Rule health](img/4-rule-health.png)
 
 Każda grupa reguł z plikiem, z którego operator ją wygenerował (`/etc/prometheus/rules/…`), stan
 `ok` i czas ostatniego obliczenia.
 
 *Alerts*:
 
-![Alerts – reguły labu inactive, alertmanager.rules firing](img/monitoring/4-alerts-poczatek.png)
+![Alerts – reguły labu inactive, alertmanager.rules firing](img/4-alerts-poczatek.png)
 
 - `lab.demo-app`, `lab.nodes`, `lab.pods` – 5 reguł labu, wszystkie **INACTIVE** (zielone).
 - `alertmanager.rules` – **FIRING (2)**: `AlertmanagerFailedToSendAlerts` i
   `AlertmanagerClusterFailedToSendAlerts` – przykładowy adres healthchecks.io
-  ([docs/08](08-problemy-administratora.md#alertmanagerfailedtosendalerts-zaraz-po-instalacji)).
+  ([problemy](problemy.md#alertmanagerfailedtosendalerts-zaraz-po-instalacji)).
 
 Alertmanager (`:30093`):
 
-![Alertmanager – alerty pogrupowane według odbiorcy](img/monitoring/5-alertmanager-alerty.png)
+![Alertmanager – alerty pogrupowane według odbiorcy](img/5-alertmanager-alerty.png)
 
 Alerty pogrupowane według **odbiorcy**: `Watchdog` → `deadmans-switch` (trasa szczegółowa
 z pliku values), reszta → `null` (trasa domyślna). Każda grupa ma etykiety z `group_by`
 (`alertname`, `namespace`).
 
 *Status* Alertmanagera – *Cluster Status: disabled* (jedna replika, opis w
-[teorii](teoria-monitoring.md#8-alertmanager--decyduje-kogo-powiadomić)):
+[teorii](04-teoria-monitoringu.md#8-alertmanager--decyduje-kogo-powiadomić)):
 
-![Alertmanager – status](img/monitoring/5-alertmanager-status.png)
+![Alertmanager – status](img/5-alertmanager-status.png)
 
 ## Poziom 5 – gotowe dashboardy w Grafanie
 
 Nie wykonano automatycznie – Grafana wymaga logowania hasłem. Do zrobienia samodzielnie według
-[docs/11](11-cwiczenia-monitoring.md#poziom-5--gotowe-dashboardy-w-grafanie).
+[ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md#poziom-5--gotowe-dashboardy-w-grafanie).
 
 ## Poziom 6 – narodziny alertu
 
@@ -180,20 +180,20 @@ Stan alertów co ~10 sekund (z API Prometheusa), licząc od `scale` o 11:22:07:
 
 Zrzut przy *pending* (+56 s):
 
-![PodinfoDown i PodinfoDegraded w stanie pending](img/monitoring/6-alert-pending.png)
+![PodinfoDown i PodinfoDegraded w stanie pending](img/6-alert-pending.png)
 
 Zrzut przy *firing* (+112 s):
 
-![PodinfoDown firing, PodinfoDegraded pending](img/monitoring/6-alert-firing.png)
+![PodinfoDown firing, PodinfoDegraded pending](img/6-alert-firing.png)
 
 Alertmanager – nowe grupy `PodinfoDown` i `PodinfoDegraded` przy odbiorcy `null`:
 
-![Alertmanager z alertami podinfo](img/monitoring/6-alertmanager-podinfo.png)
+![Alertmanager z alertami podinfo](img/6-alertmanager-podinfo.png)
 
 Wykres dostępnych replik (`kube_deployment_status_replicas_available{namespace="demo"}`, 15 min) –
 spadek z 3 do 0:
 
-![Wykres replik podinfo spadający do zera](img/monitoring/6-query-repliki.png)
+![Wykres replik podinfo spadający do zera](img/6-query-repliki.png)
 
 **Odpowiedzi:**
 - Od awarii do *firing* minęło **~1 min 52 s**: ~56 s, zanim Prometheus w ogóle zobaczył zmianę
@@ -217,12 +217,12 @@ curl -X POST -H 'Content-Type: application/json' http://192.168.180.51:30093/api
 
 Zakładka *Silences* – jedno aktywne wyciszenie, koniec za godzinę, warunek `alertname="PodinfoDown"`:
 
-![Lista wyciszeń – jedno aktywne](img/monitoring/7-silences.png)
+![Lista wyciszeń – jedno aktywne](img/7-silences.png)
 
 Szczegóły wyciszenia (*View*): kto, kiedy, do kiedy, komentarz i **Affected alerts: 1** – które
 alerty obejmuje:
 
-![Szczegóły wyciszenia](img/monitoring/7-silence-szczegoly.png)
+![Szczegóły wyciszenia](img/7-silence-szczegoly.png)
 
 > **Nieudany komentarz.** Polskie litery w komentarzu zamieniły się w `�`. Wyciszenie wysłano
 > poleceniem `curl` z Git Bash na Windowsie, który przekazał tekst w kodowaniu Windows (CP-1250),
@@ -233,11 +233,11 @@ alerty obejmuje:
 Zakładka *Alerts*, domyślny widok – `PodinfoDown` **zniknął**, `PodinfoDegraded` został (wyciszenie
 obejmuje tylko `alertname="PodinfoDown"`):
 
-![Alerty bez wyciszonych](img/monitoring/7-alerts-bez-wyciszonych.png)
+![Alerty bez wyciszonych](img/7-alerts-bez-wyciszonych.png)
 
 Po zaznaczeniu **Silenced** – `PodinfoDown` wraca na listę:
 
-![Alerty z wyciszonymi](img/monitoring/7-alerts-wyciszone.png)
+![Alerty z wyciszonymi](img/7-alerts-wyciszone.png)
 
 W Prometheusie w tym samym czasie oba alerty dalej **firing** (`PodinfoDegraded=firing
 PodinfoDown=firing` z API) – wyciszenie działa tylko w Alertmanagerze: problem jest, ale nikt nie
@@ -269,11 +269,11 @@ znalazł, bez zmiany konfiguracji Prometheusa.
 Alerty `Podinfo…` zniknęły z *firing* po **~61 sekundach** od przywrócenia replik (znowu: pobranie
 metryk + ocena reguły). Alerty labu wróciły do *inactive*:
 
-![Alerty podinfo po sprzątaniu – inactive](img/monitoring/7-po-sprzataniu.png)
+![Alerty podinfo po sprzątaniu – inactive](img/7-po-sprzataniu.png)
 
 Wykres replik z ostatnich 15 minut – spadek do 0 w poziomie 6 i powrót do 3:
 
-![Wykres replik – spadek i powrót](img/monitoring/7-query-repliki-powrot.png)
+![Wykres replik – spadek i powrót](img/7-query-repliki-powrot.png)
 
 Aktywne wyciszenia po sprzątaniu: **0**.
 
@@ -293,7 +293,7 @@ w Prometheusie, wykres warstwowy (*Stacked*), 1 godzina:
 sum by (namespace) (container_memory_working_set_bytes{container!=""})
 ```
 
-![Pamięć według namespace – wykres warstwowy](img/monitoring/8-query-pamiec-namespace.png)
+![Pamięć według namespace – wykres warstwowy](img/8-query-pamiec-namespace.png)
 
 | Warstwa | Namespace | Pamięć |
 |---|---|---|
@@ -302,7 +302,7 @@ sum by (namespace) (container_memory_working_set_bytes{container!=""})
 | dolna (zielona) | `demo` | ~24 MiB – **znika o 10:22 UTC**, gdy w poziomie 6 podinfo zeszło do 0 replik |
 
 Monitoring zużywa dwa razy więcej pamięci niż cały system k3s. W Grafanie zbudujesz ten sam
-wykres jako panel – według [docs/11, poziom 8](11-cwiczenia-monitoring.md#poziom-8--własny-wykres-w-grafanie).
+wykres jako panel – według [ćwiczenia z monitoringu, poziom 8](05-cwiczenia-monitoringu.md#poziom-8--własny-wykres-w-grafanie).
 
 ---
 

@@ -1,10 +1,10 @@
-# 11. Ćwiczenia z monitoringu – Prometheus, Grafana, Alertmanager
+# Etap 3 – ćwiczenia z monitoringu: Prometheus, Grafana, Alertmanager
 
 Osiem poziomów, od „gdzie co jest” do własnego wykresu. Każdy zajmuje 10–20 minut. Robisz je
 **w przeglądarce** na Windowsie, a kilka poleceń – na `k3s-master`.
 
-Teoria do tych ćwiczeń: [docs/teoria-monitoring.md](teoria-monitoring.md). Wykonanie wszystkich
-poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [docs/11a](11a-cwiczenia-monitoring-wykonanie.md)
+Teoria do tych ćwiczeń: [docs/etap-3-monitoring/04-teoria-monitoringu.md](04-teoria-monitoringu.md). Wykonanie wszystkich
+poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [rozwiązania ćwiczeń z monitoringu](06-cwiczenia-monitoringu-rozwiazania.md)
 – zajrzyj tam, gdy utkniesz albo chcesz porównać wynik.
 
 **Przed startem:** Etap 3 zakończony – działają Prometheus, Alertmanager, Grafana i podinfo
@@ -211,7 +211,7 @@ poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [docs/11a](11a-cwicz
 `kube-system`.
 
 **Uwaga:** Grafana w labie nie ma trwałego dysku – dashboard zrobiony w przeglądarce zniknie po
-restarcie poda Grafany ([docs/03a, rozdział 9](03a-values-monitoringu.md#9-czego-ten-plik-świadomie-nie-ustawia)).
+restarcie poda Grafany ([plik values, rozdział 9](02-plik-values.md#9-czego-ten-plik-świadomie-nie-ustawia)).
 Żeby go zachować: menu dashboardu → **Export** → **Export as JSON** i zapisz plik. W produkcji
 dashboardy trzyma się w gicie jako kod.
 

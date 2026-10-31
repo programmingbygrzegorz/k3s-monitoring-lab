@@ -1,6 +1,6 @@
-# 1. Maszyny wirtualne
+# Etap 0 – maszyny wirtualne
 
-> Cała ścieżka od pustego VMware do klastra, z poleceniami w kolejności: [00-przewodnik.md](00-przewodnik.md).
+> Cała ścieżka od pustego VMware do klastra, z poleceniami w kolejności: [00-przewodnik.md](../00-przewodnik.md).
 
 ## Wymagania sprzętowe
 
@@ -72,7 +72,7 @@ nano lab.env      # adresy IP, nazwa interfejsu, sieć administratora, hasło Gr
 
 ## Klucz SSH zamiast hasła
 
-> Jak działają klucze SSH (użytkownika i hosta): [teoria-ssh-klucze.md](teoria-ssh-klucze.md).
+> Jak działają klucze SSH (użytkownika i hosta): [teoria-ssh-klucze.md](../etap-0b-klucze-ssh/01-klucze-ssh.md).
 
 Na swoim komputerze utwórz osobny klucz dla laboratorium:
 
@@ -115,6 +115,6 @@ sudo ./scripts/00-prepare-node.sh monitoring      # na maszynie monitoring
 
 Skrypt ustawia nazwę hosta i `/etc/hosts`, aktualizuje system, wyłącza swap, wyłącza logowanie hasłem
 przez SSH (gdy masz już klucz) i konfiguruje firewall `ufw`. Opis każdej części skryptu:
-[docs/skrypty/00-prepare-node.md](skrypty/00-prepare-node.md).
+[docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md](../etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md).
 
 **Zrób snapshot wszystkich maszyn.** Gdy coś zepsujesz, wrócisz do czystego stanu w kilka sekund.

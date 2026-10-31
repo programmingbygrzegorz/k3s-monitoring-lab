@@ -1,4 +1,4 @@
-# 5. Scenariusze awarii
+# Etap 5 – scenariusze awarii
 
 Każdy scenariusz opisuj w sekcji „Czego się nauczyłem” w README: co się stało, co pokazał monitoring,
 jak znalazłeś przyczynę i jak ją usunąłeś.
@@ -72,7 +72,7 @@ Wyłącz wszystkie węzły. Oczekiwane: alarm w Uptime Kuma i powiadomienie z he
 
 ## Ćwiczenie: własna reguła alertu
 
-Reguły w labie przyszły z chartu albo z repozytorium ([docs/03](03-monitoring.md#własne-alerty)).
+Reguły w labie przyszły z chartu albo z repozytorium ([instalacja monitoringu](../etap-3-monitoring/01-instalacja-monitoringu.md#własne-alerty)).
 W tym ćwiczeniu piszesz **własną** – od zapytania do alertu w stanie *firing*.
 
 Cel: alert `NodeDiskAlmostFull`, gdy główny dysk (`/`) któregoś węzła jest zapełniony w ponad 85%.

@@ -1,4 +1,4 @@
-# 2. Instalacja klastra k3s
+# Etap 2 – instalacja k3s skryptami (wariant bez Ansible)
 
 ## Węzeł sterujący
 
