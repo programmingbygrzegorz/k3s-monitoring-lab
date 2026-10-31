@@ -37,8 +37,12 @@ poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [rozwiązania ćwicz
 2. Znajdź grupę `serviceMonitor/demo/podinfo/0`. Ile ma celów? Skąd ta liczba?
 3. W polu *Filter by endpoint or labels* wpisz `node-exporter`. Porównaj adresy z adresami maszyn
    labu (`.51`, `.52`, `.53`, `.55`).
-4. Przy jednym celu kliknij adres (`http://…/metrics`) – zobaczysz surowe metryki w formie
-   tekstu. Tak wygląda to, co Prometheus pobiera co 15–30 sekund.
+4. Przy celu **node-exportera** kliknij adres (`http://192.168.180.5x:9100/metrics`) – zobaczysz
+   surowe metryki w formie tekstu. Tak wygląda to, co Prometheus pobiera co 30 sekund. Adresy podów
+   (`10.42.x.x`, np. podinfo, Alertmanager) z Windowsa się nie otworzą – sieć podów istnieje tylko
+   w klastrze; je sprawdzisz z mastera: `curl -s http://<IP-poda>:<port>/metrics | head`.
+5. Rozwiń dowolny cel i przeczytaj jego etykiety – co znaczy każda, opisuje
+   [teoria: jak czytać wpis w Target health](04-teoria-monitoringu.md#jak-czytać-wpis-w-target-health).
 
 **Co powinieneś zobaczyć:** wszystkie cele **UP**, przy każdym czas ostatniego pobrania
 (*Last scrape*) i jego długość w milisekundach.

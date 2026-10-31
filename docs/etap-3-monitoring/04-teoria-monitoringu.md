@@ -170,6 +170,37 @@ nie mają Service'u.
 4. Czy Service ma pody: `kubectl get endpointslices -n demo`.
 5. Czy aplikacja naprawdę wystawia `/metrics`: `curl http://<IP-poda>:9898/metrics`.
 
+### Jak czytać wpis w Target health
+
+Przykład z labu – Prometheus zbiera metryki **samego Alertmanagera** (monitoring monitoruje też siebie):
+
+```
+serviceMonitor/monitoring/monitoring-kube-prometheus-alertmanager/0        1 / 1 up
+Endpoint                           Labels                                        Last scrape     State
+http://10.42.3.22:9093/metrics     container="alertmanager" endpoint="http-web"  6.705s ago 2ms  UP
+                                   instance="10.42.3.22:9093" job="monitoring-kube-prometheus-alertmanager"
+                                   namespace="monitoring" pod="alertmanager-monitoring-kube-prometheus-alertmanager-0"
+                                   service="monitoring-kube-prometheus-alertmanager"
+```
+
+| Element | Znaczenie |
+|---|---|
+| `serviceMonitor/monitoring/…-alertmanager/0` | grupa celów: typ obiektu / namespace / nazwa ServiceMonitora / numer wpisu w jego `endpoints:` (liczone od 0) |
+| `1 / 1 up` | ile celów w grupie działa – Alertmanager ma 1 replikę, więc 1 cel |
+| **Endpoint** `http://10.42.3.22:9093/metrics` | adres, pod który Prometheus chodzi po metryki: IP **poda** (sieć `10.42.x.x`), port Alertmanagera, ścieżka `/metrics` |
+| `container`, `pod`, `namespace` | gdzie działa cel – etykiety dopisane z Kubernetesa |
+| `endpoint="http-web"` | **nazwa portu** w Service, wskazana w ServiceMonitorze (`port: http-web`) |
+| `instance` | adres celu – po tej etykiecie odróżniasz repliki w zapytaniach |
+| `job` | nazwa zadania – tu nazwa Service'u; w PromQL np. `up{job="monitoring-kube-prometheus-alertmanager"}` |
+| `service` | Service, przez który ServiceMonitor znalazł pod |
+| **Last scrape** `6.705s ago`, `2ms` | kiedy ostatnio pobrano dane i ile to trwało; czas rośnie do interwału (30 s) i spada do zera |
+| **State** `UP` | ostatnie pobranie się udało – to samo co `up == 1` w PromQL. `DOWN` – z komunikatem błędu obok |
+
+Wszystkie te etykiety trafiają do **każdej** metryki z tego celu – dzięki nim w zapytaniu zawęzisz
+wynik do konkretnego poda, namespace'u czy usługi. Pod linkiem *Endpoint* (z przeglądarki na
+Windowsie nie zadziała – adres poda jest widoczny tylko w klastrze) są surowe metryki tekstowe;
+z mastera: `curl -s http://10.42.3.22:9093/metrics | head`.
+
 ## 6. PromQL – pytania do Prometheusa
 
 PromQL to język zapytań. Wpisujesz go w Prometheusie (zakładka *Query*) albo w Grafanie
@@ -430,6 +461,12 @@ przychodzić, ona alarmuje. Do tego monitoring z zewnątrz klastra – w labie m
 **Jakie są cztery złote sygnały (golden signals)?**
 Opóźnienie (latency), ruch (traffic), błędy (errors) i nasycenie (saturation) – według książki
 Google SRE to minimum, które warto mierzyć dla każdej usługi.
+
+**Skąd metryka ma etykiety `job`, `instance`, `pod`, `namespace`?**
+Dokleja je Prometheus przy pobieraniu: `job` i `instance` zawsze (nazwa zadania i adres celu),
+a `pod`, `namespace`, `service`, `container` – z Kubernetesa, przez service discovery opisane
+w ServiceMonitorze. Aplikacja ich nie wystawia, a dzięki nim filtrujesz i grupujesz wyniki
+(`sum by (namespace)`).
 
 ## Dalej
 
