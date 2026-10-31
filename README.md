@@ -114,6 +114,7 @@ różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstati
 │   ├── kube-prometheus-stack-values.yaml
 │   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
 ├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu (opis: packer/README.md)
+├── tools/                       # sprawdzanie odnośników, zrzuty do ćwiczeń (opis: tools/README.md)
 └── docs/                        # przewodnik + folder dla każdego etapu (etap-0-…, etap-1-…)
 ```
 

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="pl">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator ServiceMonitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: łańcuch trzech kart (ServiceMonitor → Service → Pody) z łącznikami, pod nim wynik "Target health" i lista kontrolna */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --ink:#1b2333; --muted:#5b667a; --line:#d7dce6;
+  --accent:#2f62d9; --accent-soft:#e3ebfc;
+  --ok:#1d8a4f; --ok-soft:#dff3e7; --bad:#c23b2e; --bad-soft:#fbe4e1; --warn:#a86a00; --warn-soft:#fbefd6;
+  --code-bg:#f7f8fb;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", Consolas, "Cascadia Mono", monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121621; --panel:#1a2030; --ink:#e6eaf2; --muted:#9aa5b8; --line:#2c3447;
+  --accent:#7aa2ff; --accent-soft:#1f2c4d;
+  --ok:#4cc985; --ok-soft:#173326; --bad:#ff7b6e; --bad-soft:#3a1d1b; --warn:#f0b54a; --warn-soft:#3a2c12;
+  --code-bg:#151a27; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#121621; --panel:#1a2030; --ink:#e6eaf2; --muted:#9aa5b8; --line:#2c3447;
+  --accent:#7aa2ff; --accent-soft:#1f2c4d;
+  --ok:#4cc985; --ok-soft:#173326; --bad:#ff7b6e; --bad-soft:#3a1d1b; --warn:#f0b54a; --warn-soft:#3a2c12;
+  --code-bg:#151a27; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--f-body);
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:28px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(1.6rem,3.2vw,2.2rem)}
+h2{font-size:1.25rem}
+h3{font-size:1rem}
+p{margin:0}
+.lead{color:var(--muted);max-width:68ch}
+code,.mono{font-family:var(--f-mono);font-size:.88em}
+.eyebrow{font:600 .72rem/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+
+/* Scenariusze */
+.scen{display:flex;flex-wrap:wrap;gap:8px}
+.scen button{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  padding:8px 12px;border-radius:999px;cursor:pointer}
+.scen button:hover{border-color:var(--accent)}
+.scen button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .scen button[aria-pressed="true"]{color:#0d1220}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .scen button[aria-pressed="true"]{color:#0d1220}}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Łańcuch */
+.chain{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+@media (max-width:900px){.chain{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0;align-content:start}
+.card header{display:grid;gap:4px}
+.card .kind{font:600 .78rem/1 var(--f-mono);color:var(--muted)}
+.card .file{font:.75rem var(--f-mono);color:var(--muted);word-break:break-all}
+.fields{display:grid;gap:8px}
+.f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:8px;align-items:center}
+.f label{font-size:.85rem;color:var(--muted)}
+.f input,.f select{font:.9rem var(--f-mono);width:100%;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--code-bg);color:var(--ink)}
+.f input.bad,.f select.bad{border-color:var(--bad);background:var(--bad-soft)}
+.f input.good,.f select.good{border-color:var(--ok)}
+.check{display:flex;gap:8px;align-items:center;font-size:.88rem}
+.check input{width:18px;height:18px}
+
+.link{display:grid;place-items:center;gap:6px;padding:4px}
+.link .arrow{font:700 1.4rem/1 var(--f-mono);color:var(--muted)}
+@media (max-width:900px){.link .arrow{transform:rotate(90deg)}}
+.pill{font:600 .78rem/1.2 var(--f-mono);padding:6px 9px;border-radius:999px;text-align:center;max-width:150px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* Wynik */
+.result{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.result{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:14px;min-width:0;align-content:start}
+.verdict{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:8px}
+.verdict.ok{background:var(--ok-soft)} .verdict.bad{background:var(--bad-soft)} .verdict.warn{background:var(--warn-soft)}
+.verdict .dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex:none}
+.verdict.ok .dot{background:var(--ok)} .verdict.bad .dot{background:var(--bad)} .verdict.warn .dot{background:var(--warn)}
+.verdict strong{display:block}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font:.85rem var(--f-mono);font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-family:var(--f-body);font-weight:700;color:var(--muted);font-size:.8rem}
+.st{font-weight:600;padding:2px 8px;border-radius:999px}
+.st.up{background:var(--ok-soft);color:var(--ok)} .st.down{background:var(--bad-soft);color:var(--bad)}
+.empty{color:var(--muted);font-style:italic;padding:10px 0}
+
+ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px}
+ol.steps li{padding-left:4px}
+ol.steps li.pass::marker{color:var(--ok)}
+ol.steps li.fail{color:var(--bad);font-weight:700}
+ol.steps li.skip{color:var(--muted)}
+ol.steps .hint{display:block;font-weight:400;color:var(--ink);font-size:.9rem;margin-top:2px}
+ol.steps .cmd{display:block;font:.8rem var(--f-mono);color:var(--muted);margin-top:2px;word-break:break-all}
+
+/* YAML */
+.yaml{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.yaml{grid-template-columns:1fr}}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto;font:.8rem/1.6 var(--f-mono)}
+pre .hl-ok{background:var(--ok-soft);color:var(--ok);border-radius:3px}
+pre .hl-bad{background:var(--bad-soft);color:var(--bad);border-radius:3px}
+pre .c{color:var(--muted)}
+
+.how{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.how{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.how{grid-template-columns:1fr}}
+.how div{border-top:3px solid var(--accent);padding-top:10px;display:grid;gap:4px}
+.how b{font-family:var(--f-mono);font-size:.8rem;color:var(--accent)}
+.foot{color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:no-preference){.pill,.verdict,.f input{transition:background .2s,border-color .2s,color .2s}}
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <span class="eyebrow">k3s-monitoring-lab · Etap 3</span>
+    <h1>Jak Prometheus znajduje podinfo</h1>
+    <p class="lead">ServiceMonitor nie zna adresów podów. Szuka Service'u po <b>etykiecie</b>, Service szuka podów po <b>etykiecie</b>, a port jest wskazany <b>nazwą</b>. Zmieniaj pola poniżej albo wybierz gotową awarię i patrz, co dzieje się w <i>Target health</i>.</p>
+  </header>
+
+  <section style="display:grid;gap:10px" aria-labelledby="scen-h">
+    <h2 id="scen-h">Scenariusze</h2>
+    <div class="scen" id="scen"></div>
+    <p class="foot" id="scen-desc"></p>
+  </section>
+
+  <section class="chain" aria-label="Łańcuch obiektów">
+    <article class="card">
+      <header><span class="kind">kind: ServiceMonitor</span><h3>podinfo</h3><span class="file">kubernetes/monitoring/servicemonitor-podinfo.yaml</span></header>
+      <div class="fields">
+        <div class="f"><label for="sm-key">selector: klucz</label><input id="sm-key" data-k="sm.key"></div>
+        <div class="f"><label for="sm-val">selector: wartość</label><input id="sm-val" data-k="sm.val"></div>
+        <div class="f"><label for="sm-port">endpoints.port</label><input id="sm-port" data-k="sm.port"></div>
+        <div class="f"><label for="sm-path">endpoints.path</label><input id="sm-path" data-k="sm.path"></div>
+        <label class="check"><input type="checkbox" id="sm-release" data-k="sm.release"> ma etykietę <code>release: monitoring</code></label>
+      </div>
+    </article>
+
+    <div class="link"><span class="arrow">→</span><span class="pill" id="l1"></span></div>
+
+    <article class="card">
+      <header><span class="kind">kind: Service</span><h3>podinfo</h3><span class="file">kubernetes/demo-app/20-service.yaml</span></header>
+      <div class="fields">
+        <div class="f"><label for="svc-lkey">labels: klucz</label><input id="svc-lkey" data-k="svc.lkey"></div>
+        <div class="f"><label for="svc-lval">labels: wartość</label><input id="svc-lval" data-k="svc.lval"></div>
+        <div class="f"><label for="svc-skey">selector: klucz</label><input id="svc-skey" data-k="svc.skey"></div>
+        <div class="f"><label for="svc-sval">selector: wartość</label><input id="svc-sval" data-k="svc.sval"></div>
+        <div class="f"><label for="svc-pname">ports.name</label><input id="svc-pname" data-k="svc.pname"></div>
+        <div class="f"><label for="svc-tport">ports.targetPort</label><input id="svc-tport" data-k="svc.tport"></div>
+      </div>
+    </article>
+
+    <div class="link"><span class="arrow">→</span><span class="pill" id="l2"></span></div>
+
+    <article class="card">
+      <header><span class="kind">kind: Deployment → Pody</span><h3>podinfo</h3><span class="file">kubernetes/demo-app/10-deployment.yaml</span></header>
+      <div class="fields">
+        <div class="f"><label for="pod-lkey">labels: klucz</label><input id="pod-lkey" data-k="pod.lkey"></div>
+        <div class="f"><label for="pod-lval">labels: wartość</label><input id="pod-lval" data-k="pod.lval"></div>
+        <div class="f"><label for="pod-cname">containerPort: nazwa</label><input id="pod-cname" data-k="pod.cname"></div>
+        <div class="f"><label for="pod-rep">replicas</label><select id="pod-rep" data-k="pod.rep"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <label class="check"><input type="checkbox" id="pod-metrics" data-k="pod.metrics"> aplikacja wystawia <code>/metrics</code></label>
+      </div>
+    </article>
+  </section>
+
+  <section class="panel" style="gap:10px">
+    <div class="f" style="grid-template-columns:auto 1fr;gap:12px">
+      <label class="check" style="color:var(--ink)"><input type="checkbox" id="prom-nil" data-k="prom.nil"> <span>Prometheus bierze tylko ServiceMonitory z etykietą <code>release</code> (domyślne zachowanie chartu; w labie <b>wyłączone</b> przez <code>serviceMonitorSelectorNilUsesHelmValues: false</code>)</span></label>
+    </div>
+  </section>
+
+  <section class="result">
+    <div class="panel">
+      <span class="eyebrow">Prometheus → Status → Target health</span>
+      <div id="verdict" class="verdict"></div>
+      <div class="tablewrap"><table><thead><tr><th>Endpoint</th><th>Stan</th><th>Ostatni błąd</th></tr></thead><tbody id="targets"></tbody></table></div>
+      <p class="empty" id="no-targets" hidden>Grupy <code>serviceMonitor/demo/podinfo/0</code> w ogóle nie ma na liście. Prometheus nie zgłasza żadnego błędu – po prostu nie wie, że ma tu czego szukać.</p>
+    </div>
+    <div class="panel">
+      <span class="eyebrow">Diagnostyka – sprawdzaj po kolei</span>
+      <ol class="steps" id="steps"></ol>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:10px" aria-labelledby="yaml-h">
+    <h2 id="yaml-h">YAML z Twoimi wartościami</h2>
+    <p class="foot">Zielone – pola, które muszą do siebie pasować i pasują. Czerwone – tu łańcuch się zrywa.</p>
+    <div class="yaml"><pre id="y-sm"></pre><pre id="y-svc"></pre><pre id="y-pod"></pre></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-labelledby="how-h">
+    <h2 id="how-h">Co dzieje się w klastrze</h2>
+    <div class="how">
+      <div><b>1 · operator</b><span>czyta obiekty ServiceMonitor z całego klastra (albo tylko te z etykietą <code>release</code>).</span></div>
+      <div><b>2 · etykiety</b><span>szuka Service'u, którego <code>labels</code> pasują do <code>selector</code> ServiceMonitora.</span></div>
+      <div><b>3 · EndpointSlice</b><span>Service przez swój <code>selector</code> zna adresy podów i ich porty – po jednym wpisie na replikę.</span></div>
+      <div><b>4 · Prometheus</b><span>dostaje listę celów i co 15 s pobiera <code>http://IP-poda:9898/metrics</code> z każdego.</span></div>
+    </div>
+    <p class="foot">Symulator upraszcza: pokazuje najczęstsze przyczyny w kolejności, w jakiej sprawdza się je w pracy. Szczegóły: <code>docs/teoria-monitoring.md</code>, rozdział o ServiceMonitorze.</p>
+  </section>
+</div>
+
+<script>
+const LAB = {
+  sm:{key:"app",val:"podinfo",port:"http",path:"/metrics",release:false},
+  svc:{lkey:"app",lval:"podinfo",skey:"app",sval:"podinfo",pname:"http",tport:"http"},
+  pod:{lkey:"app",lval:"podinfo",cname:"http",rep:"3",metrics:true},
+  prom:{nil:false}
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+const SCEN = [
+  {id:"lab",name:"Konfiguracja z labu",desc:"Tak jak w repozytorium: wszystko pasuje, 3 cele UP.",set:s=>s},
+  {id:"typo",name:"Literówka w etykiecie Service",desc:"Service ma etykietę app: podnifo. ServiceMonitor go nie znajduje – cel znika bez żadnego błędu.",set:s=>{s.svc.lval="podnifo";return s}},
+  {id:"podlabel",name:"Selector patrzy na zły obiekt",desc:"ServiceMonitor wybiera po etykiecie, którą mają pody (tier: web), ale nie Service. ServiceMonitor wybiera Service'y, nie pody.",set:s=>{s.sm.key="tier";s.sm.val="web";s.pod.lkey="app";return s}},
+  {id:"port",name:"Zła nazwa portu",desc:"ServiceMonitor pyta o port metrics, a Service ma port http. Celu nie ma na liście.",set:s=>{s.sm.port="metrics";return s}},
+  {id:"svcsel",name:"Service nie widzi podów",desc:"Selector Service'u ma app: podinfo-v2. Service istnieje, ale nie ma za nim żadnego poda (pusty EndpointSlice).",set:s=>{s.svc.sval="podinfo-v2";return s}},
+  {id:"zero",name:"0 replik",desc:"Deployment przeskalowany do zera. Nie ma podów, więc nie ma celów – za to alert PodinfoDown zadziała.",set:s=>{s.pod.rep="0";return s}},
+  {id:"path",name:"Zła ścieżka metryk",desc:"Prometheus znajduje pody, ale pyta o /metrics2. Cele są na liście, tylko DOWN z błędem 404.",set:s=>{s.sm.path="/metrics2";return s}},
+  {id:"release",name:"Domyślny chart, brak etykiety release",desc:"Bez naszego ustawienia w values Prometheus bierze tylko ServiceMonitory z etykietą release: monitoring. Najczęstsza pułapka kube-prometheus-stack.",set:s=>{s.prom.nil=true;return s}}
+];
+
+let S = clone(LAB), active = "lab";
+const $ = id => document.getElementById(id);
+const IPS = ["10.42.2.19","10.42.3.11","10.42.1.15","10.42.2.20","10.42.3.12"];
+
+function get(path){const [a,b]=path.split(".");return S[a][b]}
+function setv(path,v){const [a,b]=path.split(".");S[a][b]=v}
+
+function evaluate(){
+  const rep = parseInt(S.pod.rep,10)||0;
+  const steps = [];
+  let broken = null; // index of first failing step
+  const add = (ok,title,hint,cmd) => { steps.push({ok,title,hint,cmd}); if(!ok && broken===null) broken = steps.length-1; };
+
+  add(!S.prom.nil || S.sm.release,
+    "Prometheus widzi ten ServiceMonitor",
+    "Chart domyślnie wymaga etykiety release: monitoring. W labie wyłączone w pliku values (serviceMonitorSelectorNilUsesHelmValues: false) – albo dodaj etykietę.",
+    "kubectl get servicemonitor podinfo -n demo --show-labels");
+  add(S.sm.key===S.svc.lkey && S.sm.val===S.svc.lval,
+    "selector ServiceMonitora pasuje do etykiet Service'u",
+    `ServiceMonitor szuka ${S.sm.key}: ${S.sm.val}, a Service ma ${S.svc.lkey}: ${S.svc.lval}. Porównuje się z etykietami Service'u – nie podów.`,
+    "kubectl get svc -n demo --show-labels");
+  add(S.sm.port===S.svc.pname,
+    "nazwa portu z ServiceMonitora istnieje w Service",
+    `ServiceMonitor chce portu „${S.sm.port}”, Service ma port „${S.svc.pname}”. Port wskazuje się nazwą, nie numerem.`,
+    "kubectl get svc podinfo -n demo -o yaml | grep -A4 ports");
+  add(S.svc.skey===S.pod.lkey && S.svc.sval===S.pod.lval && S.svc.tport===S.pod.cname && rep>0,
+    "Service ma za sobą pody (EndpointSlice nie jest pusty)",
+    rep===0 ? "Deployment ma 0 replik – nie ma podów, więc nie ma celów."
+      : (S.svc.tport!==S.pod.cname ? `targetPort „${S.svc.tport}” nie istnieje w kontenerze (tam: „${S.pod.cname}”).`
+      : `Selector Service'u ${S.svc.skey}: ${S.svc.sval} nie pasuje do etykiet podów ${S.pod.lkey}: ${S.pod.lval}.`),
+    "kubectl get endpointslices -n demo");
+  add(S.sm.path==="/metrics" && S.pod.metrics,
+    "aplikacja odpowiada pod wskazaną ścieżką",
+    !S.pod.metrics ? "Aplikacja nie wystawia metryk – trzeba dodać do niej bibliotekę Prometheusa albo exporter."
+      : `Prometheus pyta o ${S.sm.path}, a podinfo wystawia /metrics.`,
+    "curl http://<IP-poda>:9898/metrics | head");
+
+  return {steps, broken, rep};
+}
+
+function esc(t){return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;")}
+
+function render(){
+  document.querySelectorAll("[data-k]").forEach(el=>{
+    const v = get(el.dataset.k);
+    if(el.type==="checkbox") el.checked = !!v; else if(el.value!==v) el.value = v;
+  });
+  const {steps,broken,rep} = evaluate();
+
+  // marks on inputs
+  const m = (ids,ok)=>ids.forEach(i=>{const e=$(i);e.classList.toggle("bad",!ok);e.classList.toggle("good",ok)});
+  m(["sm-key","sm-val","svc-lkey","svc-lval"], steps[1].ok);
+  m(["sm-port","svc-pname"], steps[2].ok);
+  const selOk = S.svc.skey===S.pod.lkey && S.svc.sval===S.pod.lval;
+  m(["svc-skey","svc-sval","pod-lkey","pod-lval"], selOk);
+  m(["svc-tport","pod-cname"], S.svc.tport===S.pod.cname);
+  m(["pod-rep"], rep>0);
+  m(["sm-path"], steps[4].ok || !S.pod.metrics);
+
+  const l1 = $("l1"), l2 = $("l2");
+  const l1ok = steps[0].ok && steps[1].ok && steps[2].ok;
+  l1.className = "pill " + (l1ok ? "ok" : "bad");
+  l1.textContent = !steps[0].ok ? "pominięty (brak release)" : !steps[1].ok ? "etykiety ✗" : !steps[2].ok ? "port ✗" : "etykiety i port ✓";
+  l2.className = "pill " + (steps[3].ok ? "ok" : "bad");
+  l2.textContent = steps[3].ok ? `${rep} ${rep===1?"pod":"pody"} ✓` : (rep===0 ? "0 podów" : "brak podów ✗");
+
+  // targets
+  const tb = $("targets"); tb.innerHTML = "";
+  const v = $("verdict");
+  const listed = broken===null || broken>=4;
+  $("no-targets").hidden = listed;
+  tb.parentElement.parentElement.hidden = !listed;
+  if(listed){
+    for(let i=0;i<rep;i++){
+      const up = broken===null;
+      const err = up ? "" : (!S.pod.metrics ? "server returned HTTP status 404 Not Found" : "server returned HTTP status 404 Not Found");
+      tb.insertAdjacentHTML("beforeend",
+        `<tr><td>http://${IPS[i]}:9898${esc(S.sm.path)}</td><td><span class="st ${up?"up":"down"}">${up?"UP":"DOWN"}</span></td><td>${esc(err)}</td></tr>`);
+    }
+  }
+  if(broken===null){
+    v.className="verdict ok";
+    v.innerHTML=`<span class="dot"></span><div><strong>serviceMonitor/demo/podinfo/0 – ${rep}/${rep} UP</strong>Prometheus co 15 s pobiera metryki z każdej repliki. Tak jest w Twoim labie.</div>`;
+  } else if(broken===4){
+    v.className="verdict warn";
+    v.innerHTML=`<span class="dot"></span><div><strong>serviceMonitor/demo/podinfo/0 – 0/${rep} UP</strong>Łańcuch etykiet działa, cele są na liście, ale każdy jest DOWN. Ten błąd przynajmniej widać.</div>`;
+  } else {
+    v.className="verdict bad";
+    v.innerHTML=`<span class="dot"></span><div><strong>Celu nie ma w Target health</strong>${esc(steps[broken].title.charAt(0).toUpperCase()+steps[broken].title.slice(1))} – nie. To błąd „cichy”: żadnego komunikatu, po prostu brak danych.</div>`;
+  }
+
+  // steps
+  const ol = $("steps"); ol.innerHTML="";
+  steps.forEach((s,i)=>{
+    const cls = broken===null || i<broken ? "pass" : (i===broken ? "fail" : "skip");
+    const mark = cls==="pass" ? "✓ " : cls==="fail" ? "✗ " : "";
+    ol.insertAdjacentHTML("beforeend",`<li class="${cls}">${mark}${esc(s.title)}${cls==="fail"?`<span class="hint">${esc(s.hint)}</span>`:""}<span class="cmd">${esc(s.cmd)}</span></li>`);
+  });
+
+  // YAML
+  const hl = (t,ok)=>`<span class="${ok?"hl-ok":"hl-bad"}">${esc(t)}</span>`;
+  const relLine = S.sm.release ? `\n  labels:\n    ${hl("release: monitoring", true)}` : "";
+  $("y-sm").innerHTML =
+`<span class="c"># ServiceMonitor</span>
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: podinfo
+  namespace: demo${relLine}
+spec:
+  selector:
+    matchLabels:
+      ${hl(`${S.sm.key}: ${S.sm.val}`, steps[1].ok)}
+  endpoints:
+    - port: ${hl(S.sm.port, steps[2].ok)}
+      path: ${hl(S.sm.path, steps[4].ok || !S.pod.metrics)}
+      interval: 15s`;
+  $("y-svc").innerHTML =
+`<span class="c"># Service</span>
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: demo
+  labels:
+    ${hl(`${S.svc.lkey}: ${S.svc.lval}`, steps[1].ok)}
+spec:
+  type: NodePort
+  selector:
+    ${hl(`${S.svc.skey}: ${S.svc.sval}`, selOk)}
+  ports:
+    - name: ${hl(S.svc.pname, steps[2].ok)}
+      port: 9898
+      targetPort: ${hl(S.svc.tport, S.svc.tport===S.pod.cname)}
+      nodePort: 30898`;
+  $("y-pod").innerHTML =
+`<span class="c"># Deployment (fragment)</span>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: demo
+spec:
+  replicas: ${hl(String(rep), rep>0)}
+  template:
+    metadata:
+      labels:
+        ${hl(`${S.pod.lkey}: ${S.pod.lval}`, selOk)}
+    spec:
+      containers:
+        - name: podinfo
+          ports:
+            - name: ${hl(S.pod.cname, S.svc.tport===S.pod.cname)}
+              containerPort: 9898`;
+
+  document.querySelectorAll("#scen button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.id===active)));
+  const sc = SCEN.find(x=>x.id===active);
+  $("scen-desc").textContent = sc ? sc.desc : "Własna konfiguracja – zmieniłeś pola ręcznie.";
+}
+
+SCEN.forEach(sc=>{
+  const b=document.createElement("button"); b.type="button"; b.textContent=sc.name; b.dataset.id=sc.id;
+  b.addEventListener("click",()=>{ S = sc.set(clone(LAB)); active = sc.id; render(); });
+  $("scen").appendChild(b);
+});
+document.querySelectorAll("[data-k]").forEach(el=>{
+  const ev = el.type==="checkbox" || el.tagName==="SELECT" ? "change" : "input";
+  el.addEventListener(ev,()=>{ setv(el.dataset.k, el.type==="checkbox" ? el.checked : el.value.trim()); active=null; render(); });
+});
+render();
+</script>

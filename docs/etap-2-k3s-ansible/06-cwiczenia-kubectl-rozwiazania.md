@@ -5,7 +5,8 @@ poziomie polecenia, zrzut z prawdziwego wyniku i wyjaśnienie, na co patrzeć �
 na pytania „Sprawdź się”. Najpierw zrób poziom sam, potem porównaj.
 
 > Wyniki pochodzą z klastra labu (k3s v1.36.5, 1 master + 3 workery, 29.10.2026). Zrzuty
-> terminala są wygenerowane z tekstu wyjścia poleceń, zrzut strony – z przeglądarki.
+> terminala są wygenerowane z tekstu wyjścia poleceń skryptem
+> [tools/terminal-shot.sh](../../tools/terminal-shot.sh), zrzut strony – z przeglądarki.
 > Nazwy podów, adresy IP i porty u Ciebie będą inne.
 
 ## Spis treści

@@ -71,5 +71,6 @@ Stan na 31.10.2026:
    obie ścieżki. Pliki dodawaj do commita **po nazwie**, nigdy `git add -A` ani `git add docs/`.
 4. Wyjaśniaj każde polecenie: co robi, gdzie je wpisać (🪟 Windows / 🐧 maszyna), czego się
    spodziewać. Prawdziwe wyniki z labu wpisuj do dokumentacji.
-5. Po zmianach w dokumentacji sprawdź, czy nie ma martwych odnośników (linki względne
-   i kotwice nagłówków).
+5. Po zmianach w dokumentacji uruchom `node tools/check-links.mjs` (martwe odnośniki i kotwice).
+   Zrzuty do ćwiczeń: `tools/cdpshot.mjs` (strony) i `tools/terminal-shot.sh` (terminal) – opis
+   w `tools/README.md`.

@@ -405,6 +405,9 @@ ma trwałego dysku.
 
 ## Jak powstały zrzuty – dla ciekawych
 
+Skrypty są w repozytorium: [tools/](../../tools/README.md) – `cdpshot.mjs` (zrzut strony),
+`monitoring/alert-lifecycle.sh` (poziom 6) i `monitoring/silence-demo.sh` (poziom 7).
+
 Zrzut strony bez otwierania okna przeglądarki:
 
 ```bash

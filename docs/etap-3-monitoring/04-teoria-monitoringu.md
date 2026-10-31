@@ -114,6 +114,9 @@ podinfo.
 
 ### ServiceMonitor – skąd Prometheus wie, gdzie pobierać
 
+> Do przećwiczenia na sucho: [symulator ServiceMonitor](07-symulator-servicemonitor.html) – zmieniasz
+> etykiety i porty, a symulator pokazuje, czy Prometheus znajdzie cele i dlaczego.
+
 Pody w Kubernetesie ciągle się zmieniają: nowe repliki, nowe adresy IP po każdym restarcie.
 Wpisywanie adresów ręcznie do konfiguracji Prometheusa nie miałoby sensu. **ServiceMonitor** to
 obiekt (typ z CRD operatora), który mówi:
