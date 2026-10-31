@@ -54,6 +54,8 @@ flowchart LR
 | k3s-worker-3 | węzeł roboczy (opcjonalny, `WORKER3_IP` w `lab.env`) | 2 | 6 GB | 40 GB |
 | monitoring | zewnętrzny monitoring (Docker), węzeł sterujący Ansible | 2 | 4 GB | 40 GB |
 | gitlab | GitLab CE: repozytoria, CI/CD, rejestr obrazów (Etap 7, planowany) | 4 | 8 GB | 60 GB |
+| security | Wazuh – SIEM: logi, integralność plików, podatności (Etap 9b, opcjonalny) | 4 | 8 GB | 80 GB |
+| kali | Kali Linux – kontrolowane ataki na lab (Etap 9c, opcjonalny) | 2 | 4 GB | 60 GB |
 
 System na wszystkich maszynach: **Ubuntu Server 24.04 LTS lub nowszy** (laboratorium działa na 26.04 –
 różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstation
@@ -204,8 +206,11 @@ Opis krok po kroku: [docs/05-scenariusze-awarii.md](docs/05-scenariusze-awarii.m
 - [ ] Logi w Grafana Loki
 - [ ] Klaster HA – trzy węzły sterujące z wbudowanym etcd
 - [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s), Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
-- [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, Argo CD
+- [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, skan Trivy w pipeline, Argo CD
 - [ ] Etap 8: AIOps – Hermes Agent jako asystent administratora (diagnoza po alercie, RBAC tylko do odczytu, zmiany po akceptacji)
+- [ ] Etap 9: bezpieczeństwo klastra – kube-bench (CIS), Falco (alerty do Alertmanagera), Kyverno (polityki)
+- [ ] Etap 9b (opcjonalny): Wazuh na maszynie `security` – agenty na wszystkich maszynach
+- [ ] Etap 9c (opcjonalny): kontrolowane ataki z maszyny `kali` i sprawdzenie, czy obrona je wykrywa
 - [ ] Instalacja monitoringu i aplikacji demo również w Ansible
 - [ ] Infrastruktura laboratorium w chmurze (Terraform, Azure)
 - [ ] Kopie zapasowe zasobów klastra w Velero
