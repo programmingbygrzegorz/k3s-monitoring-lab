@@ -539,7 +539,7 @@ Po instalacji przejdź samodzielnie ćwiczenia z monitoringu (zrób najpierw �
 | [ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30300`) i `k3s-master` | 1–2 h |
 | [rozwiązania ćwiczeń z monitoringu](06-cwiczenia-monitoringu-rozwiazania.md) | wykonanie ze zrzutami – zaglądaj dopiero po zrobieniu poziomu | – | – |
 
-Poziomy 5 i 8 (Grafana) nie mają przykładowego wykonania, zrób je sam.
+Rozwiązania obejmują wszystkie 8 poziomów, także Grafanę (poziomy 5 i 8).
 
 Poziom 6 korzysta z `kubectl scale` – jeśli nie przeszedłeś jeszcze ćwiczeń z kubectl z Etapu 2,
 zrób je najpierw: [zadania](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md),

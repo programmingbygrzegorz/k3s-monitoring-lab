@@ -123,7 +123,7 @@ poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [rozwiązania ćwicz
    maszynami.
 3. *Kubernetes / Compute Resources / Cluster* – zużycie całego klastra, tabela namespace'ów.
 4. *Kubernetes / Compute Resources / Namespace (Pods)* → namespace `monitoring`. Który pod zużywa
-   najwięcej pamięci? *(Prometheus)*
+   najwięcej pamięci? *(podpowiedź: posortuj legendę kliknięciem w nagłówek **Last**)*
 5. W prawym górnym rogu zmień zakres czasu (`Last 1 hour` → `Last 6 hours`) i odświeżanie
    (`Refresh` → `30s`).
 6. Na dowolnym wykresie: menu panelu (trzy kropki) → **Edit** – zobaczysz zapytanie PromQL, które
@@ -192,9 +192,10 @@ poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [rozwiązania ćwicz
 
 **Cel:** zbudować coś samemu – pierwszy własny dashboard.
 
-1. Grafana → **Dashboards** → **New** → **New dashboard** → **Add visualization** → źródło
-   **Prometheus**.
-2. Na dole, w polu zapytania (przełącz z *Builder* na **Code**):
+1. Grafana → **Dashboards** → **New** → **New dashboard** → po prawej **Panel** (kafelek
+   z plusem) → **Configure visualization**. Źródło danych: **Prometheus**.
+2. Na dole, w polu zapytania (przełącz z *Builder* na **Code**), potem **Run queries** i typ
+   wykresu **Time series**:
    ```
    sum by (namespace) (container_memory_working_set_bytes{container!=""})
    ```
@@ -204,8 +205,9 @@ poziomów ze zrzutami ekranu i prawdziwymi wynikami z labu: [rozwiązania ćwicz
    ```
    sum by (pod) (increase(kube_pod_container_status_restarts_total[1h]))
    ```
-   *Title* `Restarty w ostatniej godzinie`, typ wykresu **Bar chart** albo **Table**.
-5. **Save dashboard** – nazwa `Lab – mój dashboard`.
+   *Title* `Restarty w ostatniej godzinie`, typ wykresu **Table**. W *Options* pod zapytaniem
+   ustaw **Type → Instant** i **Format → Table** – inaczej tabela pokaże tylko jeden pod.
+5. **Back** → **Save** – nazwa `Lab – mój dashboard`.
 
 **Co powinieneś zobaczyć:** największy namespace to `monitoring` (Prometheus, Grafana), potem
 `kube-system`.

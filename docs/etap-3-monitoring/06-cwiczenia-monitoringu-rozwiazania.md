@@ -6,10 +6,9 @@ zrzutami ekranu i prawdziwymi wynikami. Służy do porównania: zrób poziom sam
 **Jak powstały zrzuty.** Poziomy 1–4, 6 i 7 wykonano automatycznie: polecenia `kubectl` przez SSH
 na masterze, wyciszenie przez API Alertmanagera (`POST /api/v2/silences` – to samo, co robi
 przycisk **Create** w przeglądarce), a zrzuty stron – przeglądarką Edge bez okna, sterowaną przez
-DevTools Protocol. Poziomy w **Grafanie** (5 i 8) wymagają zalogowania hasłem, więc nie zostały
-wykonane automatycznie – zamiast zrzutu Grafany przy poziomie 8 jest to samo zapytanie PromQL
-w Prometheusie. Zrzuty Grafany dodasz po wykonaniu tych poziomów samodzielnie
-(`docs/img/monitoring/`).
+DevTools Protocol. Poziomy w **Grafanie** (5 i 8) wykonano 31.10.2026 w przeglądarce wbudowanej
+w aplikację Claude: hasło wpisał właściciel labu, dalsze kroki i zrzuty – Claude. Grafana pokazuje
+czas lokalny przeglądarki (nie UTC).
 
 Na końcu przywrócono stan wyjściowy: podinfo ma 3 repliki, brak aktywnych wyciszeń, alerty
 `Podinfo…` – *inactive*.
@@ -149,8 +148,69 @@ z pliku values), reszta → `null` (trasa domyślna). Każda grupa ma etykiety z
 
 ## Poziom 5 – gotowe dashboardy w Grafanie
 
-Nie wykonano automatycznie – Grafana wymaga logowania hasłem. Do zrobienia samodzielnie według
-[ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md#poziom-5--gotowe-dashboardy-w-grafanie).
+Grafana: `http://192.168.180.51:30300`, login `admin`. Wszystkie dashboardy poniżej przyszły
+gotowe z kube-prometheus-stack – nikt ich nie rysował ręcznie.
+
+**Node Exporter / Nodes**, maszyna `192.168.180.51` (master), ostatnia godzina:
+
+![Grafana – Node Exporter / Nodes dla mastera](img/5-grafana-node-exporter.jpg)
+
+- **CPU Usage** – prawie zero: master w spoczynku prawie nie pracuje.
+- **Load Average** – średnio poniżej 0,5 przy 2 rdzeniach (pomarańczowa linia *logical cores* = 2).
+  Skok około 18:35 to praca przy klastrze, nie problem.
+- **Memory Usage** – wskaźnik **49,6%**: połowa z 4 GiB zajęta. Na wykresie obok – podział na
+  pamięć używaną, bufory, pamięć podręczną (*cached*) i wolną.
+- Przełącznik **Instance** u góry zmienia maszynę – ten sam dashboard dla każdego węzła.
+
+**Kubernetes / Compute Resources / Cluster** – cały klaster naraz:
+
+![Grafana – zasoby całego klastra](img/5-grafana-cluster.jpg)
+
+- Kafelki u góry: CPU klastra wykorzystane w **1,83%**, pamięć w **26%**.
+- **CPU Quota** – tabela namespace'ów: `kube-system` 10 podów, `monitoring` 9, `demo` 3.
+  Na zrzucie widać też `cwiczenia` – w tym czasie trwały ćwiczenia z kubectl z Etapu 2.
+- Najwięcej CPU zużywa `monitoring` (0,03 rdzenia) – monitoring kosztuje więcej niż to, co
+  monitoruje.
+
+**Kubernetes / Compute Resources / Namespace (Pods)**, namespace `monitoring` – pamięć podów
+(legenda posortowana kliknięciem w nagłówek *Last*):
+
+![Grafana – pamięć podów w namespace monitoring](img/5-grafana-namespace-monitoring.jpg)
+
+| Pod | Pamięć |
+|---|---|
+| `monitoring-grafana-…` | 438 MiB |
+| `prometheus-monitoring-kube-prometheus-prometheus-0` | 432 MiB |
+| `alertmanager-…` | 27,6 MiB |
+| `monitoring-kube-prometheus-operator-…` | 22,2 MiB |
+| `monitoring-kube-state-metrics-…` | 17,2 MiB |
+| `monitoring-prometheus-node-exporter-…` (×4) | ok. 10,5 MiB każdy |
+
+Odpowiedź na pytanie z ćwiczenia: **najwięcej zużywają Grafana i Prometheus, prawie po równo**.
+Grafana wyprzedziła Prometheusa dopiero pod koniec wykresu – skok o 18:43 to moment, w którym
+zaczęło się klikanie po dashboardach (każdy otwarty panel to zapytania i obliczenia po stronie
+Grafany). Prometheus rośnie powoli, razem z liczbą zbieranych serii i długością historii.
+
+**Edycja panelu** (menu panelu → **Edit**) – pod wykresem widać zapytanie PromQL, które go rysuje:
+
+![Grafana – edycja panelu i zapytanie PromQL](img/5-grafana-edycja-panelu.jpg)
+
+```
+sum(max by (cluster, namespace, pod, container)
+  (container_memory_working_set_bytes{job="kubelet", metrics_path="/metrics/cadvisor",
+   cluster="$cluster", namespace="$namespace", container!="", image!=""})) by (pod)
+```
+
+- `$namespace` i `$cluster` to **zmienne dashboardu** – wartości z rozwijanych list u góry.
+  Dzięki nim jeden dashboard obsługuje każdy namespace.
+- Źródło danych: `Prometheus` – Grafana nie ma własnych metryk, za każdym razem pyta Prometheusa.
+- Wyjście bez zmian: **Discard** albo **Back** bez zapisu.
+
+**Sprawdź się – odpowiedzi:**
+- Skąd Grafana bierze dane? Ze **źródła danych** (*Connections → Data sources*) – tu Prometheus
+  w klastrze, ustawiony automatycznie przez kube-prometheus-stack.
+- Czy Grafana przechowuje metryki? **Nie.** Przechowuje tylko dashboardy, użytkowników
+  i ustawienia. Metryki są w Prometheusie.
 
 ## Poziom 6 – narodziny alertu
 
@@ -286,8 +346,37 @@ Aktywne wyciszenia po sprzątaniu: **0**.
 
 ## Poziom 8 – własny wykres w Grafanie
 
-Dashboard w Grafanie nie został zbudowany automatycznie (logowanie hasłem). To samo zapytanie
-w Prometheusie, wykres warstwowy (*Stacked*), 1 godzina:
+**Panel 1 – pamięć według namespace.** Grafana 12: **Dashboards → New → New dashboard** → po
+prawej **Panel** (kafelek z plusem) → **Configure visualization**. Źródło danych Prometheus jest
+wybrane od razu. Edytor zapytania przełączony na **Code**, zapytanie wpisane, **Run queries**,
+potem typ wykresu **Time series**, tytuł i jednostka *Standard options → Unit → Data → bytes(IEC)*
+(najszybciej przez lupę *Search options* i słowo `Unit`):
+
+![Grafana – edycja panelu: pamięć według namespace](img/8-grafana-panel-pamiec.jpg)
+
+Bez jednostki oś pokazywałaby `1000000000`; z `bytes(IEC)` – `1 GiB`, `768 MiB`.
+
+**Panel 2 – restarty w ostatniej godzinie**, wizualizacja **Table**:
+
+```
+sum by (pod) (increase(kube_pod_container_status_restarts_total[1h]))
+```
+
+W *Options* pod zapytaniem: **Type → Instant**, **Format → Table**. Zapytanie zakresowe (*Range*)
+zwraca serię punktów dla każdego poda – tabela pokazałaby wtedy tylko jeden pod naraz. Zapytanie
+chwilowe (*Instant*) daje jedną wartość na pod – jeden wiersz tabeli.
+
+**Gotowy dashboard** po **Back** → **Save** → nazwa `Lab – mój dashboard`:
+
+![Grafana – własny dashboard z dwoma panelami](img/8-grafana-moj-dashboard.jpg)
+
+- `monitoring` – około 900 MiB–1 GiB, `kube-system` – około 450 MiB, `demo` – kilkadziesiąt MiB.
+  Zielona linia `cwiczenia` pojawia się i znika – to namespace z ćwiczeń kubectl.
+- Restarty: same **zera** – w ostatniej godzinie żaden kontener się nie restartował. Tak ma być.
+  Po scenariuszu awarii z Etapu 5 (np. OOMKilled) w tej tabeli pojawi się liczba większa od zera.
+
+To samo zapytanie co w panelu 1, wpisane w Prometheusie – wykres warstwowy (*Stacked*),
+1 godzina, 30.10.2026:
 
 ```
 sum by (namespace) (container_memory_working_set_bytes{container!=""})
@@ -301,8 +390,16 @@ sum by (namespace) (container_memory_working_set_bytes{container!=""})
 | środkowa (turkusowa) | `kube-system` | ~439 MiB |
 | dolna (zielona) | `demo` | ~24 MiB – **znika o 10:22 UTC**, gdy w poziomie 6 podinfo zeszło do 0 replik |
 
-Monitoring zużywa dwa razy więcej pamięci niż cały system k3s. W Grafanie zbudujesz ten sam
-wykres jako panel – według [ćwiczenia z monitoringu, poziom 8](05-cwiczenia-monitoringu.md#poziom-8--własny-wykres-w-grafanie).
+Monitoring zużywa dwa razy więcej pamięci niż cały system k3s – w Prometheusie i w Grafanie
+widać to samo, bo Grafana pyta Prometheusa tym samym zapytaniem.
+
+**Sprawdź się – odpowiedź:** `{container!=""}` odrzuca serie bez nazwy kontenera. cAdvisor
+podaje pamięć osobno dla każdego kontenera **i** dodatkowo sumę dla całego poda (seria z pustym
+`container`). Bez filtra każdy pod liczyłby się dwa razy, a wykres pokazywałby dwukrotnie
+zawyżone wartości.
+
+**Uwaga:** dashboard zapisany w Grafanie zniknie po restarcie poda Grafany – Grafana w labie nie
+ma trwałego dysku.
 
 ---
 
