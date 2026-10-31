@@ -5,6 +5,8 @@ wyjaśnia [docs/teoria-kubernetes-helm.md](teoria-kubernetes-helm.md). Co robi k
 [docs/03a-values-monitoringu.md](03a-values-monitoringu.md). Co robi Prometheus, Grafana i Alertmanager –
 [docs/teoria-monitoring.md](teoria-monitoring.md).
 
+**Zadania do przećwiczenia w tym etapie** – zobacz [Ćwiczenia do Etapu 3](#ćwiczenia-do-etapu-3) na końcu pliku.
+
 ## Co instalujemy
 
 Chart **kube-prometheus-stack** z ustawieniami z `monitoring/kube-prometheus-stack-values.yaml`,
@@ -527,3 +529,19 @@ Przykładowe zapytanie PromQL:
 ```
 sum(rate(http_request_duration_seconds_count{namespace="demo"}[5m]))
 ```
+
+## Ćwiczenia do Etapu 3
+
+Po instalacji przejdź samodzielnie dwa zestawy ćwiczeń, w tej kolejności (zrób najpierw 📸 snapshot):
+
+| Plik | Co ćwiczysz | Gdzie | Czas |
+|---|---|---|---|
+| [docs/10 – ćwiczenia z kubectl](10-cwiczenia-kubectl.md) | 8 poziomów: rozglądanie się, Deployment, samonaprawa, skalowanie, Service, aktualizacja i wycofanie, drain węzła, YAML i apply | terminal na `k3s-master` | 1–2 h |
+| [docs/11 – ćwiczenia z monitoringu](11-cwiczenia-monitoring.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30030`) i `k3s-master` | 1–2 h |
+
+Przykładowe wykonanie ćwiczeń z monitoringu ze zrzutami ekranu: [docs/11a](11a-cwiczenia-monitoring-wykonanie.md).
+Zaglądaj tam dopiero po zrobieniu poziomu, żeby porównać wynik. Poziomy 5 i 8 (Grafana) nie mają
+przykładowego wykonania, zrób je sam.
+
+Dodatkowe ćwiczenie z pisania własnej reguły alertu (`NodeDiskAlmostFull`) jest w
+[Etapie 5](05-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).
