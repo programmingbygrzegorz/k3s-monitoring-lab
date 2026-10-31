@@ -338,6 +338,36 @@ W zdarzeniach zostały też ostrzeżenia `Readiness probe failed … connection 
 podów. To normalne przy starcie: kubelet sprawdza gotowość, zanim program zdąży otworzyć port.
 Gdy pod jest `Running` i `READY` pełne, te ostrzeżenia można zignorować.
 
+**Co robi każdy pod** – 9 podów, ale tylko 6 różnych programów:
+
+| Pod | Program | Rola | Tworzy go | Ile |
+|---|---|---|---|---|
+| `prometheus-…-prometheus-0` | **Prometheus** | zbiera metryki, przechowuje je, liczy reguły alertów | StatefulSet (z operatora) | 1 |
+| `alertmanager-…-alertmanager-0` | **Alertmanager** | przyjmuje alerty od Prometheusa, grupuje, wycisza, wysyła | StatefulSet (z operatora) | 1 |
+| `monitoring-grafana-…` | **Grafana** | dashboardy i wykresy, dane bierze z Prometheusa | Deployment | 1 |
+| `monitoring-kube-prometheus-operator-…` | **operator** | „kierownik”: z obiektów `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PrometheusRule` tworzy i konfiguruje dwa pierwsze pody | Deployment | 1 |
+| `monitoring-kube-state-metrics-…` | **kube-state-metrics** | exporter stanu **obiektów** Kubernetesa: ile replik, czy pod się restartuje, czy węzeł Ready | Deployment | 1 |
+| `monitoring-prometheus-node-exporter-…` | **node-exporter** | exporter stanu **maszyny**: CPU, pamięć, dysk, sieć | DaemonSet | 4 – po jednym na węzeł |
+
+Dwa exportery nie dublują się: node-exporter mówi „maszyna ma 2 GB wolnej pamięci”,
+kube-state-metrics – „Deployment podinfo ma 0 z 3 replik”.
+
+**Jak czytać nazwę poda** – po końcówce poznasz, co go utworzyło:
+
+| Przykład | Budowa | Kto tworzy |
+|---|---|---|
+| `monitoring-grafana-99f8f8c4-h9zq9` | nazwa Deploymentu + skrót wersji (ReplicaSet) + losowe 5 znaków | **Deployment** – nowy pod dostaje nową losową nazwę |
+| `monitoring-prometheus-node-exporter-499jd` | nazwa DaemonSetu + losowe 5 znaków | **DaemonSet** – jeden na węzeł |
+| `prometheus-monitoring-kube-prometheus-prometheus-0` | nazwa StatefulSetu + numer | **StatefulSet** – stała nazwa, po restarcie ten sam `-0` |
+
+Przedrostek `monitoring-` to nazwa **release'u** Helma, a `kube-prometheus` – skrót chartu.
+Stąd długie, powtarzające się nazwy.
+
+**Pody się przenoszą.** Po ćwiczeniu z `kubectl drain k3s-worker-1` (Etap 2, poziom 7) Alertmanager
+i kube-state-metrics, które działały na worker-1, mają nowe `AGE` i inne węzły (worker-3 i worker-2) –
+zostały utworzone od nowa gdzie indziej. node-exporter na worker-1 został, bo DaemonSet `drain`
+pomija (`--ignore-daemonsets`). Bieżący stan: `kubectl -n monitoring get pods -o wide`.
+
 Zasoby **po** instalacji (porównaj z krokiem 0):
 
 ```
