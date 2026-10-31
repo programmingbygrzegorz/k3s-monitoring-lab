@@ -360,8 +360,26 @@ kube-state-metrics – „Deployment podinfo ma 0 z 3 replik”.
 | `monitoring-prometheus-node-exporter-499jd` | nazwa DaemonSetu + losowe 5 znaków | **DaemonSet** – jeden na węzeł |
 | `prometheus-monitoring-kube-prometheus-prometheus-0` | nazwa StatefulSetu + numer | **StatefulSet** – stała nazwa, po restarcie ten sam `-0` |
 
-Przedrostek `monitoring-` to nazwa **release'u** Helma, a `kube-prometheus` – skrót chartu.
-Stąd długie, powtarzające się nazwy.
+**Skąd tak długie nazwy** – składają je szablony chartu, z trzech warstw:
+
+1. **Helm**: nazwa = *release* + *chart*. Release `monitoring` + chart `kube-prometheus-stack` dałoby
+   `monitoring-kube-prometheus-stack`, ale ten chart przycina nazwę do 26 znaków (limity długości
+   etykiet w Kubernetesie) → **`monitoring-kube-prometheus`**. Do tego dochodzi część:
+   `…-operator`, `…-prometheus`, `…-alertmanager`.
+2. **Podcharty** (Grafana, kube-state-metrics, node-exporter to osobne charty w środku) mają własny
+   wzór: release + nazwa podchartu → `monitoring-grafana`, `monitoring-kube-state-metrics`,
+   `monitoring-prometheus-node-exporter`.
+3. **Operator** do nazwy obiektu `Prometheus` (`monitoring-kube-prometheus-prometheus`) dokleja
+   z przodu `prometheus-`, a do `Alertmanager` – `alertmanager-`. Stąd podwójne
+   `prometheus-monitoring-kube-prometheus-prometheus-0`.
+4. **Kubernetes** dopisuje końcówkę: skrót ReplicaSetu i losowe znaki (Deployment) albo numer (StatefulSet).
+
+Długość to cena **unikalności**: w jednym klastrze można mieć kilka release'ów tego samego chartu
+(np. `monitoring` i `monitoring-test`) i ich obiekty się nie zderzą. Krótsze nazwy daje
+`fullnameOverride: kps` w pliku values albo krótsza nazwa release'u – ale zmiana nazw oznacza
+nowe obiekty, więc robi się to przy pierwszej instalacji, nie na działającym monitoringu.
+W praktyce nikt tych nazw nie przepisuje: `kubectl get pods`, Tab w terminalu albo wybór
+po etykiecie, np. `kubectl -n monitoring logs -l app.kubernetes.io/name=grafana -c grafana`.
 
 **Pody się przenoszą.** Po ćwiczeniu z `kubectl drain k3s-worker-1` (Etap 2, poziom 7) Alertmanager
 i kube-state-metrics, które działały na worker-1, mają nowe `AGE` i inne węzły (worker-3 i worker-2) –
