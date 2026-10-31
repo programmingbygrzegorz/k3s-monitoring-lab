@@ -532,16 +532,18 @@ sum(rate(http_request_duration_seconds_count{namespace="demo"}[5m]))
 
 ## Ćwiczenia do Etapu 3
 
-Po instalacji przejdź samodzielnie dwa zestawy ćwiczeń, w tej kolejności (zrób najpierw 📸 snapshot):
+Po instalacji przejdź samodzielnie ćwiczenia z monitoringu (zrób najpierw 📸 snapshot):
 
 | Plik | Co ćwiczysz | Gdzie | Czas |
 |---|---|---|---|
-| [ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md) | 8 poziomów: rozglądanie się, Deployment, samonaprawa, skalowanie, Service, aktualizacja i wycofanie, drain węzła, YAML i apply | terminal na `k3s-master` | 1–2 h |
-| [ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30030`) i `k3s-master` | 1–2 h |
+| [ćwiczenia z monitoringu](05-cwiczenia-monitoringu.md) | 8 poziomów: Target health, PromQL, wykresy, reguły i alerty, dashboardy w Grafanie, narodziny alertu, wyciszenie, własny wykres | przeglądarka (`:30090`, `:30093`, `:30300`) i `k3s-master` | 1–2 h |
+| [rozwiązania ćwiczeń z monitoringu](06-cwiczenia-monitoringu-rozwiazania.md) | wykonanie ze zrzutami – zaglądaj dopiero po zrobieniu poziomu | – | – |
 
-Przykładowe wykonanie ćwiczeń z monitoringu ze zrzutami ekranu: [rozwiązania ćwiczeń z monitoringu](06-cwiczenia-monitoringu-rozwiazania.md).
-Zaglądaj tam dopiero po zrobieniu poziomu, żeby porównać wynik. Poziomy 5 i 8 (Grafana) nie mają
-przykładowego wykonania, zrób je sam.
+Poziomy 5 i 8 (Grafana) nie mają przykładowego wykonania, zrób je sam.
+
+Poziom 6 korzysta z `kubectl scale` – jeśli nie przeszedłeś jeszcze ćwiczeń z kubectl z Etapu 2,
+zrób je najpierw: [zadania](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md),
+[rozwiązania](../etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md).
 
 Dodatkowe ćwiczenie z pisania własnej reguły alertu (`NodeDiskAlmostFull`) jest w
 [Etapie 5](../etap-5-scenariusze-awarii/01-scenariusze-awarii.md#ćwiczenie-własna-reguła-alertu).

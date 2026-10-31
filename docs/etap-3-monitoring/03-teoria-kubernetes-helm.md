@@ -522,7 +522,7 @@ stały adres i nazwę DNS, bo pody zmieniają IP przy każdym restarcie.
 
 **Co się stanie, gdy usuniesz pod należący do Deploymentu?**
 Od razu powstanie nowy. ReplicaSet porównuje liczbę podów, która ma być, z tą, która jest,
-i wyrównuje różnicę. W labie nowy pod powstał w tej samej sekundzie ([ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md), poziom 3).
+i wyrównuje różnicę. W labie nowy pod powstał w tej samej sekundzie ([rozwiązania ćwiczeń z kubectl, poziom 3](../etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md#poziom-3--samonaprawa)).
 
 **Jakie znasz typy Service?**
 ClusterIP – adres widoczny tylko w klastrze (domyślny). NodePort – port 30000–32767 otwarty na
@@ -576,7 +576,7 @@ a node-exporter (DaemonSet z toleration) działa wszędzie.
 
 **Jak bezpiecznie wyłączyć węzeł do konserwacji?**
 `kubectl drain` – oznacza węzeł jako niedostępny i przenosi pody na inne węzły. Po konserwacji
-`kubectl uncordon`. Ćwiczyłem to w labie ([ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md), poziom 7).
+`kubectl uncordon`. Ćwiczyłem to w labie ([rozwiązania ćwiczeń z kubectl, poziom 7](../etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md#poziom-7--konserwacja-węzła)).
 
 **Jak zaktualizować aplikację bez przerwy w działaniu?**
 Rolling update: Deployment wymienia pody po kolei, więc część zawsze działa. Gdy nowa wersja jest

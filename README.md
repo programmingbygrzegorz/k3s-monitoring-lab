@@ -130,7 +130,7 @@ i problemy z tego etapu, ponumerowane w kolejności czytania:
 | 0 – sieć i maszyny wirtualne, Packer | [etap-0-maszyny-wirtualne](docs/etap-0-maszyny-wirtualne/README.md) | – | – |
 | 0b – klucze SSH | [etap-0b-klucze-ssh](docs/etap-0b-klucze-ssh/README.md) | [klucze SSH](docs/etap-0b-klucze-ssh/01-klucze-ssh.md) | – |
 | 1 – przygotowanie systemu | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | – | – |
-| 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md) | [kubectl, z rozwiązaniami](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md) |
+| 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md) | [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md) |
 | 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
 | 4 – monitoring poza klastrem | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | – | – |
 | 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | – | własna reguła alertu |
