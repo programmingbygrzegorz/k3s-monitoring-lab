@@ -74,3 +74,5 @@ Stan na 31.10.2026:
 5. Po zmianach w dokumentacji uruchom `node tools/check-links.mjs` (martwe odnośniki i kotwice).
    Zrzuty do ćwiczeń: `tools/cdpshot.mjs` (strony) i `tools/terminal-shot.sh` (terminal) – opis
    w `tools/README.md`.
+6. Powtarzalne procedury są w skillach (`.claude/skills/`): `/nowy-etap` – folder etapu
+   i wpisy w mapach, `/zamknij-etap` – dokumentacja, „Stan labu”, odnośniki, commit i push.
