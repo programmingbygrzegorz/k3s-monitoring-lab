@@ -182,8 +182,10 @@ ansible-galaxy collection install -r requirements.yml -p ~/.ansible/collections 
 
 > **Pytanie:** Czym jest `ansible-core`, a czym `ansible`?
 > `ansible-core` to silnik i moduły wbudowane (`ansible.builtin.*`). Pakiet `ansible` to core
-> plus zestaw kolekcji. Zainstalowałem core przez pipx i doinstalowuję tylko potrzebne kolekcje
-> z `requirements.yml` – wiadomo dokładnie, od czego zależy projekt.
+> plus zestaw ok. 100 kolekcji. W labie jest pełny pakiet `ansible` 14.5.0 (w środku
+> ansible-core 2.21.5) przez pipx, a kolekcje, których projekt używa, są wypisane w
+> `requirements.yml` i instalowane do `~/.ansible/collections` – tak wiadomo, od czego zależy kod,
+> i ansible-lint (osobne środowisko pipx) też je widzi.
 
 ## 7. `site.yml` i `playbooks/` – kolejność
 
