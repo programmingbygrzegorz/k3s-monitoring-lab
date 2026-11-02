@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
-# Zewnętrzny monitoring poza klastrem: Grafana + Uptime Kuma w Dockerze.
-# Użycie (na maszynie monitoring): sudo ./scripts/06-setup-monitoring-vm.sh
+# 06-setup-monitoring-vm.sh – monitoring poza klastrem: Grafana i Uptime Kuma w Dockerze (Etap 4).
+#
+# Gdzie:   na maszynie monitoring
+# Użycie:  sudo ./scripts/06-setup-monitoring-vm.sh
+# Wymaga:  lab.env z MASTER_IP, WORKER2_IP, MONITORING_IP, GRAFANA_ADMIN_PASSWORD
+#
+# Co robi, po kolei:
+#   1. Jeśli nie ma Dockera – instaluje go oficjalnym skryptem https://get.docker.com
+#      (Docker Engine + plugin docker compose).
+#   2. Tworzy monitoring/monitoring-vm/.env z adresami i hasłem Grafany (uprawnienia 600,
+#      plik jest w .gitignore) – czyta go docker compose.
+#   3. docker compose up -d w katalogu monitoring/monitoring-vm/ – uruchamia w tle kontenery
+#      z docker-compose.yml: Grafanę (port 3000, z gotowym źródłem danych z grafana/)
+#      i Uptime Kuma (port 3001).
+#   4. Pokazuje stan kontenerów (docker compose ps) i adresy.
+#
+# Po co osobna maszyna: gdy klaster padnie, padnie też Grafana w klastrze – ta na monitoring
+# dalej działa i pokaże, że klaster nie odpowiada.
+# Opis: docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"

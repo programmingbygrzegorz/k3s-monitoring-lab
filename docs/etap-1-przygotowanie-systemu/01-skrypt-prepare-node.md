@@ -130,7 +130,7 @@ Zwykłe `ssh k3s-master` (kluczem) musi dalej działać.
 
 ---
 
-## 1. Nagłówek i bezpieczny tryb pracy (linie 1–9)
+## 1. Nagłówek i bezpieczny tryb pracy (linie 1–33)
 
 ```bash
 #!/usr/bin/env bash
@@ -142,6 +142,7 @@ require_root
 | Element | Co robi |
 |---|---|
 | `#!/usr/bin/env bash` | plik wykonuje Bash (wymaga prawa wykonywania `chmod +x` – w gicie tryb `100755`) |
+| komentarze `#` (linie 2–28) | opis skryptu: gdzie i jak go uruchomić, czego wymaga, co robi po kolei – ten sam układ ma każdy skrypt w `scripts/` |
 | `set -e` | przerwij przy pierwszym poleceniu zakończonym błędem – skrypt nie brnie dalej w połowie zepsutej konfiguracji |
 | `set -u` | użycie niezdefiniowanej zmiennej to błąd – literówka w nazwie zmiennej nie przejdzie po cichu |
 | `set -o pipefail` | błąd w dowolnym elemencie potoku `a \| b` jest błędem całego potoku |
@@ -164,7 +165,7 @@ source "${ENV_FILE}"
 
 ---
 
-## 2. Parametr: nazwa maszyny (linia 11)
+## 2. Parametr: nazwa maszyny (linia 35)
 
 ```bash
 NEW_HOSTNAME="${1:?Podaj nazwę hosta, np. k3s-master}"
@@ -176,7 +177,7 @@ z tym komunikatem, jeśli argumentu brakuje. Od nazwy zależy też dalej zestaw 
 
 ---
 
-## 3. Nazwa hosta (linie 13–14)
+## 3. Nazwa hosta (linie 37–38)
 
 ```bash
 hostnamectl set-hostname "${NEW_HOSTNAME}"
@@ -190,7 +191,7 @@ Znak zachęty w już otwartej sesji (`user@stara-nazwa`) zmieni się dopiero po 
 
 ---
 
-## 4. `/etc/hosts` – maszyny widzą się po nazwie (linie 16–27)
+## 4. `/etc/hosts` – maszyny widzą się po nazwie (linie 40–51)
 
 ```bash
 sed -i -E '/^127\./!{/[[:space:]](k3s-master|k3s-worker-[0-9]+|monitoring)([[:space:]]|$)/d}' /etc/hosts
@@ -238,7 +239,7 @@ Wynik na przykładzie `k3s-master`:
 
 ---
 
-## 5. Aktualizacja systemu i narzędzia (linie 29–34)
+## 5. Aktualizacja systemu i narzędzia (linie 53–58)
 
 ```bash
 export DEBIAN_FRONTEND=noninteractive
@@ -266,7 +267,7 @@ timedatectl set-timezone Europe/Warsaw
 
 ---
 
-## 6. Swap wyłączony (linie 36–38)
+## 6. Swap wyłączony (linie 60–62)
 
 ```bash
 swapoff -a
@@ -285,7 +286,7 @@ Sprawdzenie: `swapon --show` nic nie wypisuje.
 
 ---
 
-## 7. SSH tylko kluczem (linie 40–53)
+## 7. SSH tylko kluczem (linie 64–77)
 
 ```bash
 ADMIN_USER="${SUDO_USER:-root}"
@@ -330,7 +331,7 @@ ssh -o PubkeyAuthentication=no k3s-master
 
 ---
 
-## 8. Firewall – część wspólna (linie 55–64)
+## 8. Firewall – część wspólna (linie 79–88)
 
 ```bash
 if [[ "${ENABLE_UFW:-yes}" != "yes" ]]; then exit 0; fi
@@ -354,7 +355,7 @@ skrypt, nie zostanie zerwane.
 
 ---
 
-## 9. Firewall – reguły zależne od roli (linie 66–83)
+## 9. Firewall – reguły zależne od roli (linie 90–107)
 
 ### Maszyna `monitoring`
 
@@ -383,7 +384,7 @@ Pętla po adresach węzłów dodaje `WORKER3_IP` tylko wtedy, gdy jest ustawione
 
 ---
 
-## 10. Włączenie firewalla i podsumowanie (linie 85–88)
+## 10. Włączenie firewalla i podsumowanie (linie 109–112)
 
 ```bash
 ufw --force enable

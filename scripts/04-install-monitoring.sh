@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
-# Instalacja stosu monitoringu: Prometheus, Grafana, Alertmanager, node-exporter, kube-state-metrics.
-# Użycie (na k3s-master): sudo ./scripts/04-install-monitoring.sh
+# 04-install-monitoring.sh – monitoring w klastrze jednym poleceniem (Etap 3, wariant skryptem).
+#
+# Gdzie:   na k3s-master, gdy klaster działa (4 węzły Ready)
+# Użycie:  sudo ./scripts/04-install-monitoring.sh
+# Wymaga:  lab.env z GRAFANA_ADMIN_PASSWORD i HEALTHCHECKS_URL (opcjonalnie KPS_CHART_VERSION)
+#
+# Co robi, po kolei:
+#   1. Jeśli nie ma Helma – instaluje go oficjalnym skryptem get-helm-3
+#      (w instalacji ręcznej pobierasz archiwum i sprawdzasz sumę SHA-256).
+#   2. Dodaje i odświeża repozytorium chartów prometheus-community.
+#   3. Wypełnia plik monitoring/kube-prometheus-stack-values.yaml hasłem Grafany i adresem
+#      healthchecks.io z lab.env (envsubst) – do pliku tymczasowego, usuwanego na końcu
+#      (trap ... EXIT), żeby hasło nie zostało na dysku.
+#   4. helm upgrade --install monitoring prometheus-community/kube-prometheus-stack
+#      w namespace monitoring (tworzy go), z wersją z KPS_CHART_VERSION, jeśli ustawiona;
+#      --wait czeka do 15 min, aż wszystko wystartuje.
+#      Powstaje: Prometheus, Alertmanager, Grafana, operator, kube-state-metrics,
+#      node-exporter na każdym węźle.
+#   5. Pokazuje pody w namespace monitoring i adresy: Grafana :30300, Prometheus :30090,
+#      Alertmanager :30093.
+#
+# upgrade --install: pierwsze uruchomienie instaluje, kolejne aktualizują – bezpieczne do powtórzenia.
+# Instalacja ręczna krok po kroku: docs/etap-3-monitoring/01-instalacja-monitoringu.md
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"

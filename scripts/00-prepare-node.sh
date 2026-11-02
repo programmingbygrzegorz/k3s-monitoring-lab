@@ -1,8 +1,32 @@
 #!/usr/bin/env bash
-# Przygotowanie maszyny wirtualnej: nazwa hosta, /etc/hosts, aktualizacje, swap, firewall.
-# Użycie (na każdej maszynie): sudo ./scripts/00-prepare-node.sh <nazwa-hosta>
-# Opis każdej części: docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md
-# Nazwy hostów: k3s-master, k3s-worker-1, k3s-worker-2, (opcjonalnie k3s-worker-3), monitoring
+# 00-prepare-node.sh – przygotowanie systemu jednej maszyny labu (Etap 1).
+#
+# Gdzie:   na KAŻDEJ maszynie osobno (k3s-master, k3s-worker-1/2/3, monitoring)
+# Użycie:  sudo ./scripts/00-prepare-node.sh <nazwa-hosta>
+#          np. ssh -t k3s-master "cd ~/k3s-monitoring-lab && sudo ./scripts/00-prepare-node.sh k3s-master"
+# Wymaga:  lab.env z MASTER_IP, WORKER1_IP, WORKER2_IP, (WORKER3_IP), MONITORING_IP, ADMIN_CIDR
+#
+# Co robi, po kolei:
+#   1. Ustawia nazwę hosta (hostnamectl) na podaną w argumencie.
+#   2. /etc/hosts: usuwa stare wpisy z nazwami maszyn labu i dopisuje aktualne adresy
+#      z lab.env (z dopiskiem "# k3s-lab") – maszyny znają się po nazwach.
+#   3. apt-get update + upgrade, instaluje curl, ca-certificates, gettext-base (envsubst), jq, ufw;
+#      strefa czasowa Europe/Warsaw.
+#   4. Wyłącza swap teraz (swapoff -a) i na stałe (komentuje linię swap w /etc/fstab,
+#      kopia: /etc/fstab.bak) – kubelet wymaga wyłączonego swapu.
+#   5. SSH tylko kluczem: plik /etc/ssh/sshd_config.d/01-lab.conf z "PasswordAuthentication no"
+#      i przeładowanie ssh – ale TYLKO gdy użytkownik ma już klucz w authorized_keys
+#      (inaczej zostałby bez dostępu przez SSH).
+#   6. Firewall ufw od zera: blokuj ruch przychodzący, SSH tylko z ADMIN_CIDR, potem:
+#        - monitoring:   porty 3000 (Grafana) i 3001 (Uptime Kuma) z ADMIN_CIDR
+#        - węzły k3s:    wszystko z innych węzłów, sieci 10.42.0.0/16 (pody) i 10.43.0.0/16
+#                        (usługi), 6443 (API) z ADMIN_CIDR, 80/443 (Ingress), NodePorty
+#                        30000-32767 z ADMIN_CIDR i z maszyny monitoring
+#      Pominięte, gdy w lab.env jest ENABLE_UFW=no.
+#
+# Można uruchomić ponownie – nie dubluje wpisów w /etc/hosts, firewall ustawia od nowa.
+# Odpowiednik w Ansible: ansible/roles/common/
+# Opis każdej części:    docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(dirname "$0")/lib.sh"
