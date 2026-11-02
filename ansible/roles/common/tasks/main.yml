@@ -35,6 +35,7 @@
       - gettext-base
       - jq
       - ufw
+      - tree
     state: present
 
 - name: Ustaw strefę czasową
