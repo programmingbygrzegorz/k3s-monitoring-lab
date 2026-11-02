@@ -163,6 +163,51 @@ Sprawdź połączenie ze wszystkimi maszynami:
 ansible all -m ping
 ```
 
+### `group_vars/all/main.yml` – wspólne ustawienia
+
+Folder `group_vars` ma podfoldery albo pliki nazwane **jak grupy z inventory**; `all` to wszystkie
+maszyny. Role wstawiają te wartości w `{{ … }}` – np. `INSTALL_K3S_CHANNEL: "{{ k3s_channel }}"`.
+Zmienne zależne od Twojej sieci (`iface`, `admin_cidr`) są w `inventory.ini` – `group_vars/all`
+ma wyższy priorytet niż `[all:vars]`, więc ta sama zmienna w obu miejscach brałaby wartość stąd.
+Obok leży opcjonalny, zaszyfrowany `vault.yml` (hasło sudo, [Ansible Vault](03-ansible-vault.md)).
+
+### Pod CIDR i service CIDR – dwie sieci wewnątrz klastra
+
+W `group_vars/all/main.yml` są `k3s_pod_cidr: 10.42.0.0/16` i `k3s_service_cidr: 10.43.0.0/16`
+(domyślne zakresy k3s). Rola `common` otwiera je w firewallu – bez tego ufw blokowałby ruch
+między podami na różnych węzłach.
+
+CIDR to zapis puli adresów: `/16` – stałe pierwsze dwie liczby (`10.42.x.x`, ok. 65 tys. adresów),
+`/24` – stałe trzy (`10.42.3.x`, 256 adresów).
+
+- **Pod CIDR** – adres dla każdego poda. Pula jest dzielona na kawałki `/24`, po jednym na węzeł.
+  Adres poda zmienia się przy każdym jego odtworzeniu.
+- **Service CIDR** – adresy usług (Service, `CLUSTER-IP`): **stały, wirtualny** adres przed grupą
+  podów. Żadna karta sieciowa go nie ma – reguły iptables na węzłach kierują ruch do jednego z podów.
+
+Prawdziwy stan labu (2.11.2026):
+
+```bash
+kubectl get nodes -o custom-columns=NODE:.metadata.name,PODCIDR:.spec.podCIDR
+kubectl get svc -A
+```
+
+```
+NODE           PODCIDR          NAMESPACE     NAME         CLUSTER-IP
+k3s-master     10.42.0.0/24     default       kubernetes   10.43.0.1     ← API (zawsze .0.1)
+k3s-worker-2   10.42.1.0/24     kube-system   kube-dns     10.43.0.10    ← DNS klastra
+k3s-worker-1   10.42.2.0/24     demo          podinfo      10.43.36.134
+k3s-worker-3   10.42.3.0/24
+```
+
+Pod podinfo z adresem `10.42.3.12` działa więc na `k3s-worker-3`. Obie sieci są osiągalne tylko
+z wnętrza klastra – z Windowsa wchodzisz przez NodePort na adres węzła (`192.168.180.51:30090`).
+
+> **Pytanie rekrutacyjne:** Czym różni się pod CIDR od service CIDR?
+> Pod CIDR to pula adresów podów, dzielona na podsieci per węzeł; adres poda jest nietrwały.
+> Service CIDR to pula wirtualnych ClusterIP – stały adres usługi, za którym kube-proxy (iptables)
+> rozdziela ruch między aktualne pody. W k3s domyślnie `10.42.0.0/16` i `10.43.0.0/16`.
+
 ## 4. Klony szablonu: bootstrap (opcjonalnie)
 
 Jeśli maszyny powstały przez sklonowanie jednego szablonu, mają te same: `machine-id`, klucze SSH
