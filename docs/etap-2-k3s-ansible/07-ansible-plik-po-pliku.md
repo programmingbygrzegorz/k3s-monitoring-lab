@@ -69,6 +69,42 @@ ansible/
 Jedna zasada porządkuje wszystko: **inventory mówi „na czym”, playbooki „w jakiej kolejności”,
 role „jak”, a group_vars „z jakimi ustawieniami”.**
 
+### Rysunek 1 – pliki z ustawieniami: jak, z kim, z jakimi wartościami
+
+```mermaid
+flowchart LR
+    cfg["<b>ansible.cfg</b><br/>JAK się łączyć<br/>inventory = inventory.ini<br/>become_exe = sudo.ws<br/>ssh: pipelining, accept-new"]
+    inv["<b>inventory.ini</b> 🔒<br/>NA JAKICH maszynach<br/>[k3s_server] k3s-master .51<br/>[k3s_agents] worker-1/2/3<br/>[all:vars] user, klucz, iface, admin_cidr"]
+    main["<b>group_vars/all/main.yml</b><br/>Z JAKIMI ustawieniami<br/>timezone: Europe/Warsaw<br/>k3s_channel: stable<br/>pod/service CIDR, enable_ufw"]
+    vault["<b>group_vars/all/vault.yml</b> 🔒<br/>SEKRET (zaszyfrowany)<br/>hasło sudo do become<br/>klucz: ~/.ansible/vault-pass"]
+    cfg -->|wskazuje plik| inv
+    inv -.-|zmienne dla grupy all| main
+    main -.-|obok, odszyfrowany przy starcie| vault
+```
+
+### Rysunek 2 – co Ansible robi: polecenie → playbooki → role
+
+```mermaid
+flowchart TD
+    site["<b>site.yml</b><br/>cały lab: prepare + k3s"]
+    boot["<b>playbooks/bootstrap.yml</b><br/>raz, na świeżym klonie"]
+    prep["<b>playbooks/prepare.yml</b><br/>hosts: all"]
+    k3s["<b>playbooks/k3s.yml</b><br/>hosts: k3s_server, potem k3s_agents"]
+    rboot["<b>roles/bootstrap</b><br/>stały IP, nazwa, machine-id<br/>tasks, defaults, templates"]
+    rcommon["<b>roles/common</b><br/>pakiety, swap, SSH, ufw<br/>tasks, handlers"]
+    rserver["<b>roles/k3s_server</b><br/>instalacja mastera + token<br/>tasks"]
+    ragent["<b>roles/k3s_agent</b><br/>worker dołącza do klastra<br/>tasks"]
+    site --> prep
+    site --> k3s
+    boot --> rboot
+    prep --> rcommon
+    k3s --> rserver
+    k3s --> ragent
+```
+
+Playbooki mówią tylko **KTO** (grupa hostów) i **KTÓRA rola**. Cała logika – **CO dokładnie
+robić** – jest w `roles/<rola>/tasks/main.yml`.
+
 ## 3. `ansible.cfg` – ustawienia Ansible
 
 Plik: [ansible/ansible.cfg](../../ansible/ansible.cfg). Ansible czyta go z bieżącego katalogu,
