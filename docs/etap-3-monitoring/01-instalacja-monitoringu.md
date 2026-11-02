@@ -196,7 +196,7 @@ helm template monitoring prometheus-community/kube-prometheus-stack --version 92
 
 Wynik i opis każdego typu obiektu:
 [plik values – co powstanie w klastrze](02-plik-values.md#co-powstanie-w-klastrze--wynik-z-labu-chart-92161).
-W skrócie: 30 zestawów reguł alertów, 29 dashboardów, 9 ServiceMonitorów, 3 Deploymenty,
+W skrócie: 30 zestawów reguł alertów, 25 dashboardów (w 29 ConfigMapach), 9 ServiceMonitorów, 3 Deploymenty,
 DaemonSet node-exportera i obiekty `Prometheus` oraz `Alertmanager`, z których operator zbuduje pody.
 
 ### Krok 4. Instalacja

@@ -14,7 +14,7 @@ a automaty rozpakowują go na części:
 ① Ty:        helm upgrade --install monitoring prometheus-community/kube-prometheus-stack ...
                   │
 ② Helm:      pobiera gotową paczkę (chart), wypełnia jej szablony ustawieniami z pliku values
-             i wysyła do klastra 99 obiektów (30 zestawów reguł alertów, 28 ConfigMap
+             i wysyła do klastra 99 obiektów (30 zestawów reguł alertów, 29 ConfigMap, z tego 25
              z dashboardami, 9 ServiceMonitorów, Service'y, uprawnienia…), w tym:
                   │
 ③ Kubernetes: ├── Deployment grafana            → pod grafana

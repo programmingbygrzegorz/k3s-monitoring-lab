@@ -368,7 +368,7 @@ $ helm template monitoring prometheus-community/kube-prometheus-stack --version 
 | Obiekty | Co to jest |
 |---|---|
 | 30 × `PrometheusRule` | gotowe zestawy reguł alertów (węzły, pody, Deploymenty, dyski…) – bez tych wyłączonych w rozdziale 8 |
-| 29 × `ConfigMap` | głównie **dashboardy Grafany** zapisane jako JSON; sidecar Grafany wczytuje je automatycznie |
+| 29 × `ConfigMap` | **25 dashboardów Grafany** zapisanych jako JSON (etykieta `grafana_dashboard: "1"` – sidecar Grafany wczytuje je automatycznie) i 4 pomocnicze: ustawienia Grafany (`monitoring-grafana`), źródło danych (`…-grafana-datasource`), miejsce na dashboardy (`…-grafana-config-dashboards`) i test Helma (`…-grafana-test`). Sprawdzenie w labie (2.11.2026): `kubectl get cm -A -l grafana_dashboard=1 --no-headers | wc -l` → `25` |
 | 9 × `ServiceMonitor` | co Prometheus ma zbierać: sam siebie, Alertmanagera, Grafanę, operator, kubelety, API server, CoreDNS, node-exporter, kube-state-metrics |
 | 8 × `ServiceAccount`, 5 × `ClusterRole` + `ClusterRoleBinding`, `Role` + `RoleBinding` | **tożsamości i uprawnienia (RBAC)** – np. Prometheus musi móc odczytać listę podów w całym klastrze |
 | 7 × `Service` | stałe adresy: Grafana, Prometheus, Alertmanager, operator, node-exporter, kube-state-metrics… |
