@@ -37,6 +37,12 @@
       - ufw
     state: present
 
+- name: Usuń niepotrzebne pakiety
+  ansible.builtin.apt:
+    name:
+      - tree
+    state: absent
+
 - name: Ustaw strefę czasową
   community.general.timezone:
     name: "{{ timezone }}"
