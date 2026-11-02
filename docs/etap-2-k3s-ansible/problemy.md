@@ -48,3 +48,33 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   rozbija argument na kropce. Poprawnie: `"-var-file=plik.pkrvars.hcl"`.
 - **Wniosek:** każda powłoka i narzędzie ma własne reguły dzielenia argumentów. Gdy argument
   zawiera spacje, kropki lub `{}`, otocz go cudzysłowem.
+
+## `site.yml --check` kończy się failed na masterze
+
+- **Objaw:** `ansible-playbook site.yml --check --diff` – zadanie „Poczekaj, aż węzeł sterujący
+  będzie Ready” pokazuje 30 × `FAILED - RETRYING`, potem `fatal` z
+  `"msg": "Command would have run if not in check mode"`. W `PLAY RECAP` `failed=1` na `k3s-master`.
+  Klaster działa normalnie.
+- **Przyczyna:** w trybie `--check` moduły `command` i `shell` **nie są uruchamiane** – Ansible
+  nie wie, co zmieniłoby dowolne polecenie. Pętla `until` czekała na wynik `kubectl get node`,
+  a dostawała pusty. Wcześniej próbę na sucho robiło się tylko na `prepare.yml`, więc nikt tego
+  nie zauważył (2.11.2026, przy ćwiczeniu z pakietem `tree`).
+- **Diagnoza:** treść `msg` mówi wprost, że polecenie zostało pominięte w check mode.
+- **Rozwiązanie:** `check_mode: false` przy zadaniach, które **tylko czytają** stan
+  (czekanie na `Ready`, `kubectl get nodes`) – w `roles/k3s_server/tasks/main.yml`
+  i `playbooks/k3s.yml`. Wtedy działają także w próbie na sucho.
+- **Wniosek:** `check_mode: false` tylko dla zadań bez skutków ubocznych – zadanie zmieniające
+  system z tą opcją zmieniłoby go także w „próbie na sucho”. Dobry nawyk: `--check` na całym
+  `site.yml`, nie tylko na fragmencie.
+
+## `--limit` na workerze w `site.yml` – brak tokenu
+
+- **Objaw:** `ansible-playbook site.yml --limit k3s-worker-1` (sprawdzone z `--check`, 2.11.2026):
+  `Error processing keyword 'environment': object of type 'HostVarsVars' has no attribute
+  'k3s_server_token'` przy „Zainstaluj k3s (agent)”, `failed=1`.
+- **Przyczyna:** token powstaje w play mastera (`set_fact`), a `hostvars` innej maszyny ma tylko
+  to, co już zostało na niej wykonane. Z `--limit` play mastera się nie uruchamia.
+- **Rozwiązanie:** zmiany w roli `common` testuj na jednej maszynie przez
+  `playbooks/prepare.yml --limit …`; do roli `k3s_agent` dołącz mastera: `--limit k3s-master,k3s-worker-1`.
+- **Wniosek:** `--limit` ogranicza też maszyny, z których zbierane są dane – przy rolach
+  zależnych od innych hostów trzeba je dołączyć.

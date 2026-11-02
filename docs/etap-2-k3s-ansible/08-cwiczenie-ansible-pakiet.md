@@ -44,7 +44,9 @@ potem na wszystkich.
 2. 🪟 Wyślij zmianę: `git add` tego pliku (po nazwie), `git commit`, `git push`.
 3. 🐧 Pobierz ją na `monitoring`: `git pull`.
 4. 🐧 Próba na sucho na wszystkich: `ansible-playbook playbooks/prepare.yml --check --diff`.
+   Możesz też sprawdzić cały `site.yml` – przygotowanie systemu i k3s.
 5. 🐧 Wdrożenie tylko na jednej maszynie: `ansible-playbook playbooks/prepare.yml --limit k3s-worker-1`.
+   Tu celowo `prepare.yml`, nie `site.yml` – dlaczego? (odpowiedź w rozwiązaniu, krok 5)
 6. 🐧 Sprawdź: `ansible all -m command -a "which tree"`.
 7. 🐧 Wdrożenie na wszystkich: `ansible-playbook playbooks/prepare.yml`.
 8. 🐧 Uruchom krok 7 **drugi raz** i porównaj `PLAY RECAP`.

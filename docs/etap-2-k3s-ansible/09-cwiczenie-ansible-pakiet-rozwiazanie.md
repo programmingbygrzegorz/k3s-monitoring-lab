@@ -1,8 +1,8 @@
 # Etap 2 – ćwiczenie z Ansible: pakiet na wszystkich maszynach – rozwiązanie
 
 Rozwiązanie [ćwiczenia z pakietem](08-cwiczenie-ansible-pakiet.md). Najpierw zrób je sam – tu
-porównujesz wynik. Wyniki poniżej to **przykład** tego, co pokazuje ansible-core 2.21: liczby
-w `PLAY RECAP` (`ok=…`) mogą się u Ciebie różnić, ważne są `changed`, `failed` i `rc`.
+porównujesz wynik. Części A i B to **prawdziwe wyniki z labu** (2.11.2026, ansible-core 2.21.5),
+części C i D – przykład. Liczby `ok=…` mogą się u Ciebie różnić, ważne są `changed`, `failed` i `rc`.
 
 ## Część A – stan przed zmianą
 
@@ -15,25 +15,40 @@ ansible all -m ping
 ```
 
 ```
-k3s-master | SUCCESS => {
+monitoring | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.14"
+    },
     "changed": false,
     "ping": "pong"
 }
-... (tak samo dla 4 pozostałych)
+k3s-master | SUCCESS => {
+...
+(tak samo dla k3s-worker-1, -2, -3)
 ```
 
 `ping` w Ansible to nie ping sieciowy – sprawdza, czy Ansible zaloguje się po SSH i uruchomi Pythona.
+`discovered_interpreter_python` – Ansible sam znalazł Pythona 3.14 na maszynie. Kolejność maszyn
+w wyniku jest za każdym razem inna – Ansible łączy się z nimi równolegle.
 
 ```bash
 ansible all -m command -a "which tree"
 ```
 
 ```
-k3s-master | FAILED | rc=1 >>
-non-zero return code
+[ERROR]: Task failed: Module failed: The command exited with a non-zero return code.
+Origin: <adhoc 'command' task>
+
+k3s-worker-3 | FAILED | rc=1 >>
+The command exited with a non-zero return code.
+k3s-worker-2 | FAILED | rc=1 >>
+The command exited with a non-zero return code.
 k3s-worker-1 | FAILED | rc=1 >>
-non-zero return code
-...
+The command exited with a non-zero return code.
+k3s-master | FAILED | rc=1 >>
+The command exited with a non-zero return code.
+monitoring | FAILED | rc=1 >>
+The command exited with a non-zero return code.
 ```
 
 | Część polecenia | Znaczenie |
@@ -85,33 +100,59 @@ cd ~/k3s-monitoring-lab && git pull && cd ansible
 ```
 
 ```
-Updating 1a2b3c3..1a2b3c4
+From https://github.com/programmingbygrzegorz/k3s-monitoring-lab
+   ef30105..38050a1  main       -> origin/main
+Updating ef30105..38050a1
 Fast-forward
  ansible/roles/common/tasks/main.yml | 1 +
+ 1 file changed, 1 insertion(+)
 ```
 
 ### Krok 4 – próba na sucho
 
+W labie próba na sucho objęła cały `site.yml` (przygotowanie systemu i k3s) – tak też można:
+
 ```bash
-ansible-playbook playbooks/prepare.yml --check --diff
+ansible-playbook site.yml --check --diff
 ```
 
 ```
+TASK [common : Zaktualizuj system] *********************************************
+ok: [k3s-worker-3]
+ok: [k3s-worker-1]
+...
+
 TASK [common : Zainstaluj potrzebne pakiety] ***********************************
+Solving dependencies...
 The following NEW packages will be installed:
   tree
 0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+changed: [k3s-worker-2]
+...  (tak samo dla k3s-worker-1, -3, k3s-master, monitoring)
+
+TASK [k3s_server : Pobierz instalator k3s] *************************************
 changed: [k3s-master]
 ...
 PLAY RECAP *********************************************************************
-k3s-master    : ok=…  changed=1  unreachable=0  failed=0  skipped=…
+k3s-master                 : ok=27   changed=2    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
+k3s-worker-1               : ok=20   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-2               : ok=20   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-3               : ok=20   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+monitoring                 : ok=13   changed=1    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
 ```
 
 `--check` niczego nie instaluje – moduł `apt` pyta tylko, co by zrobił. `--diff` dokłada opis
-zmiany (tu: lista nowych pakietów).
+zmiany: lista nowych pakietów, tak jak przy `apt install`.
 
-Jeśli przy „Zaktualizuj system” też jest `changed`, to są czekające aktualizacje Ubuntu – nie
-dotyczy to ćwiczenia, ale playbook je zainstaluje.
+Skąd `changed=2` na węzłach k3s? Drugie `changed` to „Pobierz instalator k3s”: plik
+`/tmp/k3s-install.sh` znika przy restarcie maszyny (`/tmp` jest czyszczony), więc Ansible pobrałby
+go ponownie. Nieszkodliwe – sama instalacja k3s ma `creates:` i jest pomijana (`ok`).
+
+> **Prawdziwy problem znaleziony w tym kroku:** pierwsza próba `site.yml --check` skończyła się
+> `failed=1` na masterze – zadanie „Poczekaj, aż węzeł sterujący będzie Ready” 30 razy
+> dostało pusty wynik. W trybie `--check` moduł `command` **nie jest uruchamiany**, a pętla `until`
+> czekała na wynik `kubectl`. Naprawa: `check_mode: false` przy zadaniach, które tylko czytają.
+> Opis: [problemy Etapu 2](problemy.md#siteyml---check-kończy-się-failed-na-masterze).
 
 ### Krok 5 – jedna maszyna
 
@@ -124,10 +165,15 @@ TASK [common : Zainstaluj potrzebne pakiety] ***********************************
 changed: [k3s-worker-1]
 ...
 PLAY RECAP *********************************************************************
-k3s-worker-1  : ok=…  changed=1  unreachable=0  failed=0
+k3s-worker-1               : ok=17   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
 ```
 
 W wyniku jest tylko `k3s-worker-1`.
+
+Dlaczego tu `prepare.yml`, a nie `site.yml`? Rola `k3s_agent` bierze token z mastera
+(`hostvars['k3s-master'].k3s_server_token`), a ten powstaje w play mastera. Z `--limit k3s-worker-1`
+play mastera się nie wykona, więc tokenu nie będzie i worker zgłosi błąd niezdefiniowanej
+zmiennej. Pakiet jest w roli `common`, więc do próby na jednej maszynie wystarcza `prepare.yml`.
 
 ### Krok 6 – sprawdzenie
 
@@ -136,11 +182,12 @@ ansible all -m command -a "which tree"
 ```
 
 ```
+k3s-worker-3 | FAILED | rc=1 >>
 k3s-worker-1 | CHANGED | rc=0 >>
 /usr/bin/tree
 k3s-master | FAILED | rc=1 >>
-non-zero return code
-...
+monitoring | FAILED | rc=1 >>
+k3s-worker-2 | FAILED | rc=1 >>
 ```
 
 `CHANGED` przy module `command` nic nie zmieniło – Ansible nie wie, co robi dowolny program,
@@ -149,30 +196,70 @@ poleceniach, które tylko czytają (np. w `playbooks/k3s.yml`).
 
 ### Krok 7 i 8 – wszystkie maszyny, dwa razy
 
+W labie – cały `site.yml` (wystarczy też `playbooks/prepare.yml`):
+
 ```bash
-ansible-playbook playbooks/prepare.yml
+ansible-playbook site.yml
 ```
 
 ```
 TASK [common : Zainstaluj potrzebne pakiety] ***********************************
 ok: [k3s-worker-1]
+changed: [monitoring]
 changed: [k3s-master]
 changed: [k3s-worker-2]
 changed: [k3s-worker-3]
-changed: [monitoring]
+...
+TASK [Wynik] *******************************************************************
+ok: [k3s-master] => {
+    "cluster.stdout_lines": [
+        "NAME           STATUS   ROLES           AGE     VERSION        INTERNAL-IP      ...",
+        "k3s-master     Ready    control-plane   3d19h   v1.36.5+k3s1   192.168.180.51   ...",
+        "k3s-worker-1   Ready    worker          3d19h   v1.36.5+k3s1   192.168.180.52   ...",
+        "k3s-worker-2   Ready    worker          3d19h   v1.36.5+k3s1   192.168.180.53   ...",
+        "k3s-worker-3   Ready    worker          3d19h   v1.36.5+k3s1   192.168.180.55   ..."
+    ]
+}
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=29   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-1               : ok=20   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-2               : ok=20   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-3               : ok=20   changed=2    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+monitoring                 : ok=13   changed=1    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
 ```
+
+`changed` = `tree` (oprócz `k3s-worker-1`) + ponowne pobranie instalatora k3s do `/tmp`.
+Na końcu playbook wypisuje stan klastra – 4 węzły `Ready`, k3s nietknięty.
 
 Drugi raz:
 
 ```
-TASK [common : Zainstaluj potrzebne pakiety] ***********************************
-ok: [k3s-master]
-ok: [k3s-worker-1]
-...
 PLAY RECAP *********************************************************************
-k3s-master    : ok=…  changed=0  unreachable=0  failed=0
-k3s-worker-1  : ok=…  changed=0  unreachable=0  failed=0
-...
+k3s-master                 : ok=29   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-1               : ok=20   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-2               : ok=20   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-3               : ok=20   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+monitoring                 : ok=13   changed=0    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
+```
+
+**`changed=0` na wszystkich 5 maszynach** – instalator już jest w `/tmp`, `tree` jest wszędzie.
+
+```bash
+ansible all -m command -a "which tree"
+```
+
+```
+k3s-worker-3 | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-master | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-worker-1 | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-worker-2 | CHANGED | rc=0 >>
+/usr/bin/tree
+monitoring | CHANGED | rc=0 >>
+/usr/bin/tree
 ```
 
 ### Krok 9 – pakiet działa
@@ -186,7 +273,7 @@ ssh k3s-master "tree -L 1 /etc/rancher"
 ├── k3s
 └── node
 
-2 directories, 0 files
+3 directories, 0 files
 ```
 
 **Odpowiedzi:**
@@ -261,7 +348,7 @@ ansible all -m command -a "which tree"
 
 ```
 k3s-master | FAILED | rc=1 >>
-non-zero return code
+The command exited with a non-zero return code.
 ...
 ```
 
