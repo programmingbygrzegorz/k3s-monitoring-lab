@@ -388,6 +388,8 @@ na każdej maszynie i model pull – agent sam co jakiś czas pobiera konfigurac
 
 ## 14. Jak się przygotować
 
+Gotowe ćwiczenie krok po kroku (instalacja i usunięcie pakietu): [08-cwiczenie-ansible-pakiet.md](08-cwiczenie-ansible-pakiet.md).
+
 Czytanie nie wystarczy – na rozmowie liczy się, że **robiłeś to sam**. Na maszynie `monitoring`:
 
 ```bash
