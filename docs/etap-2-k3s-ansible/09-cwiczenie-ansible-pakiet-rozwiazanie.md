@@ -1,8 +1,7 @@
 # Etap 2 – ćwiczenie z Ansible: pakiet na wszystkich maszynach – rozwiązanie
 
 Rozwiązanie [ćwiczenia z pakietem](08-cwiczenie-ansible-pakiet.md). Najpierw zrób je sam – tu
-porównujesz wynik. Części A i B to **prawdziwe wyniki z labu** (2.11.2026, ansible-core 2.21.5),
-części C i D – przykład. Liczby `ok=…` mogą się u Ciebie różnić, ważne są `changed`, `failed` i `rc`.
+porównujesz wynik. Wszystkie wyniki to **prawdziwe wyniki z labu** (2.11.2026, ansible-core 2.21.5). Liczby `ok=…` mogą się u Ciebie różnić, ważne są `changed`, `failed` i `rc`.
 
 ## Część A – stan przed zmianą
 
@@ -291,12 +290,21 @@ ssh k3s-master "tree -L 1 /etc/rancher"
 
 ### Krok 1 i 2 – samo usunięcie linii nie wystarcza
 
-Po usunięciu `- tree` z listy, wysłaniu i uruchomieniu playbooka:
+Po usunięciu `- tree` z listy, wysłaniu (commit `0398a02`) i uruchomieniu
+`ansible-playbook playbooks/prepare.yml`:
 
 ```
 TASK [common : Zainstaluj potrzebne pakiety] ***********************************
+ok: [monitoring]
+ok: [k3s-worker-1]
+ok: [k3s-worker-3]
 ok: [k3s-master]
+ok: [k3s-worker-2]
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=17   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
 ...
+monitoring                 : ok=13   changed=0    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
 ```
 
 ```bash
@@ -304,17 +312,25 @@ ansible all -m command -a "which tree"
 ```
 
 ```
+monitoring | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-worker-1 | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-worker-3 | CHANGED | rc=0 >>
+/usr/bin/tree
+k3s-worker-2 | CHANGED | rc=0 >>
+/usr/bin/tree
 k3s-master | CHANGED | rc=0 >>
 /usr/bin/tree
-...
 ```
 
-Pakiet **nadal jest**. Zadanie mówi teraz: „curl, ca-certificates, gettext-base, jq i ufw mają być”.
-O `tree` nic nie mówi, więc Ansible go nie dotyka.
+Pakiet **nadal jest** na wszystkich 5 maszynach, a playbook mówi `changed=0` – „wszystko w porządku”.
+Zadanie mówi teraz: „curl, ca-certificates, gettext-base, jq i ufw mają być”. O `tree` nic nie
+mówi, więc Ansible go nie dotyka.
 
 ### Krok 3 – jawne `state: absent`
 
-🪟 `ansible/roles/common/tasks/main.yml`, zaraz pod zadaniem instalacji:
+🪟 `ansible/roles/common/tasks/main.yml`, zaraz pod zadaniem instalacji (commit `d0b21fb`):
 
 ```yaml
 - name: Usuń niepotrzebne pakiety
@@ -328,16 +344,42 @@ O `tree` nic nie mówi, więc Ansible go nie dotyka.
 
 ```bash
 ansible-playbook playbooks/prepare.yml --check --diff
+```
+
+```
+TASK [common : Usuń niepotrzebne pakiety] **************************************
+Solving dependencies...
+The following packages will be REMOVED:
+  tree
+0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.
+changed: [monitoring]
+...  (tak samo dla 4 pozostałych)
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=18   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+...
+```
+
+`ok=18` zamiast 17 – w roli przybyło jedno zadanie.
+
+```bash
 ansible-playbook playbooks/prepare.yml
 ```
 
 ```
 TASK [common : Usuń niepotrzebne pakiety] **************************************
-The following packages will be REMOVED:
-  tree
-changed: [k3s-master]
 changed: [k3s-worker-1]
-...
+changed: [monitoring]
+changed: [k3s-master]
+changed: [k3s-worker-2]
+changed: [k3s-worker-3]
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=18   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-1               : ok=18   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-2               : ok=18   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+k3s-worker-3               : ok=18   changed=1    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+monitoring                 : ok=14   changed=1    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
 ```
 
 ### Krok 5 i 6 – sprawdzenie i idempotentność
@@ -347,25 +389,50 @@ ansible all -m command -a "which tree"
 ```
 
 ```
+k3s-worker-1 | FAILED | rc=1 >>
+monitoring | FAILED | rc=1 >>
 k3s-master | FAILED | rc=1 >>
-The command exited with a non-zero return code.
-...
+k3s-worker-2 | FAILED | rc=1 >>
+k3s-worker-3 | FAILED | rc=1 >>
 ```
 
-Drugie uruchomienie playbooka: przy „Usuń niepotrzebne pakiety” wszędzie `ok`, `changed=0`.
+Drugie uruchomienie playbooka:
+
+```
+TASK [common : Usuń niepotrzebne pakiety] **************************************
+ok: [k3s-worker-1]
+ok: [k3s-master]
+ok: [k3s-worker-3]
+ok: [monitoring]
+ok: [k3s-worker-2]
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=18   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+...
+```
 
 **Odpowiedzi:**
 - **Dlaczego usunięcie linii nie wystarczyło:** Ansible jest deklaratywny, ale tylko w zakresie
   tego, co opisujesz. Nie porównuje maszyny z „pełną listą tego, co powinno być” – pilnuje
-  wyłącznie stanu zapisanego w zadaniach. Czego nie ma w kodzie, tego nie zmienia.
+  wyłącznie stanu zapisanego w zadaniach. Czego nie ma w kodzie, tego nie zmienia. Najgorsze, że
+  playbook mówi wtedy `changed=0` – wygląda, jakby wszystko było zgodne z kodem.
 - **`present` a `absent`:** `present` – pakiet ma być (zainstaluj, jeśli go nie ma); `absent` –
   pakietu ma nie być (usuń, jeśli jest). W obu przypadkach, gdy stan się zgadza – `ok`.
   Jest też `latest` – zawsze najnowsza wersja, ale wtedy każde uruchomienie może coś aktualizować.
 
 ## Część D – sprzątanie w kodzie
 
-Po usunięciu zadania „Usuń niepotrzebne pakiety” i uruchomieniu playbooka – `changed=0`,
-a `tree` dalej nie ma (nikt go nie instaluje).
+Po usunięciu zadania „Usuń niepotrzebne pakiety” (commit `9729d9c`) i uruchomieniu playbooka:
+
+```
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=17   changed=0    unreachable=0    failed=0    skipped=2    rescued=0    ignored=0
+...
+monitoring                 : ok=13   changed=0    unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
+```
+
+`ok=17` – znowu tyle zadań co przed ćwiczeniem. `which tree` – 5 × `FAILED rc=1`: nikt go nie
+instaluje, więc nie wraca.
 
 🪟 Historia:
 
@@ -374,12 +441,22 @@ git log --oneline -5 -- ansible/roles/common/tasks/main.yml
 ```
 
 ```
-9d8e7f6 Ansible: koniec ćwiczenia, usunięte zadanie absent
-5c4b3a2 Ansible: usuń tree ze wszystkich maszyn (state: absent)
-4b3a291 Ansible: tree poza listą pakietów
-1a2b3c4 Ansible: pakiet tree na wszystkich maszynach (ćwiczenie)
-…
+9729d9c Ansible: koniec ćwiczenia z tree – usunięte zadanie absent, rola jak przed ćwiczeniem
+d0b21fb Ansible: usuń tree ze wszystkich maszyn (state: absent, ćwiczenie)
+0398a02 Ansible: tree poza listą pakietów (ćwiczenie, część C)
+38050a1 Ansible: pakiet tree na wszystkich maszynach (ćwiczenie)
+efb5951 common: usuń wpisy /etc/hosts ze skryptu przed blokiem Ansible (bez duplikatów)
 ```
+
+Że plik jest identyczny jak przed ćwiczeniem, potwierdza git – brak różnic z commitem sprzed
+ćwiczenia:
+
+```bash
+git diff ef30105 HEAD -- ansible/roles/common/tasks/main.yml
+```
+
+Wynik pusty. Cztery commity ćwiczenia zostają w historii – widać, kto, kiedy i po co instalował
+i usuwał pakiet.
 
 **Odpowiedzi:**
 - **Kiedy zostawić `state: absent`:** gdy są maszyny, których jeszcze nie przeszedł playbook
@@ -388,7 +465,7 @@ git log --oneline -5 -- ansible/roles/common/tasks/main.yml
   i pakiet nie ma szans wrócić; inaczej kod puchnie od historycznych zadań.
 - **Cofnięcie roli do stanu sprzed ćwiczenia:**
   `git checkout <hash> -- ansible/roles/common/tasks/main.yml` (`<hash>` – commit sprzed ćwiczenia,
-  z `git log`), potem commit. Plik wraca do dawnej wersji, a historia zostaje.
+  z `git log`, w labie `ef30105`), potem commit. Plik wraca do dawnej wersji, a historia zostaje.
 
 ## Droga na skróty – polecenia ad-hoc
 
