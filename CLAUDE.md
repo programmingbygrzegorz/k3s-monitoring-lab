@@ -41,6 +41,10 @@ Stan na 31.10.2026:
   2 (k3s przez Ansible + Vault), 3 (kube-prometheus-stack 92.16.1 przez Helm, podinfo, reguły).
 - ⚠️ Ćwiczenia z kubectl (Etap 2) i z monitoringu (Etap 3) wykonał Claude ze zrzutami. Właściciel
   ma je przejść sam – kubectl był w trakcie 31.10.
+- ⚠️ GitHub Actions (`.github/workflows/lint.yml`) **nie uruchamia się od 28.10** – „account is
+  locked due to a billing issue”. Wszystkie przebiegi czerwone bez wykonania kroku. Właściciel
+  musi to wyjaśnić w GitHub → Settings → Billing. Do tego czasu ShellCheck, yamllint
+  i ansible-lint nie są sprawdzane automatycznie.
 - ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
