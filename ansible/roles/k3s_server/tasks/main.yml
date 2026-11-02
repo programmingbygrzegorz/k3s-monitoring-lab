@@ -32,6 +32,8 @@
   retries: 30
   delay: 10
   changed_when: false
+  # Tylko odczyt – uruchamiaj także w --check, inaczej pętla until nie dostaje wyniku.
+  check_mode: false
 
 - name: Odczytaj token do dołączania workerów
   ansible.builtin.slurp:

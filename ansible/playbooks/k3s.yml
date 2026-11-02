@@ -21,6 +21,8 @@
       retries: 30
       delay: 10
       changed_when: false
+      # Tylko odczyt – uruchamiaj także w --check, inaczej pętla until nie dostaje wyniku.
+      check_mode: false
 
     - name: Nadaj workerom rolę worker
       ansible.builtin.command: k3s kubectl label node {{ item }} node-role.kubernetes.io/worker=worker --overwrite
@@ -33,6 +35,8 @@
       ansible.builtin.command: k3s kubectl get nodes -o wide
       register: cluster
       changed_when: false
+      # Tylko odczyt – uruchamiaj także w --check, inaczej pętla until nie dostaje wyniku.
+      check_mode: false
 
     - name: Wynik
       ansible.builtin.debug:
