@@ -45,6 +45,7 @@ a w Etapie 3 instalujesz na nim monitoring.
 | – | [04-k3s-skryptami.md](04-k3s-skryptami.md) | *(wariant)* ta sama instalacja skryptami, bez Ansible |
 | 4 | [05-cwiczenia-kubectl.md](05-cwiczenia-kubectl.md) | **ćwiczenia** z kubectl, 8 poziomów – zrób je sam |
 | 5 | [06-cwiczenia-kubectl-rozwiazania.md](06-cwiczenia-kubectl-rozwiazania.md) | **rozwiązania** ćwiczeń ze zrzutami – porównaj po wykonaniu |
+| 6 | [07-ansible-plik-po-pliku.md](07-ansible-plik-po-pliku.md) | **powtórka przed rozmową**: każdy plik Ansible, decyzje i pytania z odpowiedziami |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: sudo-rs, ansible-lint, zmienne |
 
 Następny etap: [Etap 3 – monitoring w klastrze](../etap-3-monitoring/README.md).
