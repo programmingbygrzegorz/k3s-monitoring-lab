@@ -43,7 +43,8 @@ Stan na 31.10.2026:
   ma je przejść sam – kubectl był w trakcie 31.10.
 - ⚠️ GitHub Actions (`.github/workflows/lint.yml`) **nie uruchamia się od 28.10** – „account is
   locked due to a billing issue”. Wszystkie przebiegi czerwone bez wykonania kroku. Właściciel
-  musi to wyjaśnić w GitHub → Settings → Billing. Do tego czasu ShellCheck, yamllint
+  musi to wyjaśnić w GitHub → Settings → Billing. 2.11 wyłączenie limitu budżetu Actions NIE pomogło
+  (przebieg b304583 nadal zablokowany) – następny krok: zgłoszenie na support.github.com. Do tego czasu ShellCheck, yamllint
   i ansible-lint nie są sprawdzane automatycznie.
 - ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
