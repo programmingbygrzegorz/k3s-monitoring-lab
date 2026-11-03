@@ -8,7 +8,7 @@ jak znalazłeś przyczynę i jak ją usunąłeś.
 1. Wyłącz maszynę `k3s-worker-1` (twarde wyłączenie w VMware).
 2. Obserwuj: `kubectl get nodes -w` oraz `kubectl -n demo get pods -o wide -w`.
 3. Oczekiwane:
-   - po ok. 40 s węzeł przechodzi w `NotReady`, pojawia się alert `KubeNodeNotReady`,
+   - po ok. 50 s węzeł przechodzi w `NotReady`; alert `KubeNodeNotReady` jest najpierw `pending`, a `firing` dopiero po 15 min (`for: 15m`),
    - po ok. 5 minutach pody z wyłączonego węzła są tworzone na `k3s-worker-2`,
    - w tym czasie aplikacja działa dalej dzięki replikom na drugim węźle.
 4. Włącz węzeł z powrotem i sprawdź, czy wrócił do stanu `Ready`.
@@ -25,7 +25,7 @@ Oś czasu po twardym wyłączeniu workera:
 | Czas | Co się dzieje |
 |---|---|
 | 0 s | maszyna wyłączona; pody na niej przestają działać od razu |
-| ok. 40 s | węzeł `NotReady` (status `Unknown`), pody z niego znikają z endpointów Service |
+| ok. 50 s | węzeł `NotReady` (status `Unknown`), pody z niego znikają z endpointów Service |
 | ok. 5 min | pody węzła dostają status `Terminating`, kontrolery tworzą nowe na zdrowych węzłach |
 | po włączeniu | węzeł `Ready`, stare pody są sprzątane; **nowe nie wracają same** na ten węzeł |
 
@@ -64,6 +64,19 @@ Wnioski:
   nic zmienić (`kubectl` nie działa), nic nie zostanie naprawione ani przeniesione, a do tego
   przestaje działać DNS w klastrze (jedyny `coredns` jest na masterze).
 
+### Przewidywanie: wyłączenie k3s-worker-3
+
+Na podstawie stanu klastra (k3s v1.36.5, reguły kube-prometheus-stack). Zapisz przed
+ćwiczeniem, a po nim porównaj z tym, co naprawdę zobaczyłeś.
+
+| Czas | Aplikacje | Monitoring |
+|---|---|---|
+| 0–50 s | `podinfo`, `hello-lab`, `web` odpowiadają **z przerwami** – Service dalej wysyła część ruchu do martwych podów. Grafana (`:30300`) i traefik nie działają wcale | Prometheus (worker-2) działa; cel `node-exporter` worker-3 ma `up = 0` |
+| ok. 50 s | węzeł `NotReady`, martwe pody wypadają z endpointów – aplikacje znów odpowiadają za każdym razem (z worker-1 i worker-2) | `KubeNodeNotReady` w stanie `pending` |
+| ok. 5 min 50 s | pody worker-3 → `Terminating`; nowe `grafana`, `traefik`, 2× `podinfo`, `hello-lab`, 2× `web` startują na worker-1/2 (miejsca wystarczy – workery mają zajęte ok. 10% CPU i pamięci). Grafana wraca, ale bez zmian zrobionych ręcznie w UI (`emptyDir`); dashboardy z ConfigMap są | `alertmanager-…-0` wisi w `Terminating` i **nie jest odtwarzany** (StatefulSet) |
+| 10–15 min | – | `TargetDown` (10 min) i `KubeNodeNotReady` (15 min) przechodzą w `firing`, ale **nikt nie dostaje powiadomienia** – Alertmanager nie działa. Alert widać tylko w Prometheusie `:30090` → Alerts |
+| po włączeniu | węzeł `Ready`, pody `Terminating` znikają. Przeniesione pody **zostają** na worker-1/2 – worker-3 jest prawie pusty | `alertmanager-…-0` startuje od nowa (bez historii wyciszeń) |
+
 ### Jak się przed tym zabezpieczyć
 
 | Sposób | Co daje |
@@ -91,7 +104,7 @@ topologySpreadConstraints:
 
 **Pytania rekrutacyjne:**
 
-- *Węzeł padł. Po jakim czasie pody pojawią się gdzie indziej?* Po ok. 40 s węzeł jest
+- *Węzeł padł. Po jakim czasie pody pojawią się gdzie indziej?* Po ok. 50 s węzeł jest
   `NotReady`, po kolejnych ok. 5 min (`tolerationSeconds: 300`) pody są tworzone na innych węzłach.
   Dotyczy to Deploymentów; StatefulSet czeka, aż węzeł wróci albo ktoś usunie pod ręcznie.
 - *Masz 3 repliki. Czy to gwarantuje wysoką dostępność?* Nie – mogą trafić na jeden węzeł.

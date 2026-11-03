@@ -491,7 +491,7 @@ df -h / ; free -h                            # pełny dysk i brak pamięci to cz
 
 | Przyczyna | Objaw |
 |---|---|
-| maszyna wyłączona / sieć | brak `ping`, `Unknown` po ok. 40 s |
+| maszyna wyłączona / sieć | brak `ping`, `Unknown` po ok. 50 s |
 | usługa `k3s-agent` padła | `systemctl status` = `failed`, przyczyna w `journalctl` |
 | pełny dysk | `DiskPressure True`, pody `Evicted` |
 | brak pamięci | `MemoryPressure True`, OOM procesów systemowych |
