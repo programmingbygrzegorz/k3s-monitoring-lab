@@ -108,6 +108,8 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k -n NS get events --sort-by=.lastTimestamp` | co się działo, od najstarszych |
 | `k -n NS logs NAZWA --tail=20` | ostatnie linie logu |
 | `k -n NS exec NAZWA -- sh -c '…'` | polecenie wewnątrz kontenera |
+| `k -n NS exec -it NAZWA -- bash` | wejście do kontenera (`-i` wejście z klawiatury, `-t` terminal); wyjście: `exit` albo Ctrl+D |
+| `k exec -it NAZWA -c KONTENER -- sh` | gdy pod ma kilka kontenerów; `sh`, gdy w obrazie nie ma `bash` |
 | `k get pods -A \| grep -v Running` | pody, które nie działają |
 
 Typowe błędy (ImagePullBackOff, CrashLoopBackOff…):
