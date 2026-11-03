@@ -77,6 +77,24 @@ Na podstawie stanu klastra (k3s v1.36.5, reguły kube-prometheus-stack). Zapisz 
 | 10–15 min | – | `TargetDown` (10 min) i `KubeNodeNotReady` (15 min) przechodzą w `firing`, ale **nikt nie dostaje powiadomienia** – Alertmanager nie działa. Alert widać tylko w Prometheusie `:30090` → Alerts |
 | po włączeniu | węzeł `Ready`, pody `Terminating` znikają. Przeniesione pody **zostają** na worker-1/2 – worker-3 jest prawie pusty | `alertmanager-…-0` startuje od nowa (bez historii wyciszeń) |
 
+**Bilans strat po awarii worker-3:**
+
+| Rodzaj | Co | Jak długo / ile |
+|---|---|---|
+| przerwa | Grafana `:30300` | ok. 6 min + pobranie obrazu na nowym węźle |
+| przerwa | `http://podinfo.lab.local` (Ingress przez traefik) | ok. 6 min – choć repliki `podinfo` na worker-2 działają, jedyny traefik leżał |
+| przerwa | powiadomienia o alertach | **cały czas awarii**, aż worker-3 wróci (Alertmanager to StatefulSet) |
+| błędy | `podinfo` / `hello-lab` / `web` przez NodePort | ok. 50 s; część zapytań (ok. 2/3, 1/2, 1/2 – tyle replik było na worker-3) kończy się błędem |
+| ryzyko | `podinfo` przez 6 min na 1 replice | druga awaria w tym czasie = pełna przerwa |
+| dane – na zawsze | Grafana: użytkownicy, dashboardy i ustawienia zrobione w UI (baza SQLite w `emptyDir`) | – |
+| dane – na zawsze | Alertmanager: wyciszenia (silences) i dziennik wysłanych powiadomień – po starcie wyciszone alerty wracają, możliwe duplikaty | – |
+| dane – na zawsze | logi podów z worker-3 (`kubectl logs` ich już nie pokaże, brak centralnych logów) | – |
+| dane – dziura | metryki worker-3 z czasu awarii | brak punktów na wykresach |
+
+**Nie tracisz:** historii metryk (Prometheus jest na worker-2), stanu klastra (baza na masterze),
+obrazów (rejestr na `monitoring`), manifestów (git), hasła admina Grafany i dashboardów z ConfigMap
+(Secret i ConfigMapy są w klastrze, nie na węźle).
+
 ### Jak się przed tym zabezpieczyć
 
 | Sposób | Co daje |
