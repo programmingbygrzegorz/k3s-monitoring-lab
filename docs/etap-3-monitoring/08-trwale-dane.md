@@ -280,11 +280,29 @@ helm history monitoring -n monitoring
 - przy każdym PV kolumna `NODE` – węzeł, na którego dysku leżą dane,
 - w `helm history` rewizję `2` ze statusem `deployed`.
 
+Wynik z labu (03.11.2026, nazwy PVC skrócone):
+
+```
+REVISION  UPDATED                   STATUS      CHART                          DESCRIPTION
+1         Fri Oct 30 09:08:23 2026  superseded  kube-prometheus-stack-92.16.1  Install complete
+2         Tue Nov  3 13:14:11 2026  deployed    kube-prometheus-stack-92.16.1  Upgrade complete
+
+PV                                         CLAIM                    SIZE   NODE
+pvc-1979ca30-8aa7-4a6b-a095-387ca2ce10d2   prometheus-…-db-…-0      10Gi   k3s-worker-2
+pvc-bdc4e228-24b7-4a25-aa8a-697abb5bcb18   alertmanager-…-db-…-0    1Gi    k3s-worker-1
+pvc-ea061923-f390-40b1-a35d-2a6b65117849   monitoring-grafana       2Gi    k3s-worker-1
+```
+
+Dane trafiły tam, gdzie scheduler postawił pody: Prometheus na worker-2, Grafana i Alertmanager
+na worker-1. Od teraz te pody będą startować tylko na tych węzłach.
+
 Zajrzyj na dysk węzła z kolumny `NODE` (np. worker-2):
 
 ```bash
-ssh k3s-worker-2 sudo ls /var/lib/rancher/k3s/storage
+ssh -t k3s-worker-2 sudo ls /var/lib/rancher/k3s/storage
 ```
+
+`-t` daje terminal, w którym `sudo` może zapytać o hasło. Bez niego: `sudo: a terminal is required`.
 
 Zobaczysz katalogi `pvc-<numer>_monitoring_<nazwa-pvc>` – to są dane.
 
@@ -310,6 +328,70 @@ kubectl -n monitoring delete pod prometheus-monitoring-kube-prometheus-prometheu
 
 Po starcie poda wykres `up` nadal pokazuje dane sprzed usunięcia, z krótką przerwą w środku.
 Przed zmianą zaczynałby się od chwili startu.
+
+**Alertmanager.** W `http://192.168.180.51:30093` → *New Silence* utwórz wyciszenie dowolnego
+alertu (np. `alertname=TestTrwalosci`, 2 h), potem
+`kubectl -n monitoring delete pod alertmanager-monitoring-kube-prometheus-alertmanager-0`.
+Po starcie poda wyciszenie nadal jest na liście *Silences*.
+
+### Wynik testu w labie (03.11.2026)
+
+Test wykonany bez logowania do Grafany – przez pomocniczy pod i API Prometheusa oraz Alertmanagera.
+
+**Grafana.** Pierwsza próba zajrzenia do środka się nie udała:
+
+```
+$ kubectl -n monitoring exec deploy/monitoring-grafana -c grafana -- ls -la /var/lib/grafana
+... exec: "ls": executable file not found in $PATH
+```
+
+Obraz Grafany 13 jest **okrojony** (bez powłoki, `ls`, `cat`) – mniej programów to mniej dziur
+do wykorzystania przez atakującego. Do dysku zajrzał więc **drugi pod, który podłączył ten sam PVC**
+(`claimName: monitoring-grafana`, obraz hello-lab z `sh`, `runAsUser: 472` jak Grafana). RWO na to
+pozwala, bo oba pody stoją na tym samym węźle (worker-1):
+
+```
+$ kubectl -n monitoring exec podglad-pvc -- ls -la /dane
+-rw-r----- 1  472  472 2535424 Nov  3 12:29 grafana.db        ← baza Grafany
+-rw-r--r-- 1  472  472      33 Nov  3 12:29 znacznik.txt      ← plik testowy
+
+$ kubectl -n monitoring delete pod -l app.kubernetes.io/name=grafana
+pod "monitoring-grafana-5b7684c88-8rjkb" deleted
+  → nowy pod monitoring-grafana-5b7684c88-zhmcp, znów na k3s-worker-1
+
+$ kubectl -n monitoring exec podglad-pvc -- cat /dane/znacznik.txt
+test-trwalosci zapisany 12:29:52                                ← przeżył
+
+$ curl http://192.168.180.51:30300/api/health
+{ "database": "ok", "version": "13.3.0", ... }
+```
+
+(Czas w podzie to UTC – o godzinę mniej niż w Polsce.)
+
+**Prometheus** – zapytania do API (`/api/v1/query`) przed i po usunięciu poda:
+
+| | Przed (13:31) | Po (13:32) |
+|---|---|---|
+| `prometheus_tsdb_lowest_timestamp_seconds` – najstarsza próbka w bazie | 13:14:07 | **13:14:07** |
+| `count_over_time(up{job="apiserver"}[1h])` – punkty z ostatniej godziny | 34 | **36** |
+
+Najstarsza próbka to chwila wdrożenia dysku – historia sprzed restartu została, a liczba punktów
+rośnie dalej. W logu nowego poda widać, jak Prometheus odczytuje z dysku dziennik zapisów (WAL):
+
+```
+msg="Replaying WAL, this may take a while" component=tsdb
+msg="WAL replay completed" ... total_replay_duration=396.008237ms
+```
+
+**Alertmanager** – wyciszenie założone przez API (`POST /api/v2/silences`):
+
+```
+przed – aktywne wyciszenia:   c23b65a3 TestTrwalosci active test trwalych danych
+$ kubectl -n monitoring delete pod alertmanager-monitoring-kube-prometheus-alertmanager-0
+po – aktywne wyciszenia:      c23b65a3 TestTrwalosci active test trwalych danych
+```
+
+Wyciszenie przetrwało; po teście zostało usunięte (`DELETE /api/v2/silence/<id>`).
 
 ## Wycofanie
 

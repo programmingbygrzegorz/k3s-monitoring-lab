@@ -54,10 +54,9 @@ Stan na 03.11.2026:
   `/etc/rancher/k3s/lab-ca.crt` + `registries.yaml`, namespace `hello-lab` (NodePort 30880).
   Właściciel ma przejść ćwiczenia sam po „Pełnym resecie” z `04-cwiczenia-obraz-rozwiazania.md`.
   `insecure-registries` jest zablokowane przez tryb auto (osłabienie TLS) – stąd własne CA.
-- 💾 03.11 – plik values ma już trwałe dyski `local-path` (Grafana 2Gi, Prometheus 10Gi,
-  Alertmanager 1Gi), ale **w klastrze jeszcze nie wdrożone** (release `monitoring` w rewizji 1,
-  `emptyDir`). Właściciel robi to sam według `docs/etap-3-monitoring/08-trwale-dane.md`.
-  `KPS_CHART_VERSION` w `lab.env` na masterze jest puste – instrukcja każe przypiąć 92.16.1.
+- 💾 03.11 – trwałe dyski `local-path` **wdrożone** (właściciel, helm rewizja 2): PVC Prometheusa
+  (10Gi) na worker-2, Grafany (2Gi) i Alertmanagera (1Gi) na worker-1 – te pody startują już tylko
+  na tych węzłach. Test z kroku 7 (`08-trwale-dane.md`) wykonał Claude: wszystkie dane przetrwały.
 - ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,

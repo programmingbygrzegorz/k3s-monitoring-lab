@@ -60,6 +60,22 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Wniosek:** `connectex` i `[::1]` w komunikacie to słowa z Windowsa. Zanim zaczniesz szukać
   awarii klastra, sprawdź, **na której maszynie** jesteś.
 
+## kubectl exec do Grafany: executable file not found
+
+- **Objaw:** `kubectl -n monitoring exec deploy/monitoring-grafana -c grafana -- ls /var/lib/grafana`
+  (to samo z `sh`, `cat`) kończy się błędem
+  `OCI runtime exec failed: exec failed: unable to start container process: exec: "ls": executable file not found in $PATH`.
+- **Przyczyna:** obraz Grafany 13 jest okrojony (tzw. distroless) – zawiera tylko program Grafany,
+  bez powłoki i narzędzi. To celowe: mniej programów w obrazie = mniej podatności.
+- **Diagnoza:** komunikat `executable file not found` dotyczy **polecenia**, a nie poda – pod działa
+  (`Running`), tylko w środku nie ma takiego programu.
+- **Rozwiązanie:** zajrzeć do danych z innego poda, który podłącza ten sam PVC (przykład w
+  [trwałych danych](08-trwale-dane.md#wynik-testu-w-labie-03112026)), albo dołączyć kontener
+  z narzędziami: `kubectl debug -it <pod> --image=busybox --target=grafana` (widzi procesy, ale
+  nie wolumeny), albo sprawdzać przez API (`/api/health`).
+- **Wniosek:** w nowoczesnych obrazach `kubectl exec … sh` często nie działa. Trzeba znać
+  obejścia: `kubectl debug`, pod pomocniczy, logi i API.
+
 ## ErrImagePull przez chwilowy błąd DNS
 
 - **Objaw:** w trakcie instalacji monitoringu jeden pod node-exportera (na worker-1) w stanie
