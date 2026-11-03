@@ -26,7 +26,7 @@ krok po kroku**, a każde polecenie ma być wyjaśnione. Komunikacja **po polsku
   | monitoring | .54 | węzeł sterujący Ansible, w Etapie 4 – Grafana i Uptime Kuma w Dockerze |
   | gitlab / security / kali | .56 / .57 / .58 | planowane (Etapy 7, 9b, 9c) |
 
-- Adresy w klastrze: Prometheus `:30090`, Alertmanager `:30093`, Grafana `:30300` (login `admin`,
+- Adresy w klastrze: Prometheus `:30090`, Alertmanager `:30093`, Headlamp `:30400` (token), Grafana `:30300` (login `admin`,
   hasło: `grep GRAFANA_ADMIN_PASSWORD ~/k3s-monitoring-lab/lab.env` na masterze).
 - Sekrety są w `lab.env` (na maszynach, poza gitem) i w Ansible Vault na `monitoring`.
   **Nigdy nie wpisuj haseł do formularzy logowania** – logowanie robi właściciel, np. w panelu
@@ -57,6 +57,9 @@ Stan na 03.11.2026:
 - 💾 03.11 – trwałe dyski `local-path` **wdrożone** (właściciel, helm rewizja 2): PVC Prometheusa
   (10Gi) na worker-2, Grafany (2Gi) i Alertmanagera (1Gi) na worker-1 – te pody startują już tylko
   na tych węzłach. Test z kroku 7 (`08-trwale-dane.md`) wykonał Claude: wszystkie dane przetrwały.
+- 🔦 03.11 – **Headlamp 0.46.0 zainstalowany przez właściciela** (Etap 6 rozpoczęty wcześniej): namespace
+  `headlamp`, NodePort `:30400`, logowanie tokenem `kubectl create token headlamp -n headlamp --duration=…`
+  (konto z `cluster-admin`). Ustawienia przez `--set`, bez pliku values. Opis: `docs/etap-6-gui/01-headlamp.md`.
 - ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,

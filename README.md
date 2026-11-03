@@ -140,6 +140,7 @@ i problemy z tego etapu, ponumerowane w kolejności czytania:
 | 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md), [trwałe dane](docs/etap-3-monitoring/08-trwale-dane.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md); etykiety, ConfigMap, PVC: [zadania](docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md), [rozwiązania](docs/etap-3-monitoring/10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) |
 | 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
 | 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | własna reguła alertu, [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
+| 6 – zarządzanie przez GUI | [etap-6-gui](docs/etap-6-gui/README.md) | [Headlamp: Service, NodePort, token](docs/etap-6-gui/01-headlamp.md) | – |
 
 Metoda diagnozowania i spis wszystkich problemów według etapów:
 [docs/problemy-ogolne.md](docs/problemy-ogolne.md).
@@ -216,7 +217,7 @@ Opis krok po kroku: [docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md](do
 
 - [ ] Logi w Grafana Loki
 - [ ] Klaster HA – trzy węzły sterujące z wbudowanym etcd
-- [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s), Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
+- [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s) ✅ zainstalowany, Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
 - [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, skan Trivy w pipeline, Argo CD
 - [ ] Etap 8: AIOps – Hermes Agent jako asystent administratora (diagnoza po alercie, RBAC tylko do odczytu, zmiany po akceptacji)
 - [ ] Etap 9: bezpieczeństwo klastra – kube-bench (CIS), Falco (alerty do Alertmanagera), Kyverno (polityki)
