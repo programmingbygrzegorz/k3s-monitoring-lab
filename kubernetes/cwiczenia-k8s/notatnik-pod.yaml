@@ -1,0 +1,18 @@
+# Ćwiczenia z trwałych danych, poziom 7: pod, który podłącza PVC notatki w katalogu /dane.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: notatnik
+  namespace: cwiczenia-k8s
+spec:
+  containers:
+    - name: notatnik
+      image: 192.168.180.54:5000/hello-lab:1.0
+      command: ["sleep", "infinity"]
+      volumeMounts:
+        - name: notatki
+          mountPath: /dane
+  volumes:
+    - name: notatki
+      persistentVolumeClaim:
+        claimName: notatki

@@ -1,0 +1,12 @@
+# Ćwiczenia z trwałych danych, poziom 7: wniosek o dysk 1Gi z klasy local-path.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: notatki
+  namespace: cwiczenia-k8s
+spec:
+  storageClassName: local-path
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi

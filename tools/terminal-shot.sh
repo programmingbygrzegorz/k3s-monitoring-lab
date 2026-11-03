@@ -6,7 +6,7 @@
 # Tekst zbierz np. tak (Git Bash na Windowsie):
 #   { echo 'grzegorz@k3s-master:~$ kubectl get nodes'; ssh k3s-master kubectl get nodes; } > nodes.txt
 #   tools/terminal-shot.sh docs/etap-2-k3s-ansible/img/1-wezly.png "Poziom 1 – węzły" nodes.txt
-# Wiersze z promptem (user@host:~$) są pogrubione, stany Running/Ready na zielono, błędy na czerwono.
+# Wiersze z promptem (user@host:~$ albo user@host:~/katalog$) są pogrubione, stany Running/Ready na zielono, błędy na czerwono.
 set -euo pipefail
 
 [ $# -ge 3 ] || { echo "Użycie: $0 <wynik.png> \"<tytuł>\" <plik.txt>..." >&2; exit 2; }
@@ -27,7 +27,7 @@ h=$(( lines * 19 + 78 ))
 
 # Escapowanie HTML i kolorowanie
 body=$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$txt" \
-  | sed -E -e 's#^([a-z0-9_-]+@[a-z0-9-]+:~\$)(.*)$#<span class="p">\1</span><span class="c">\2</span>#' \
+  | sed -E -e 's#^([a-z0-9_-]+@[a-z0-9-]+:~[^$ ]*\$)(.*)$#<span class="p">\1</span><span class="c">\2</span>#' \
     -e 's#\b(Running|Ready|Completed|successfully rolled out|unchanged|created|evicted|drained|uncordoned|exposed|scaled|rolled back|Started|Pulled|Welcome to nginx!)\b#<span class="ok">\1</span>#g' \
     -e 's#\b(ContainerCreating|Pending|SchedulingDisabled|cordoned|Killing|Pulling|Waiting)\b#<span class="wa">\1</span>#g' \
     -e 's#\b(ImagePullBackOff|ErrImagePull|CrashLoopBackOff|OOMKilled|Warning|Failed|NotFound|not found)\b#<span class="er">\1</span>#g' \

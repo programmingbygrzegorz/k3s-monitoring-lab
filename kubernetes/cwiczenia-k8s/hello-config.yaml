@@ -1,0 +1,53 @@
+# Ćwiczenia z ConfigMap i Secret, poziomy 4–6.
+# Przed apply: ConfigMapa hello-config (poziom 4). Secret baza jest opcjonalny (poziom 6).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  namespace: cwiczenia-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello
+  template:
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+        - name: hello
+          image: 192.168.180.54:5000/hello-lab:1.0
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: hello-config      # każdy klucz ConfigMapy -> zmienna środowiskowa
+          env:
+            - name: DB_HASLO
+              valueFrom:
+                secretKeyRef:
+                  name: baza
+                  key: haslo
+                  optional: true        # brak Secretu nie blokuje startu poda
+          volumeMounts:
+            - name: konfiguracja
+              mountPath: /etc/hello     # każdy klucz ConfigMapy -> plik w tym katalogu
+      volumes:
+        - name: konfiguracja
+          configMap:
+            name: hello-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  namespace: cwiczenia-k8s
+spec:
+  type: NodePort
+  selector:
+    app: hello
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30881

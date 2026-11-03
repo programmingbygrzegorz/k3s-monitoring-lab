@@ -1,0 +1,39 @@
+# Ćwiczenia z etykiet, poziom 3 (docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md).
+# Deployment i Service łączą się z podami wyłącznie przez etykietę app: sklep.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sklep
+  namespace: cwiczenia-k8s
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sklep          # ReplicaSet liczy pody z tą etykietą
+  template:
+    metadata:
+      labels:
+        app: sklep        # każdy nowy pod dostaje tę etykietę
+        tier: frontend
+    spec:
+      containers:
+        - name: sklep
+          image: 192.168.180.54:5000/hello-lab:1.0
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sklep
+  namespace: cwiczenia-k8s
+spec:
+  selector:
+    app: sklep            # ruch idzie do podów z tą etykietą
+  ports:
+    - port: 80
+      targetPort: 8080
