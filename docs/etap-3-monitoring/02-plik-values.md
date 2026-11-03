@@ -307,14 +307,13 @@ Uczciwie o ograniczeniach – to też dobry materiał na rozmowę.
 
 | Brak | Skutek | Jak to się robi w produkcji |
 |---|---|---|
-| **trwały dysk dla Prometheusa** (`storageSpec`) | metryki leżą w katalogu tymczasowym poda; restart lub przeniesienie poda = **utrata historii**, mimo `retention: 7d` | `storageSpec` z PersistentVolumeClaim – w k3s np. klasa `local-path` |
-| **trwały dysk dla Grafany** (`grafana.persistence`) | dashboardy dodane ręcznie w przeglądarce znikną przy restarcie poda | dashboardy jako kod (ConfigMap w gicie) albo `persistence.enabled: true` |
 | **przypięta wersja chartu** | bez `--version` każda instalacja bierze najnowszą | `--version 92.16.1` przy instalacji albo `KPS_CHART_VERSION` w `lab.env` |
 | **prawdziwe powiadomienia** | alerty widać tylko na stronach | odbiorca e-mail / Slack / Telegram w trasie głównej |
 | **HTTPS i logowanie** | strony dostępne po HTTP w sieci labu | Ingress z certyfikatem TLS, logowanie przez SSO |
 
-Trwałe dyski to naturalne rozszerzenie labu – brak historii po restarcie zobaczysz w Etapie 5
-(scenariusze awarii).
+Trwałe dyski (`grafana.persistence`, `storageSpec` Prometheusa i Alertmanagera z klasą `local-path`)
+plik ustawia od 03.11.2026 – opis i wdrożenie krok po kroku: [trwałe dane monitoringu](08-trwale-dane.md).
+Wcześniej metryki i ustawienia Grafany ginęły przy każdym restarcie poda.
 
 ## 10. Jak znaleźć inne ustawienia
 
@@ -417,5 +416,6 @@ Zmęczenie zbyt częstymi alertami – ludzie zaczynają je ignorować. Zapobieg
 i wyłączanie fałszywych alarmów – jak w labie wyłączone cele, których k3s nie ma.
 
 **Twoje metryki przetrwają restart poda Prometheusa?**
-W obecnej konfiguracji nie – nie ma trwałego wolumenu. W produkcji ustawia się `storageSpec`
-z PersistentVolumeClaim, a dla długiej historii – zdalny magazyn, np. Thanos lub Mimir.
+Tak, od włączenia `storageSpec` z PVC w klasie `local-path` ([trwałe dane](08-trwale-dane.md)).
+Wcześniej nie – metryki leżały w `emptyDir`. Ale local-path trzyma dane na jednym węźle; w produkcji
+pamięć sieciowa lub replikowana, a dla długiej historii zdalny magazyn, np. Thanos lub Mimir.

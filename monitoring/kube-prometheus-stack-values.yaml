@@ -9,6 +9,12 @@ grafana:
   service:
     type: NodePort
     nodePort: 30300
+  # Trwały dysk: baza Grafany (użytkownicy, dashboardy z przeglądarki) przetrwa restart poda.
+  # local-path = katalog na dysku węzła (/var/lib/rancher/k3s/storage), wbudowany w k3s.
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 2Gi
 
 prometheus:
   service:
@@ -16,6 +22,15 @@ prometheus:
     nodePort: 30090   # zewnętrzna Grafana na maszynie monitoring czyta dane stąd
   prometheusSpec:
     retention: 7d
+    # Trwały dysk na metryki – bez niego restart poda kasuje całą historię
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
     # Zbieraj ServiceMonitory i reguły z całego klastra, nie tylko te z etykietą release
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
@@ -31,6 +46,16 @@ alertmanager:
   service:
     type: NodePort
     nodePort: 30093
+  # Trwały dysk na wyciszenia (silences) i zapis wysłanych powiadomień
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
   config:
     global:
       resolve_timeout: 5m
