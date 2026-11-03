@@ -347,6 +347,36 @@ leżeć **poza podem**. Kubernetes rozdziela to na trzy role (wdrożenie w labie
 Aplikacja **nie wie**, skąd jest dysk. Ten sam YAML z PVC działa w labie (`local-path`),
 w AWS (EBS) i na Cephie – zmienia się tylko `storageClassName`.
 
+### Na którym węźle powstaje dysk – decyduje scheduler, nie PV
+
+Przy `WaitForFirstConsumer` (local-path) kolejność jest odwrotna, niż się wydaje: najpierw
+**scheduler wybiera węzeł dla poda**, a dopiero potem provisioner zakłada dysk na tym węźle.
+Od tej chwili dysk przyciąga pod: PV ma `nodeAffinity`, więc każdy kolejny pod z tym PVC
+trafi tylko na ten węzeł.
+
+Scheduler wybiera węzeł w dwóch krokach:
+
+| Krok | Co robi | Przykłady |
+|---|---|---|
+| **1. Filtrowanie** | odrzuca węzły, na których pod **nie może** stanąć | za mało wolnych zasobów względem `requests`, taint bez tolerancji (master), niepasujący `nodeSelector` / affinity, PV przypięty do innego węzła, węzeł `NotReady` lub `cordon` |
+| **2. Punktacja** | ocenia pozostałe węzły 0–100 kilkoma wtyczkami i bierze najwyższy wynik; remis = losowanie | **najmniej zajęty** węzeł (suma `requests`), **zrównoważone** CPU i pamięć, **rozproszenie** podów tego samego Deploymentu/Service na różne węzły, **obraz już pobrany** na węźle, preferencje affinity |
+
+Stan workerów w labie 03.11.2026 (`kubectl describe node … | grep -A5 "Allocated resources"`):
+
+| Węzeł | CPU requests | Pamięć requests | Pody |
+|---|---|---|---|
+| k3s-worker-1 | 10m (0%) | 232Mi (4%) | 6 |
+| k3s-worker-2 | 250m (12%) | 576Mi (10%) | 11 |
+| k3s-worker-3 | 110m (5%) | 160Mi (2%) | 8 |
+
+Worker-2 jest najbardziej zajęty (Prometheus rezerwuje 200m CPU i 512Mi), więc nowe pody
+trafiały głównie na worker-1 i worker-3: `notatnik` z ćwiczeń i Grafana z Alertmanagerem
+na worker-1, `hello` na worker-3. Punktacja liczy się od nowa przy każdym podzie, dlatego wynik
+bywa różny, a przy zbliżonych węzłach praktycznie nie do zgadnięcia.
+
+Gdy chcesz **zdecydować sam**: `nodeSelector` (np. `kubernetes.io/hostname: k3s-worker-2`),
+`nodeAffinity` (twardo lub „preferuj”) albo, przy local-path, ścieżka per węzeł w `local-path-config`.
+
 ### CSI – wtyczka do systemu dyskowego
 
 Kubernetes sam nie umie tworzyć dysków. Robi to **sterownik CSI** (Container Storage Interface) –
