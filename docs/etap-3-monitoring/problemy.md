@@ -21,6 +21,45 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   Kubeconfig to klucz administratora klastra – uprawnienia `600`, nigdy w repozytorium.
   Teoria: [teoria Kubernetes i Helm](03-teoria-kubernetes-helm.md#9-kubeconfig--klucz-do-klastra).
 
+## kubectl w drugim terminalu: localhost:8080 refused (Windows)
+
+- **Objaw:** w nowym oknie terminala `kubectl -n monitoring get pods,pvc -w` kończy się błędem
+  `couldn't get current server API group list: Get "http://localhost:8080/api?timeout=32s": dial tcp [::1]:8080:
+  connectex: No connection could be made because the target machine actively refused it`.
+- **Przyczyna:** nowe okno terminala startuje na **Windowsie** (`PS C:Projekty...>`), a nie na
+  masterze. Na Windowsie też jest `kubectl` – przyszedł z Docker Desktop
+  (`C:Program FilesDockerDockeresourcesinkubectl.exe`) – ale nie ma kubeconfigu
+  (`~/.kube/config`), więc próbuje domyślnego `localhost:8080`, gdzie nic nie działa.
+- **Diagnoza:** znak zachęty: `PS C:...>` = Windows, `grzegorz@k3s-master:~# Etap 3 – monitoring w klastrze – problemy
+
+Prawdziwe problemy, które pojawiły się w tym etapie: objaw, przyczyna, diagnoza, rozwiązanie i wniosek.
+Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy ogólne](../problemy-ogolne.md).
+
+## kubectl działa, a Helm nie widzi klastra
+
+- **Objaw:** na masterze `kubectl get nodes` działa, a `helm list -A` kończy się błędem
+  `kubernetes cluster unreachable: Get "http://localhost:8080/version": ... connection refused`.
+- **Przyczyna:** `kubectl` na masterze to dowiązanie do programu k3s
+  (`/usr/local/bin/kubectl -> k3s`), który sam wie, że kubeconfig leży w
+  `/etc/rancher/k3s/k3s.yaml`. Helm to osobny program – szuka `~/.kube/config`, a gdy go nie ma,
+  próbuje starego domyślnego adresu `localhost:8080`, pod którym nic nie nasłuchuje.
+- **Diagnoza:** `ls -l ~/.kube/config /etc/rancher/k3s/k3s.yaml`, `echo $KUBECONFIG`,
+  `ls -l $(command -v kubectl)`.
+- **Rozwiązanie:** kopia kubeconfigu z uprawnieniami tylko dla właściciela:
+  `mkdir -p ~/.kube && install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config`.
+- **Przy okazji:** `/etc/rancher/k3s/k3s.yaml` ma w labie uprawnienia `644` – każdy użytkownik
+  mastera może go przeczytać i zostać administratorem klastra. Dlatego kubectl działał bez `sudo`.
+- **Wniosek:** to, że jedno narzędzie działa, nie znaczy, że drugie użyje tej samej konfiguracji.
+  Kubeconfig to klucz administratora klastra – uprawnienia `600`, nigdy w repozytorium.
+  Teoria: [teoria Kubernetes i Helm](03-teoria-kubernetes-helm.md#9-kubeconfig--klucz-do-klastra).
+
+ = master.
+  W PowerShellu `(Get-Command kubectl).Source` pokazuje, który kubectl odpowiada.
+- **Rozwiązanie:** najpierw `ssh k3s-master`, potem `kubectl …`. Każde nowe okno to nowa sesja –
+  trzeba się zalogować od nowa.
+- **Wniosek:** `connectex` i `[::1]` w komunikacie to słowa z Windowsa. Zanim zaczniesz szukać
+  awarii klastra, sprawdź, **na której maszynie** jesteś.
+
 ## ErrImagePull przez chwilowy błąd DNS
 
 - **Objaw:** w trakcie instalacji monitoringu jeden pod node-exportera (na worker-1) w stanie

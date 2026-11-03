@@ -237,7 +237,9 @@ Jeden gotowy PVC (Grafana, 2Gi) i dwa wzory (Alertmanager 1Gi, Prometheus 10Gi).
 
 ## Krok 5. Aktualizacja
 
-Otwórz **drugi terminal** (🪟 `ssh k3s-master`) i obserwuj zmiany na żywo:
+Otwórz **drugi terminal** i najpierw zaloguj się na mastera (🪟 `ssh k3s-master`). Nowe okno
+startuje na Windowsie – tam `kubectl` zgłosi błąd `localhost:8080`
+([problem](problemy.md#kubectl-w-drugim-terminalu-localhost8080-refused-windows)). Potem obserwuj zmiany na żywo:
 
 ```bash
 kubectl -n monitoring get pods,pvc -w
