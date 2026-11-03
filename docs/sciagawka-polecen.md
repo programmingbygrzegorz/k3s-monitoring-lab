@@ -70,6 +70,8 @@ Problem z tym związany: `permission denied … docker.sock` – sesja otwarta p
 | `k -n NS get endpoints NAZWA` | do których podów Service kieruje ruch |
 | `k -n NS get rs` | ReplicaSety (stare wersje z `0` podów) |
 | `k get pods --show-labels`, `-l app=web` | etykiety / filtrowanie po etykiecie |
+| `k get deploy`, `po`, `svc`, `rs`, `ns`, `no`, `cm`, `pvc`, `ing` | skróty nazw: deployment, pod, service, replicaset, namespace, node, configmap, persistentvolumeclaim, ingress |
+| `k api-resources` | wszystkie rodzaje obiektów; kolumna `SHORTNAMES` – dozwolone skróty |
 
 Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-helm.md).
 
