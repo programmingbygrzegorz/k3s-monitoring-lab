@@ -14,6 +14,90 @@ jak znalazłeś przyczynę i jak ją usunąłeś.
 4. Włącz węzeł z powrotem i sprawdź, czy wrócił do stanu `Ready`.
 
 Pytanie do przemyślenia: dlaczego Kubernetes czeka kilka minut, zanim przeniesie pody?
+Odpowiedź: chwilowy brak sieci nie powinien od razu przenosić wszystkiego. Każdy pod dostaje
+automatycznie tolerancję `node.kubernetes.io/unreachable` z `tolerationSeconds: 300`
+(sprawdzisz: `kubectl -n hello-lab get pod <pod> -o jsonpath='{.spec.tolerations}'`).
+
+### Co się dzieje z podami, gdy węzeł pada
+
+Oś czasu po twardym wyłączeniu workera:
+
+| Czas | Co się dzieje |
+|---|---|
+| 0 s | maszyna wyłączona; pody na niej przestają działać od razu |
+| ok. 40 s | węzeł `NotReady` (status `Unknown`), pody z niego znikają z endpointów Service |
+| ok. 5 min | pody węzła dostają status `Terminating`, kontrolery tworzą nowe na zdrowych węzłach |
+| po włączeniu | węzeł `Ready`, stare pody są sprzątane; **nowe nie wracają same** na ten węzeł |
+
+Co przeżyje, a co nie, zależy od rodzaju obiektu:
+
+| Obiekt | Co po awarii węzła |
+|---|---|
+| Deployment z kilkoma replikami na **różnych** węzłach | aplikacja działa cały czas, przez 5 min z mniejszą liczbą replik |
+| Deployment z 1 repliką albo wszystkie repliki na jednym węźle | **przerwa ok. 5–6 min**, potem pod startuje gdzie indziej |
+| StatefulSet (Prometheus, Alertmanager) | pod **nie** jest odtwarzany, dopóki węzeł nie wróci albo nie usuniesz poda ręcznie (`kubectl delete pod … --force --grace-period=0`) – StatefulSet nie dopuszcza dwóch kopii tego samego poda |
+| DaemonSet (node-exporter, svclb) | na tym węźle po prostu nie działa; nigdzie się nie przenosi |
+| pod bez kontrolera (`kubectl run`) | znika na zawsze |
+| dane w `emptyDir` | **tracone** razem z podem |
+| dane w PVC `local-path` | leżą na dysku tego węzła; pod może wystartować **tylko tam** – czeka na powrót węzła |
+
+### Co jest zagrożone w naszym klastrze (stan 03.11.2026)
+
+Wynik `kubectl get pods -A -o wide` i `kubectl get deploy,sts -A`:
+
+| Węzeł | Pojedyncze pody (1 replika) |
+|---|---|
+| k3s-master | `coredns`, `metrics-server`, `local-path-provisioner` |
+| k3s-worker-2 | `prometheus-…-0`, `prometheus-operator`, `kube-state-metrics` |
+| k3s-worker-3 | `alertmanager-…-0`, `grafana`, `traefik` |
+
+Wnioski:
+
+- **worker-3 to najgorszy węzeł do wyłączenia:** jednocześnie znika Grafana i Alertmanager,
+  czyli monitoring nie wyśle alertu o własnej awarii. Dlatego potrzebny jest monitoring
+  **poza klastrem** (healthchecks.io i Uptime Kuma na `monitoring`, Etap 4).
+- **Prometheus trzyma dane w `emptyDir`** (`kubectl get pvc -A` → `No resources found`).
+  Po przeniesieniu na inny węzeł zaczyna z pustą bazą – znika historia metryk.
+- `podinfo` (3 repliki) i `hello-lab` (2 repliki) mają kopie na dwóch węzłach – przeżyją.
+  Ale `podinfo` ma 2 z 3 replik na worker-3: scheduler rozkłada pody „zwykle” równo, nie zawsze.
+- **Master jest jeden.** Gdy padnie, działające pody na workerach dalej pracują, ale nie da się
+  nic zmienić (`kubectl` nie działa), nic nie zostanie naprawione ani przeniesione, a do tego
+  przestaje działać DNS w klastrze (jedyny `coredns` jest na masterze).
+
+### Jak się przed tym zabezpieczyć
+
+| Sposób | Co daje |
+|---|---|
+| `replicas: 2` lub więcej | jest kopia, która przejmuje ruch |
+| `topologySpreadConstraints` (`topologyKey: kubernetes.io/hostname`) albo `podAntiAffinity` | **wymusza** repliki na różnych węzłach, a nie tylko „zwykle” |
+| `PodDisruptionBudget` (`minAvailable: 1`) | `kubectl drain` przy konserwacji nie zabierze wszystkich replik naraz (nie chroni przed awarią sprzętu) |
+| PVC na pamięci sieciowej (NFS, Longhorn, dysk w chmurze) | dane nie są przywiązane do jednego węzła; pod może wstać gdziekolwiek |
+| HA control plane: 3 mastery z wbudowanym etcd (`k3s server --cluster-init`) | klaster działa po utracie jednego mastera (potrzebna większość: 2 z 3) |
+| monitoring z zewnątrz klastra | alert dochodzi nawet wtedy, gdy klaster leży |
+
+Przykład rozkładania replik na różne węzły (fragment `spec.template.spec` Deploymentu):
+
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: podinfo
+```
+
+`maxSkew: 1` oznacza: na żadnym węźle nie może być o więcej niż 1 pod więcej niż na innym.
+
+**Pytania rekrutacyjne:**
+
+- *Węzeł padł. Po jakim czasie pody pojawią się gdzie indziej?* Po ok. 40 s węzeł jest
+  `NotReady`, po kolejnych ok. 5 min (`tolerationSeconds: 300`) pody są tworzone na innych węzłach.
+  Dotyczy to Deploymentów; StatefulSet czeka, aż węzeł wróci albo ktoś usunie pod ręcznie.
+- *Masz 3 repliki. Czy to gwarantuje wysoką dostępność?* Nie – mogą trafić na jeden węzeł.
+  Trzeba `topologySpreadConstraints` lub `podAntiAffinity`, a przy konserwacji `PodDisruptionBudget`.
+- *Co się stanie z klastrem, gdy padnie jedyny master?* Działające aplikacje pracują dalej, ale
+  nie ma API: brak zmian, samonaprawy i przenoszenia podów. Rozwiązanie: 3 mastery (etcd potrzebuje większości).
 
 ## OOMKilled
 
