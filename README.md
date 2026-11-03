@@ -111,6 +111,7 @@ różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstati
 │   ├── monitoring/              # ServiceMonitor, PrometheusRule
 │   ├── chaos/                   # manifesty awarii (OOM, CrashLoop, ImagePull, CPU)
 │   ├── awarie/                  # 11 zepsutych obiektów do ćwiczeń z diagnozy (Etap 5)
+│   ├── cwiczenia-k8s/           # ćwiczenia: etykiety, ConfigMap, Secret, PVC (Etap 3)
 │   └── hello-lab/               # wdrożenie własnego obrazu z rejestru labu (Etap 4)
 ├── apps/
 │   └── hello-lab/               # własna aplikacja: app.py, Dockerfile, .dockerignore (Etap 4)
@@ -136,7 +137,7 @@ i problemy z tego etapu, ponumerowane w kolejności czytania:
 | 0b – klucze SSH | [etap-0b-klucze-ssh](docs/etap-0b-klucze-ssh/README.md) | [klucze SSH](docs/etap-0b-klucze-ssh/01-klucze-ssh.md) | – |
 | 1 – przygotowanie systemu | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | – | – |
 | 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md), [Ansible plik po pliku](docs/etap-2-k3s-ansible/07-ansible-plik-po-pliku.md) | [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md); Ansible: [zadanie](docs/etap-2-k3s-ansible/08-cwiczenie-ansible-pakiet.md), [rozwiązanie](docs/etap-2-k3s-ansible/09-cwiczenie-ansible-pakiet-rozwiazanie.md) |
-| 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
+| 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md), [trwałe dane](docs/etap-3-monitoring/08-trwale-dane.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md); etykiety, ConfigMap, PVC: [zadania](docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md), [rozwiązania](docs/etap-3-monitoring/10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) |
 | 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
 | 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | własna reguła alertu, [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
 

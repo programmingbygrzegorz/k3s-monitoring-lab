@@ -60,6 +60,8 @@ z tabeli. Szczegóły:
 | 5 | [05-cwiczenia-monitoringu.md](05-cwiczenia-monitoringu.md) | **ćwiczenia**, 8 poziomów – zrób je sam |
 | 6 | [06-cwiczenia-monitoringu-rozwiazania.md](06-cwiczenia-monitoringu-rozwiazania.md) | **rozwiązania** ćwiczeń ze zrzutami – porównaj po wykonaniu |
 | 7 | [08-trwale-dane.md](08-trwale-dane.md) | **trwałe dane**: PVC z `local-path` dla Prometheusa, Grafany i Alertmanagera – krok po kroku |
+| 8 | [09-cwiczenia-etykiety-configmap-pvc.md](09-cwiczenia-etykiety-configmap-pvc.md) | **ćwiczenia**, 8 poziomów: etykiety i selektory, ConfigMap, Secret, własny PVC |
+| 9 | [10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md](10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) | **rozwiązania** tych ćwiczeń ze zrzutami |
 | – | [07-symulator-servicemonitor.html](07-symulator-servicemonitor.html) | interaktywny symulator ServiceMonitor → Service → pody: pobierz plik i otwórz w przeglądarce |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, ErrImagePull, Alertmanager |
 
