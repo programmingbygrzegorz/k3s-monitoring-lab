@@ -411,6 +411,51 @@ padnie, pod nie przeniesie się – czeka, aż węzeł wróci. Przedtem wstawał
 Wybór: „pełny, ale czeka” zamiast „szybko wraca, ale pusty”. Szczegóły:
 [co się dzieje z podami, gdy węzeł pada](../etap-5-scenariusze-awarii/01-scenariusze-awarii.md#co-się-dzieje-z-podami-gdy-węzeł-pada).
 
+### Sprawdzenie: pod z dyskiem Grafany nie wstanie na innym węźle
+
+PV Grafany ma twardy wymóg (`required`) – tylko węzeł `k3s-worker-1`:
+
+```
+$ kubectl get pv <pv-grafany> -o yaml
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k3s-worker-1
+```
+
+Test w labie (03.11.2026): pomocniczy pod z PVC `monitoring-grafana` i `nodeSelector`
+`kubernetes.io/hostname: k3s-worker-2` – czyli „stań na worker-2 z dyskiem z worker-1”:
+
+```
+$ kubectl -n monitoring get pod test-pv-na-worker-2 -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP       NODE
+test-pv-na-worker-2   0/1     Pending   0          8s    <none>   <none>
+$ kubectl -n monitoring describe pod test-pv-na-worker-2 | sed -n '/Events:/,$p'
+  Warning  FailedScheduling  8s  default-scheduler  0/4 nodes are available:
+    1 node(s) didn't match PersistentVolume's node affinity,
+    1 node(s) had untolerated taint(s),
+    2 node(s) didn't match Pod's node affinity/selector. ...
+```
+
+Scheduler odrzucił **każdy** węzeł: worker-1 (jedyny z dyskiem) nie pasował do `nodeSelector`,
+worker-2 i worker-3 nie mają dysku, master ma taint. Pod czekałby w `Pending` w nieskończoność.
+Grafana z tym PVC zachowa się tak samo, gdy worker-1 będzie niedostępny:
+
+| Sytuacja z worker-1 | Co z Grafaną |
+|---|---|
+| restart poda, `helm upgrade`, `rollout restart` | wstaje znowu na worker-1, z danymi |
+| `kubectl drain k3s-worker-1` (konserwacja) | **przerwa**: pod `Pending` do `uncordon` |
+| worker-1 wyłączony / awaria | po ok. 6 min pod `Pending` (`didn't match PersistentVolume's node affinity`) do powrotu węzła |
+| worker-1 usunięty na zawsze | dane stracone; trzeba usunąć PVC – Grafana dostanie nowy, pusty dysk na innym węźle |
+
+Przeniesienie danych na inny węzeł nie dzieje się samo: kopia (np. `kubectl cp` albo backup
+Velero), nowy PVC, przywrócenie. Dlatego w produkcji używa się pamięci, którą sterownik CSI
+przepina między węzłami ([teoria: pamięć trwała](03-teoria-kubernetes-helm.md#5-pamięć-trwała--w-labie-i-w-produkcji)).
+
 Oba naraz daje pamięć sieciowa albo replikowana: NFS, Longhorn (kopie danych na kilku węzłach),
 w chmurze dyski typu EBS. Najlepiej i tak trzymać ustawienia **w gicie** (dashboardy jako ConfigMapy),
 a dysk traktować jako zapas.
