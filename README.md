@@ -144,6 +144,7 @@ i problemy z tego etapu, ponumerowane w kolejności czytania:
 
 Metoda diagnozowania i spis wszystkich problemów według etapów:
 [docs/problemy-ogolne.md](docs/problemy-ogolne.md).
+Wszystkie omawiane polecenia w jednym miejscu: [ściągawka poleceń](docs/sciagawka-polecen.md).
 
 ```bash
 # Na każdej maszynie

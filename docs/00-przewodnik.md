@@ -9,7 +9,7 @@ wpisania. Przy każdym kroku jest napisane **gdzie** go wykonać:
 | 🖥️ **konsola VMware** | okno maszyny w VMware (logowanie hasłem) | `login:` / `user@nazwa:~$` |
 | 🐧 **maszyna** | terminal Linuxa przez SSH (`ssh <nazwa>` z Windowsa) | `user@nazwa:~$` |
 
-Szczegóły i wyjaśnienia są w folderach etapów `docs/etap-…` – każdy etap ma swój folder z instrukcją, teorią, ćwiczeniami i problemami. Tutaj jest sama ścieżka.
+Szczegóły i wyjaśnienia są w folderach etapów `docs/etap-…` – każdy etap ma swój folder z instrukcją, teorią, ćwiczeniami i problemami. Tutaj jest sama ścieżka. Polecenia zebrane tematycznie: [ściągawka poleceń](sciagawka-polecen.md).
 
 ## Mapa etapów
 
