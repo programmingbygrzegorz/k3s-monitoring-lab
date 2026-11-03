@@ -37,6 +37,39 @@ Wszystkie polecenia wpisujesz **na masterze**. `kubectl` działa bez `sudo` (k3s
 zainstalowany z `--write-kubeconfig-mode 0644`). Ćwiczenia odbywają się w osobnej przestrzeni
 nazw `cwiczenia` – na końcu usuniesz ją jednym poleceniem.
 
+### Skrót `k` zamiast `kubectl` (opcjonalnie)
+
+Polecenie `kubectl` wpisujesz setki razy, więc administratorzy skracają je do `k`. Robi to
+**alias**: nowa nazwa, którą powłoka bash przed wykonaniem zamienia na pełne polecenie.
+`k get pods` staje się `kubectl get pods`.
+
+🐧 master – dopisz trzy linie na koniec pliku `~/.bashrc` (bash czyta go przy każdym logowaniu):
+
+```bash
+cat >> ~/.bashrc <<'EOF'
+
+# kubectl: skrót k i podpowiadanie klawiszem Tab
+source <(kubectl completion bash)
+alias k=kubectl
+complete -o default -F __start_kubectl k
+EOF
+source ~/.bashrc
+```
+
+- `cat >> ~/.bashrc <<'EOF' … EOF` dopisuje tekst między znacznikami `EOF` na koniec pliku.
+  Dwa znaki `>>` dopisują; jeden `>` skasowałby cały plik, więc uważaj.
+- `source <(kubectl completion bash)` włącza podpowiadanie: `kubectl get po` + Tab uzupełnia
+  `pods`, a Tab po `-n ` pokazuje przestrzenie nazw.
+- `alias k=kubectl` tworzy skrót.
+- `complete -o default -F __start_kubectl k` przypina podpowiadanie także do `k`. Bez tej linii
+  alias działa, ale Tab po `k ` nic nie podpowiada.
+- `source ~/.bashrc` wczytuje plik od razu, bez wylogowania.
+
+Sprawdź: `k get nodes` pokazuje węzły, a `k get po` + Tab uzupełnia do `pods`.
+
+Alias działa tylko u Ciebie, w Twojej powłoce. W dokumentacji, skryptach i na rozmowie pisz
+pełne `kubectl` – inni ludzie i programy aliasu nie znają.
+
 ## Poziom 1 – rozejrzyj się
 
 **Cel:** poznać klaster, zanim cokolwiek w nim zmienisz. Tylko odczyt – nic nie zepsujesz.
@@ -277,6 +310,7 @@ kubectl get nodes
 | `kubectl apply -f plik.yaml` / `kubectl diff -f plik.yaml` | wdrożenie deklaratywne / podgląd różnic |
 | `kubectl top nodes / pods` | zużycie CPU i pamięci |
 | `kubectl explain <typ>.<pole>` | dokumentacja pól YAML |
+| `alias k=kubectl` + `complete -o default -F __start_kubectl k` | skrót `k` z podpowiadaniem Tab ([przygotowanie](#skrót-k-zamiast-kubectl-opcjonalnie)) |
 
 ## Co powiedzieć na rozmowie
 
