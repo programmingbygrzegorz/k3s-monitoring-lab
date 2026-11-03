@@ -27,6 +27,54 @@ co zrobiłeś ręcznie w przeglądarce. Obecne dane leżą w `emptyDir` – nie 
 Pod usuwa się i tworzy na nowo, a PVC i PV zostają. Nowy pod podłącza ten sam katalog, więc
 dane przeżywają.
 
+## Skąd bierze się PVC i miejsce na dysku
+
+Kolejność zdarzeń po `helm upgrade`:
+
+```
+① Helm / operator   tworzy PVC (wniosek): „10Gi, klasa local-path”         → PVC Pending
+② scheduler         wybiera węzeł dla poda Prometheusa, np. k3s-worker-2
+③ local-path-provisioner (pod w kube-system, działa na masterze) widzi PVC
+                    i uruchamia na k3s-worker-2 pomocniczy pod helper-pod-…,
+                    który robi mkdir /var/lib/rancher/k3s/storage/pvc-<id>_monitoring_<nazwa>
+④ provisioner       tworzy PV wskazujący ten katalog, przypięty do k3s-worker-2 → PVC Bound
+⑤ kubelet           montuje katalog w kontenerze (Prometheus widzi go jako /prometheus)
+```
+
+Ścieżkę ustawia ConfigMapa provisionera (wynik z labu):
+
+```
+$ kubectl -n kube-system get configmap local-path-config -o jsonpath='{.data.config\.json}'
+{ "nodePathMap":[ { "node":"DEFAULT_PATH_FOR_NON_LISTED_NODES",
+                    "paths":["/var/lib/rancher/k3s/storage"] } ] }
+```
+
+**Miejsce pochodzi z głównego dysku workera** – tego samego, na którym jest system, obrazy
+kontenerów i logi. Na k3s-worker-2:
+
+```
+$ lsblk
+sda                         40G disk            ← wirtualny dysk VMware
+├─sda2                       2G part /boot
+└─sda3                      38G part
+  └─ubuntu--vg-ubuntu--lv   38G lvm  /           ← tu jest też /var/lib/rancher/k3s/storage
+$ df -h /var/lib/rancher/k3s
+/dev/mapper/ubuntu--vg-ubuntu--lv   38G   11G   25G  32% /
+```
+
+Wnioski:
+
+- **Nic nie jest rezerwowane.** `10Gi` w PVC to tylko opis – katalog zajmuje tyle, ile faktycznie
+  zapisze Prometheus, i może urosnąć ponad 10Gi. Ogranicza go `retention: 7d`.
+- **Dane monitoringu konkurują z systemem o te same 25 GB.** Gdy dysk zapełni się w ok. 85–90%,
+  kubelet zgłasza `DiskPressure` i zaczyna wyrzucać pody
+  ([Evicted](../etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md#316-evicted--pody-wyrzucone-z-węzła)).
+  Pilnuje tego alert `NodeDiskAlmostFull` z Etapu 5.
+- Dodatkowy dysk nie jest potrzebny. W firmach dane trzyma się jednak na **osobnym dysku**:
+  w VMware dodaje się drugi dysk do workera, formatuje i montuje np. w `/mnt/dane`, a potem
+  wpisuje tę ścieżkę do `local-path-config` (`"paths":["/mnt/dane"]`). Wtedy pełny dysk z danymi
+  nie zatrzyma systemu.
+
 ## Co zmienia się w pliku values
 
 W [monitoring/kube-prometheus-stack-values.yaml](../../monitoring/kube-prometheus-stack-values.yaml)
