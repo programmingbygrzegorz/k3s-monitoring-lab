@@ -54,7 +54,7 @@ k3s-worker-3   14m          0%       813Mi           13%
 
 Liczy się **wolna pamięć workerów** (każdy ma ~4,5 GiB wolnego) – master ma taint `NoSchedule`
 i nie dostanie podów monitoringu (poza node-exporterem). Jak czytać `32m` i `Mi` –
-[teoria, rozdział 5](03-teoria-kubernetes-helm.md#7-zasoby-węzłów-i-kubectl-top).
+[teoria, rozdział 5](03-teoria-kubernetes-helm.md#8-zasoby-węzłów-i-kubectl-top).
 
 ### Krok 1. Instalacja Helma
 
@@ -153,7 +153,7 @@ traefik-crd  kube-system  1         2026-10-29 14:44:15 UTC  deployed  traefik-c
 - Tych dwóch nie instalował administrator – zrobił to wbudowany w k3s helm-controller. Nie
   aktualizuj ich ręcznie: k3s nadpisze zmiany.
 - Jak czytać kolumny i czym jest `traefik-crd` –
-  [teoria, rozdziały 8, 11 i 12](03-teoria-kubernetes-helm.md#10-chart-values-i-release).
+  [teoria, rozdziały 8, 11 i 12](03-teoria-kubernetes-helm.md#11-chart-values-i-release).
 - Szczegóły problemu: [problemy](problemy.md#kubectl-działa-a-helm-nie-widzi-klastra).
 
 ### Krok 3. Repozytorium chartów i podgląd instalacji

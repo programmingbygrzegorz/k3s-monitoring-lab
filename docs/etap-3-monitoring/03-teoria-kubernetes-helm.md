@@ -1,7 +1,7 @@
 # Kubernetes i Helm – jak to działa
 
 Ten plik jest dla osoby, która **pierwszy raz** widzi Kubernetesa. Tłumaczy od zera pojęcia,
-które pojawiają się w Etapie 3: etykiety i selektory, ConfigMap i Secret, węzeł, taint, kubeconfig, Helm, chart, values, release,
+które pojawiają się w Etapie 3: etykiety i selektory, ConfigMap i Secret, pamięć trwała (PVC, CSI, Ceph), węzeł, taint, kubeconfig, Helm, chart, values, release,
 Traefik, Ingress, CRD i operator. Każde pojęcie jest pokazane na przykładzie z tego labu.
 
 Polecenia do wpisania są w [przewodniku](../00-przewodnik.md), a ćwiczenia z kubectl
@@ -13,21 +13,22 @@ w [ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md).
 2. [Obiekty i YAML](#2-obiekty-i-yaml)
 3. [Etykiety i selektory – jak obiekty się znajdują](#3-etykiety-i-selektory--jak-obiekty-się-znajdują)
 4. [ConfigMap i Secret – ustawienia poza obrazem](#4-configmap-i-secret--ustawienia-poza-obrazem)
-5. [Węzły: master, workery i maszyna monitoring](#5-węzły-master-workery-i-maszyna-monitoring)
-6. [Taint i toleration – kto może stanąć na masterze](#6-taint-i-toleration--kto-może-stanąć-na-masterze)
-7. [Zasoby węzłów i `kubectl top`](#7-zasoby-węzłów-i-kubectl-top)
-8. [Kubeconfig – klucz do klastra](#8-kubeconfig--klucz-do-klastra)
-9. [Helm – menedżer paczek](#9-helm--menedżer-paczek)
-10. [Chart, values i release](#10-chart-values-i-release)
-11. [Repozytorium chartów i wersje](#11-repozytorium-chartów-i-wersje)
-12. [Jak dostać się do aplikacji: NodePort i Ingress](#12-jak-dostać-się-do-aplikacji-nodeport-i-ingress)
-13. [Traefik – recepcja klastra](#13-traefik--recepcja-klastra)
-14. [CRD – nowe słowa w słowniku Kubernetesa](#14-crd--nowe-słowa-w-słowniku-kubernetesa)
-15. [Operator – program, który rozumie nowe słowa](#15-operator--program-który-rozumie-nowe-słowa)
-16. [Jak to się składa w Etapie 3](#16-jak-to-się-składa-w-etapie-3)
-17. [Słowniczek](#17-słowniczek)
-18. [Ściągawka poleceń Helm](#18-ściągawka-poleceń-helm)
-19. [Pytania, które mogą paść na rozmowie](#19-pytania-które-mogą-paść-na-rozmowie)
+5. [Pamięć trwała – w labie i w produkcji](#5-pamięć-trwała--w-labie-i-w-produkcji)
+6. [Węzły: master, workery i maszyna monitoring](#6-węzły-master-workery-i-maszyna-monitoring)
+7. [Taint i toleration – kto może stanąć na masterze](#7-taint-i-toleration--kto-może-stanąć-na-masterze)
+8. [Zasoby węzłów i `kubectl top`](#8-zasoby-węzłów-i-kubectl-top)
+9. [Kubeconfig – klucz do klastra](#9-kubeconfig--klucz-do-klastra)
+10. [Helm – menedżer paczek](#10-helm--menedżer-paczek)
+11. [Chart, values i release](#11-chart-values-i-release)
+12. [Repozytorium chartów i wersje](#12-repozytorium-chartów-i-wersje)
+13. [Jak dostać się do aplikacji: NodePort i Ingress](#13-jak-dostać-się-do-aplikacji-nodeport-i-ingress)
+14. [Traefik – recepcja klastra](#14-traefik--recepcja-klastra)
+15. [CRD – nowe słowa w słowniku Kubernetesa](#15-crd--nowe-słowa-w-słowniku-kubernetesa)
+16. [Operator – program, który rozumie nowe słowa](#16-operator--program-który-rozumie-nowe-słowa)
+17. [Jak to się składa w Etapie 3](#17-jak-to-się-składa-w-etapie-3)
+18. [Słowniczek](#18-słowniczek)
+19. [Ściągawka poleceń Helm](#19-ściągawka-poleceń-helm)
+20. [Pytania, które mogą paść na rozmowie](#20-pytania-które-mogą-paść-na-rozmowie)
 
 ---
 
@@ -85,7 +86,7 @@ w magazynie: `app=sklep`, `tier=frontend`, `team=blue`. Sama nic nie robi. Ważn
 |---|---|---|
 | **Service** | podów, do których wysłać ruch | Service `podinfo` ma `selector: {app: podinfo}` |
 | **Deployment / ReplicaSet** | podów, które „są jego” i których ma pilnować liczby | `selector.matchLabels: {app: hello-lab}` |
-| **ServiceMonitor** (Prometheus) | Service'ów, z których zbierać metryki | [rozdział 15](#15-operator--program-który-rozumie-nowe-słowa) |
+| **ServiceMonitor** (Prometheus) | Service'ów, z których zbierać metryki | [rozdział 16](#16-operator--program-który-rozumie-nowe-słowa) |
 | **nodeSelector** w podzie | węzłów, na których może stanąć | `kubernetes.io/hostname=k3s-worker-1` |
 | **Ty** w `kubectl` | obiektów do pokazania lub usunięcia | `kubectl get pods -l tier=backend` |
 
@@ -331,7 +332,104 @@ monitoring-grafana -o yaml | grep -A3 secretKeyRef`).
 | W gicie | tak, zwykły YAML | nie wprost – zaszyfrowany (Sealed Secrets, SOPS) |
 | Gdzie w labie | 25 dashboardów Grafany (chart), [kubernetes/](../../kubernetes/) | hasło Grafany, `lab.env` → Secret |
 
-## 5. Węzły: master, workery i maszyna monitoring
+## 5. Pamięć trwała – w labie i w produkcji
+
+Pod jest jednorazowy: znika, a nowy powstaje gdzie indziej. Dane, które mają przetrwać, muszą więc
+leżeć **poza podem**. Kubernetes rozdziela to na trzy role (wdrożenie w labie krok po kroku:
+[trwałe dane monitoringu](08-trwale-dane.md)):
+
+| Rola | Kto ją pełni | Analogia |
+|---|---|---|
+| **PVC** – wniosek | aplikacja: „potrzebuję 10Gi, tryb RWO, klasa `fast-ssd`” | wniosek o mieszkanie |
+| **StorageClass** – rodzaj pamięci | administrator: jaki system dyskowy, jakie parametry | spółdzielnia, która je przydziela |
+| **PV** – konkretny dysk | tworzony automatycznie przez sterownik | przydzielone mieszkanie |
+
+Aplikacja **nie wie**, skąd jest dysk. Ten sam YAML z PVC działa w labie (`local-path`),
+w AWS (EBS) i na Cephie – zmienia się tylko `storageClassName`.
+
+### CSI – wtyczka do systemu dyskowego
+
+Kubernetes sam nie umie tworzyć dysków. Robi to **sterownik CSI** (Container Storage Interface) –
+osobny program od producenta pamięci, instalowany w klastrze (zwykle Helmem). Działa jak
+sterownik drukarki: Kubernetes mówi „utwórz dysk 10Gi i podłącz go do węzła X”, a sterownik
+wie, jak to zrobić w konkretnym systemie.
+
+```
+ PVC ──▶ StorageClass ──▶ sterownik CSI ──▶ system dyskowy (EBS / Ceph / macierz / vSphere)
+                               │                     │
+                               │    ① utwórz dysk ◀──┘
+                               └──▶ ② podłącz do węzła, na którym jest pod
+                                    ③ kubelet montuje go w kontenerze
+```
+
+Pod się przenosi → sterownik **odłącza** dysk od starego węzła i **podłącza** do nowego.
+Tego `local-path` nie umie – stąd przywiązanie do jednego węzła w labie.
+
+### Co spotkasz w firmach
+
+| Gdzie działa klaster | Typowa pamięć | Jak działa |
+|---|---|---|
+| **chmura** (AWS, Azure, GCP) | EBS, Azure Disk, Persistent Disk | dysk sieciowy w chmurze; CSI zakłada go przez API chmury. Najprostsze – często już skonfigurowane jako domyślna klasa |
+| **własna serwerownia, VMware** | **vSphere CSI** | dysk to plik `.vmdk` w datastore vSphere, dopinany do maszyny wirtualnej węzła – jak dodanie dysku w VMware Workstation, tylko automatycznie |
+| **własna serwerownia, sprzęt** | **Ceph** (przez operatora **Rook**) | dyski z wielu serwerów łączone w jedną pulę; każdy blok danych w 3 kopiach na różnych maszynach |
+| | **Longhorn** | prostszy od Cepha; kopie dysku na kilku węzłach klastra. Popularny z k3s (ten sam producent – SUSE/Rancher) |
+| | **macierz dyskowa** (NetApp, Pure Storage, Dell) | firmowa macierz z własnym sterownikiem CSI |
+| | **NFS** | zwykły serwer plików; prosty, ale wolny i słaby pod bazy danych |
+| **bazy o dużej wydajności** | **lokalne dyski NVMe** (Local PV) | najszybsze, ale przywiązane do węzła jak `local-path`; kopie robi sama baza (replikacja PostgreSQL, Kafka) |
+
+### Ceph – najczęściej wymieniany on-premise
+
+Ceph to rozproszony system pamięci: kilka serwerów z dyskami tworzy jedną dużą, odporną pulę.
+
+- Każdy kawałek danych zapisany jest w **3 kopiach na 3 różnych serwerach**. Padnie serwer –
+  dane są na dwóch pozostałych, a Ceph sam odtwarza trzecią kopię.
+- Daje trzy rodzaje pamięci naraz:
+
+| Rodzaj Cepha | Co to jest | W Kubernetesie |
+|---|---|---|
+| **RBD** (blokowy) | „wirtualny dysk” | PVC w trybie RWO – bazy danych, Prometheus |
+| **CephFS** (plikowy) | wspólny katalog sieciowy | PVC w trybie **RWX** – wiele podów na różnych węzłach pisze naraz |
+| **RGW** (obiektowy) | magazyn zgodny z S3 | kopie zapasowe, długa historia metryk (Thanos, Mimir) |
+
+- W Kubernetesie instaluje się go operatorem **Rook** (`rook-ceph`) – tak jak operator Prometheusa
+  w Etapie 3: opisujesz klaster Cepha obiektem, operator resztę robi sam.
+- Wymaga: min. 3 węzłów z **osobnymi, pustymi dyskami**, szybkiej sieci (10 Gb/s) i sporo pamięci.
+  To duży system – w firmach często ma osobny zespół.
+
+### Tryby dostępu (`accessModes`)
+
+| Tryb | Znaczenie | Kto daje |
+|---|---|---|
+| `ReadWriteOnce` (RWO) | zapis z jednego węzła naraz | prawie wszystko: EBS, RBD, vSphere, local-path |
+| `ReadWriteMany` (RWX) | zapis z wielu węzłów naraz | pamięć plikowa: CephFS, NFS, EFS, Azure Files |
+| `ReadOnlyMany` (ROX) | odczyt z wielu węzłów | jak wyżej |
+| `ReadWriteOncePod` | tylko jeden **pod** w całym klastrze | nowe sterowniki CSI |
+
+### Co jeszcze ustawia się w produkcji
+
+| Ustawienie | Po co |
+|---|---|
+| kilka StorageClass, np. `fast-ssd`, `standard`, `archive` | różne ceny i prędkości dla różnych aplikacji |
+| `reclaimPolicy: Retain` | usunięcie PVC **nie kasuje** danych (domyślne `Delete` kasuje – w labie tak jest) |
+| `allowVolumeExpansion: true` | powiększanie dysku edycją PVC, bez przenosin danych |
+| **VolumeSnapshot** | migawka dysku przez CSI – jak snapshot w VMware, ale dla jednego PVC |
+| **kopie zapasowe** (Velero, Kasten) | kopia obiektów i dysków poza klaster; replikacja to **nie** backup – skasowany plik znika ze wszystkich kopii naraz |
+| bazy danych **poza Kubernetesem** | wiele firm trzyma bazy w usługach zarządzanych (RDS, Cloud SQL), a w klastrze tylko aplikacje bezstanowe |
+
+### Lab a produkcja
+
+| | Lab (`local-path`) | Produkcja (np. Ceph RBD, EBS) |
+|---|---|---|
+| Skąd miejsce | katalog na głównym dysku workera | osobny system dyskowy |
+| Kopie danych | brak | 3 kopie (Ceph) / w chmurze |
+| Awaria węzła | pod czeka na powrót węzła | dysk przepinany do innego węzła, pod startuje w 1–2 min |
+| Limit rozmiaru | brak | dysk ma dokładnie tyle, ile w PVC |
+| Migawki, powiększanie | nie | tak |
+
+Naturalny następny krok w labie: **Longhorn** na trzech workerach – prawdziwa pamięć
+replikowana bez osobnych serwerów.
+
+## 6. Węzły: master, workery i maszyna monitoring
 
 **Węzeł (node)** to maszyna, na której Kubernetes może uruchamiać pody. Na każdym węźle działa
 **kubelet** – agent, który dostaje polecenia od mastera i uruchamia kontenery.
@@ -347,7 +445,7 @@ k3s-worker-3   Ready    worker          v1.36.5+k3s1
 
 | Maszyna | Czy jest węzłem? | Rola |
 |---|---|---|
-| `k3s-master` | **tak** | „mózg” klastra: API, scheduler, baza danych klastra. Aplikacje na nim nie startują (rozdział 6) |
+| `k3s-master` | **tak** | „mózg” klastra: API, scheduler, baza danych klastra. Aplikacje na nim nie startują (rozdział 7) |
 | `k3s-worker-1..3` | **tak** | tu działają aplikacje i monitoring z Etapu 3 |
 | `monitoring` | **nie** | osobna maszyna poza klastrem: kontroler Ansible, a w Etapie 4 zewnętrzna Grafana i Uptime Kuma |
 
@@ -355,7 +453,7 @@ k3s-worker-3   Ready    worker          v1.36.5+k3s1
 klastra. Gdy klaster padnie, padną razem z nim i nie powiedzą, że jest awaria. Maszyna monitoring
 stoi obok i dalej działa. Zasada: **monitoring nie może zależeć od tego, co monitoruje.**
 
-## 6. Taint i toleration – kto może stanąć na masterze
+## 7. Taint i toleration – kto może stanąć na masterze
 
 W k3s master też jest węzłem – ma kubeleta i mógłby uruchamiać pody. W tym labie ma jednak
 **taint**, czyli „znak zakazu wjazdu”:
@@ -383,7 +481,7 @@ W Etapie 3:
 | Prometheus, Grafana, Alertmanager, kube-state-metrics, operator | tylko na workerach |
 | node-exporter (DaemonSet z toleration) | na wszystkich 4 węzłach, także na masterze |
 
-## 7. Zasoby węzłów i `kubectl top`
+## 8. Zasoby węzłów i `kubectl top`
 
 ```
 $ kubectl top nodes
@@ -417,7 +515,7 @@ resources:
     memory: 1536Mi   # tego pod nie może przekroczyć – inaczej zostanie zabity (OOMKilled)
 ```
 
-## 8. Kubeconfig – klucz do klastra
+## 9. Kubeconfig – klucz do klastra
 
 **Kubeconfig** to plik, który mówi narzędziom (kubectl, Helm), **gdzie jest klaster** (adres API)
 i **kim jesteś** (certyfikat). Kto ma ten plik, ten jest administratorem klastra.
@@ -446,7 +544,7 @@ mkdir -p ~/.kube && install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config
 > kubeconfig ma uprawnienia `600`, a administratorzy pracują z własnego komputera z osobnym
 > kubeconfigiem, zamiast logować się na mastera.
 
-## 9. Helm – menedżer paczek
+## 10. Helm – menedżer paczek
 
 Na Ubuntu instalujesz program przez `apt install nginx` i nie piszesz ręcznie plików
 konfiguracyjnych ani usług systemd – paczka ma to w sobie. **Helm to `apt` dla Kubernetesa.**
@@ -469,7 +567,7 @@ Helm **nie instaluje niczego na maszynie, na której go uruchamiasz**. Wysyła g
 API klastra, a Kubernetes sam rozkłada pody na workery. Helm mógłby działać z dowolnej maszyny,
 która ma kubeconfig – w labie używamy mastera, bo tam wszystko jest gotowe.
 
-## 10. Chart, values i release
+## 11. Chart, values i release
 
 ### Chart – paczka
 
@@ -551,7 +649,7 @@ Tych dwóch release'ów nie instalował administrator – zrobił to wbudowany w
 **helm-controller** przy budowie klastra. Nie aktualizuj ich ręcznie przez `helm upgrade`: k3s
 nadpisze zmiany przy restarcie. Ustawienia Traefika w k3s zmienia się plikiem `HelmChartConfig`.
 
-## 11. Repozytorium chartów i wersje
+## 12. Repozytorium chartów i wersje
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -576,7 +674,7 @@ najnowszą wersję, która może zmienić zachowanie. W labie służy do tego zm
 `KPS_CHART_VERSION` w `lab.env`. Wszystkie wersje pokazuje
 `helm search repo kube-prometheus-stack --versions`.
 
-## 12. Jak dostać się do aplikacji: NodePort i Ingress
+## 13. Jak dostać się do aplikacji: NodePort i Ingress
 
 Pody mają wewnętrzne adresy IP, których nie widać z Twojego komputera. Są dwa sposoby, żeby
 wejść do aplikacji z zewnątrz:
@@ -589,7 +687,7 @@ wejść do aplikacji z zewnątrz:
 NodePort jest prosty, ale przy wielu aplikacjach trzeba pamiętać wiele numerów portów. Ingress
 daje ładne adresy i jedno wejście dla wszystkich.
 
-## 13. Traefik – recepcja klastra
+## 14. Traefik – recepcja klastra
 
 Ingress to tylko **reguła** zapisana w YAML. Żeby ktoś ją wykonywał, potrzebny jest
 **Ingress Controller** – program, który przyjmuje ruch i kieruje go według reguł. W k3s jest nim
@@ -624,7 +722,7 @@ spec:
 Pody `svclb-traefik` widoczne na każdym węźle to „drzwi” Traefika – otwierają porty 80 i 443
 na każdej maszynie.
 
-## 14. CRD – nowe słowa w słowniku Kubernetesa
+## 15. CRD – nowe słowa w słowniku Kubernetesa
 
 Kubernetes zna z fabryki pewien zestaw typów obiektów: Pod, Deployment, Service, Ingress… To jego
 **słownik**.
@@ -653,7 +751,7 @@ kubectl get crd                 # wszystkie CRD w klastrze
 kubectl api-resources | less    # wszystkie typy obiektów, wbudowane i dodane
 ```
 
-## 15. Operator – program, który rozumie nowe słowa
+## 16. Operator – program, który rozumie nowe słowa
 
 Sam CRD to tylko słowo w słowniku – nic nie robi. Potrzebny jest program, który **czyta obiekty
 nowego typu i wykonuje to, co opisują**. Takie połączenie – **CRD + program, który je obsługuje** –
@@ -689,7 +787,7 @@ spec:
 Operator widzi nowy ServiceMonitor i sam dopisuje go do konfiguracji Prometheusa. Nie trzeba
 ręcznie edytować pliku `prometheus.yml` ani restartować Prometheusa.
 
-## 16. Jak to się składa w Etapie 3
+## 17. Jak to się składa w Etapie 3
 
 ```
 helm upgrade --install monitoring ...       ← jedno polecenie
@@ -714,7 +812,7 @@ Ten sam monitoring zainstalujesz w labie na trzy sposoby:
 | skryptem `scripts/04-install-monitoring.sh` | 3 (na koniec) |
 | przez GitOps: Argo CD instaluje i pilnuje stanu z gita | 7 |
 
-## 17. Słowniczek
+## 18. Słowniczek
 
 | Pojęcie | Jednym zdaniem |
 |---|---|
@@ -739,11 +837,14 @@ Ten sam monitoring zainstalujesz w labie na trzy sposoby:
 | **adnotacja** | notatka na obiekcie dla ludzi i narzędzi; nie da się po niej szukać |
 | **ConfigMap** | ustawienia aplikacji poza obrazem, jako zmienne albo pliki |
 | **Secret** | jak ConfigMap, ale na hasła; zapis base64, który **nie** jest szyfrowaniem |
+| **PVC / PV / StorageClass** | wniosek o dysk / przydzielony dysk / rodzaj pamięci, który je tworzy |
+| **CSI** | sterownik, przez który Kubernetes zakłada i podłącza dyski w danym systemie dyskowym |
+| **Ceph (Rook)** | rozproszona pamięć z kilku serwerów, dane w 3 kopiach; Rook to jej operator w Kubernetesie |
 
 Na rozmowie: *"Helm is a package manager for Kubernetes – a chart is a templated package, values
 customize it, and a release is an installed instance."*
 
-## 18. Ściągawka poleceń Helm
+## 19. Ściągawka poleceń Helm
 
 ```bash
 # Repozytoria
@@ -772,7 +873,7 @@ helm rollback NAZWA 1 -n NS                # wróć do rewizji 1
 helm uninstall NAZWA -n NS                 # usuń wszystko, co założył release
 ```
 
-## 19. Pytania, które mogą paść na rozmowie
+## 20. Pytania, które mogą paść na rozmowie
 
 Pytania z rozmów na stanowisko junior DevOps / administratora, z krótkimi odpowiedziami. Odpowiedź
 na rozmowie powinna mieć 2–4 zdania i – jeśli się da – przykład z labu („w moim labie…”).
@@ -855,6 +956,29 @@ nie trafia jawnie do gita (Sealed Secrets, SOPS, Vault).
 Zmienne środowiskowe ustawia się tylko przy starcie kontenera – trzeba `kubectl rollout restart`.
 Pliki z wolumenu odświeżają się same po ok. minucie (w labie 77 s), ale nie przy `subPath`,
 a aplikacja i tak musi przeczytać plik ponownie.
+
+### Pamięć trwała
+
+**Czym różni się PV od PVC i StorageClass?**
+PVC to wniosek aplikacji o dysk, StorageClass opisuje rodzaj pamięci, a PV to konkretny dysk,
+który sterownik CSI tworzy automatycznie na podstawie PVC. W labie klasą jest `local-path` z k3s.
+
+**Co to jest CSI?**
+Standardowy interfejs wtyczek pamięci. Producent (AWS, Ceph, NetApp, VMware) dostarcza sterownik,
+który zakłada dyski i podpina je do węzłów. Dzięki temu ten sam PVC działa w każdym środowisku.
+
+**Jaką pamięć dałbyś bazie danych w Kubernetesie on-premise?**
+Blokową z replikacją, np. Ceph RBD przez Rook albo Longhorn, w trybie RWO, z `reclaimPolicy: Retain`
+i kopiami zapasowymi (Velero, VolumeSnapshot). Dla dużej wydajności lokalne NVMe, a replikację
+robi sama baza.
+
+**RWO a RWX?**
+RWO – dysk podłączony do jednego węzła naraz (bloki: EBS, RBD). RWX – wiele węzłów pisze naraz
+(pliki: CephFS, NFS). Większość baz danych potrzebuje RWO.
+
+**Czy replikacja (3 kopie w Cephie) zastępuje backup?**
+Nie. Skasowany albo zaszyfrowany przez ransomware plik znika ze wszystkich kopii naraz. Backup to
+osobna kopia w czasie, poza klastrem.
 
 ### Węzły i harmonogram
 

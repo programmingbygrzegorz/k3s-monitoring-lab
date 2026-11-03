@@ -19,7 +19,7 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   mastera może go przeczytać i zostać administratorem klastra. Dlatego kubectl działał bez `sudo`.
 - **Wniosek:** to, że jedno narzędzie działa, nie znaczy, że drugie użyje tej samej konfiguracji.
   Kubeconfig to klucz administratora klastra – uprawnienia `600`, nigdy w repozytorium.
-  Teoria: [teoria Kubernetes i Helm](03-teoria-kubernetes-helm.md#8-kubeconfig--klucz-do-klastra).
+  Teoria: [teoria Kubernetes i Helm](03-teoria-kubernetes-helm.md#9-kubeconfig--klucz-do-klastra).
 
 ## ErrImagePull przez chwilowy błąd DNS
 
