@@ -35,7 +35,7 @@ krok po kroku**, a każde polecenie ma być wyjaśnione. Komunikacja **po polsku
 
 ## Stan labu (aktualizuj!)
 
-Stan na 31.10.2026:
+Stan na 03.11.2026:
 
 - ✅ Etap 0 (sieć, maszyny, Packer), 0b (klucze SSH), 1 (przygotowanie systemu),
   2 (k3s przez Ansible + Vault), 3 (kube-prometheus-stack 92.16.1 przez Helm, podinfo, reguły).
@@ -46,6 +46,14 @@ Stan na 31.10.2026:
   musi to wyjaśnić w GitHub → Settings → Billing. 2.11 wyłączenie limitu budżetu Actions NIE pomogło
   (przebieg b304583 nadal zablokowany) – następny krok: zgłoszenie na support.github.com. Do tego czasu ShellCheck, yamllint
   i ansible-lint nie są sprawdzane automatycznie.
+- 🧱 03.11 – rozdziały „własny obraz” (Etap 4: `02-wlasny-obraz.md`, ćwiczenia 03/04) i „typowe
+  awarie Kubernetesa” (Etap 5: `02-…`, manifest `kubernetes/awarie/zepsute.yaml`). Ćwiczenia z obrazu
+  wykonał Claude, więc w labie już jest: **Docker 29.9.2 na `monitoring`** (użytkownik w grupie `docker`),
+  **rejestr `registry:3` z TLS na `192.168.180.54:5000`** (CA labu i klucze w `~/rejestr-certs` na
+  `monitoring`, poza gitem), `ca.crt` w `/etc/docker/certs.d/…`, na wszystkich węzłach k3s
+  `/etc/rancher/k3s/lab-ca.crt` + `registries.yaml`, namespace `hello-lab` (NodePort 30880).
+  Właściciel ma przejść ćwiczenia sam po „Pełnym resecie” z `04-cwiczenia-obraz-rozwiazania.md`.
+  `insecure-registries` jest zablokowane przez tryb auto (osłabienie TLS) – stąd własne CA.
 - ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,

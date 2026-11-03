@@ -109,7 +109,11 @@ różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstati
 ├── kubernetes/
 │   ├── demo-app/                # Namespace, Deployment, Service, Ingress
 │   ├── monitoring/              # ServiceMonitor, PrometheusRule
-│   └── chaos/                   # manifesty awarii (OOM, CrashLoop, ImagePull, CPU)
+│   ├── chaos/                   # manifesty awarii (OOM, CrashLoop, ImagePull, CPU)
+│   ├── awarie/                  # 11 zepsutych obiektów do ćwiczeń z diagnozy (Etap 5)
+│   └── hello-lab/               # wdrożenie własnego obrazu z rejestru labu (Etap 4)
+├── apps/
+│   └── hello-lab/               # własna aplikacja: app.py, Dockerfile, .dockerignore (Etap 4)
 ├── monitoring/
 │   ├── kube-prometheus-stack-values.yaml
 │   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
@@ -133,8 +137,8 @@ i problemy z tego etapu, ponumerowane w kolejności czytania:
 | 1 – przygotowanie systemu | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | – | – |
 | 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md), [Ansible plik po pliku](docs/etap-2-k3s-ansible/07-ansible-plik-po-pliku.md) | [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md); Ansible: [zadanie](docs/etap-2-k3s-ansible/08-cwiczenie-ansible-pakiet.md), [rozwiązanie](docs/etap-2-k3s-ansible/09-cwiczenie-ansible-pakiet-rozwiazanie.md) |
 | 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
-| 4 – monitoring poza klastrem | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | – | – |
-| 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | – | własna reguła alertu |
+| 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
+| 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | własna reguła alertu, [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
 
 Metoda diagnozowania i spis wszystkich problemów według etapów:
 [docs/problemy-ogolne.md](docs/problemy-ogolne.md).

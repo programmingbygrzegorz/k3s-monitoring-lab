@@ -1,0 +1,8 @@
+# /etc/rancher/k3s/registries.yaml – na KAŻDYM węźle k3s (master i workery).
+# Mówi containerd w k3s, że rejestr 192.168.180.54:5000 ma certyfikat podpisany przez CA labu.
+# Po zmianie: sudo systemctl restart k3s (master) albo k3s-agent (workery).
+# Opis: docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md
+configs:
+  "192.168.180.54:5000":
+    tls:
+      ca_file: /etc/rancher/k3s/lab-ca.crt

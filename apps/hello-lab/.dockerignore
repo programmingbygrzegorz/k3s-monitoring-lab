@@ -1,0 +1,6 @@
+# Pliki, których docker build nie wysyła do budowania (kontekst) – mniejszy i bezpieczniejszy obraz.
+.git
+*.md
+*.tar
+__pycache__/
+.env
