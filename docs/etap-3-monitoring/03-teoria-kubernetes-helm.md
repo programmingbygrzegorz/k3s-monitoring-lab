@@ -1,7 +1,7 @@
 # Kubernetes i Helm – jak to działa
 
 Ten plik jest dla osoby, która **pierwszy raz** widzi Kubernetesa. Tłumaczy od zera pojęcia,
-które pojawiają się w Etapie 3: węzeł, taint, kubeconfig, Helm, chart, values, release,
+które pojawiają się w Etapie 3: etykiety i selektory, ConfigMap i Secret, węzeł, taint, kubeconfig, Helm, chart, values, release,
 Traefik, Ingress, CRD i operator. Każde pojęcie jest pokazane na przykładzie z tego labu.
 
 Polecenia do wpisania są w [przewodniku](../00-przewodnik.md), a ćwiczenia z kubectl
@@ -11,21 +11,23 @@ w [ćwiczenia z kubectl](../etap-2-k3s-ansible/05-cwiczenia-kubectl.md).
 
 1. [Kubernetes w jednym zdaniu](#1-kubernetes-w-jednym-zdaniu)
 2. [Obiekty i YAML](#2-obiekty-i-yaml)
-3. [Węzły: master, workery i maszyna monitoring](#3-węzły-master-workery-i-maszyna-monitoring)
-4. [Taint i toleration – kto może stanąć na masterze](#4-taint-i-toleration--kto-może-stanąć-na-masterze)
-5. [Zasoby węzłów i `kubectl top`](#5-zasoby-węzłów-i-kubectl-top)
-6. [Kubeconfig – klucz do klastra](#6-kubeconfig--klucz-do-klastra)
-7. [Helm – menedżer paczek](#7-helm--menedżer-paczek)
-8. [Chart, values i release](#8-chart-values-i-release)
-9. [Repozytorium chartów i wersje](#9-repozytorium-chartów-i-wersje)
-10. [Jak dostać się do aplikacji: NodePort i Ingress](#10-jak-dostać-się-do-aplikacji-nodeport-i-ingress)
-11. [Traefik – recepcja klastra](#11-traefik--recepcja-klastra)
-12. [CRD – nowe słowa w słowniku Kubernetesa](#12-crd--nowe-słowa-w-słowniku-kubernetesa)
-13. [Operator – program, który rozumie nowe słowa](#13-operator--program-który-rozumie-nowe-słowa)
-14. [Jak to się składa w Etapie 3](#14-jak-to-się-składa-w-etapie-3)
-15. [Słowniczek](#15-słowniczek)
-16. [Ściągawka poleceń Helm](#16-ściągawka-poleceń-helm)
-17. [Pytania, które mogą paść na rozmowie](#17-pytania-które-mogą-paść-na-rozmowie)
+3. [Etykiety i selektory – jak obiekty się znajdują](#3-etykiety-i-selektory--jak-obiekty-się-znajdują)
+4. [ConfigMap i Secret – ustawienia poza obrazem](#4-configmap-i-secret--ustawienia-poza-obrazem)
+5. [Węzły: master, workery i maszyna monitoring](#5-węzły-master-workery-i-maszyna-monitoring)
+6. [Taint i toleration – kto może stanąć na masterze](#6-taint-i-toleration--kto-może-stanąć-na-masterze)
+7. [Zasoby węzłów i `kubectl top`](#7-zasoby-węzłów-i-kubectl-top)
+8. [Kubeconfig – klucz do klastra](#8-kubeconfig--klucz-do-klastra)
+9. [Helm – menedżer paczek](#9-helm--menedżer-paczek)
+10. [Chart, values i release](#10-chart-values-i-release)
+11. [Repozytorium chartów i wersje](#11-repozytorium-chartów-i-wersje)
+12. [Jak dostać się do aplikacji: NodePort i Ingress](#12-jak-dostać-się-do-aplikacji-nodeport-i-ingress)
+13. [Traefik – recepcja klastra](#13-traefik--recepcja-klastra)
+14. [CRD – nowe słowa w słowniku Kubernetesa](#14-crd--nowe-słowa-w-słowniku-kubernetesa)
+15. [Operator – program, który rozumie nowe słowa](#15-operator--program-który-rozumie-nowe-słowa)
+16. [Jak to się składa w Etapie 3](#16-jak-to-się-składa-w-etapie-3)
+17. [Słowniczek](#17-słowniczek)
+18. [Ściągawka poleceń Helm](#18-ściągawka-poleceń-helm)
+19. [Pytania, które mogą paść na rozmowie](#19-pytania-które-mogą-paść-na-rozmowie)
 
 ---
 
@@ -71,7 +73,265 @@ Najważniejsze typy, które znasz z [ćwiczeń](../etap-2-k3s-ansible/05-cwiczen
 | **Ingress** | reguła: ruch dla domeny X kieruj do Service Y |
 | **Secret / ConfigMap** | hasła / ustawienia przekazywane do podów |
 
-## 3. Węzły: master, workery i maszyna monitoring
+## 3. Etykiety i selektory – jak obiekty się znajdują
+
+**Etykieta (label)** to para `klucz=wartość` przyklejona do obiektu, jak naklejka na pudle
+w magazynie: `app=sklep`, `tier=frontend`, `team=blue`. Sama nic nie robi. Ważne jest to, że
+**inne obiekty szukają po etykietach**, a nie po nazwach.
+
+**Selektor** to zapytanie „daj mi wszystko z takimi naklejkami”. Tak działa pół Kubernetesa:
+
+| Kto szuka | Czego | Przykład z labu |
+|---|---|---|
+| **Service** | podów, do których wysłać ruch | Service `podinfo` ma `selector: {app: podinfo}` |
+| **Deployment / ReplicaSet** | podów, które „są jego” i których ma pilnować liczby | `selector.matchLabels: {app: hello-lab}` |
+| **ServiceMonitor** (Prometheus) | Service'ów, z których zbierać metryki | [rozdział 15](#15-operator--program-który-rozumie-nowe-słowa) |
+| **nodeSelector** w podzie | węzłów, na których może stanąć | `kubernetes.io/hostname=k3s-worker-1` |
+| **Ty** w `kubectl` | obiektów do pokazania lub usunięcia | `kubectl get pods -l tier=backend` |
+
+Etykieta to nie nazwa: nazwa jest jedna i unikalna, a etykiet obiekt może mieć wiele i wiele
+obiektów może mieć tę samą. Dzięki temu Service nie musi znać nazw podów, które co chwilę się zmieniają
+(`podinfo-c9cdb7df5-j9jkm`) – wystarczy, że każdy nowy pod dostaje naklejkę `app=podinfo`.
+
+### Etykiety w praktyce – wyniki z labu
+
+Trzy pody z różnymi naklejkami (namespace `teoria`, usunięty po pokazie):
+
+```
+$ kubectl -n teoria run sklep-www   --image=192.168.180.54:5000/hello-lab:1.0 --labels="app=sklep,tier=frontend,team=blue"
+$ kubectl -n teoria run sklep-api   --image=... --labels="app=sklep,tier=backend,team=green"
+$ kubectl -n teoria run raporty-api --image=... --labels="app=raporty,tier=backend,team=yellow"
+
+$ kubectl -n teoria get pods --show-labels
+NAME          READY   STATUS    RESTARTS   AGE   LABELS
+raporty-api   1/1     Running   0          1s    app=raporty,team=yellow,tier=backend
+sklep-api     1/1     Running   0          1s    app=sklep,team=green,tier=backend
+sklep-www     1/1     Running   0          2s    app=sklep,team=blue,tier=frontend
+```
+
+Wybieranie selektorem (`-l` to skrót od `--selector`):
+
+| Polecenie | Znaczenie | Wynik w labie |
+|---|---|---|
+| `-l tier=backend` | równa się | `raporty-api`, `sklep-api` |
+| `-l tier=backend,team=green` | przecinek = **i** (oba warunki) | `sklep-api` |
+| `-l 'team!=blue'` | różne od | `raporty-api`, `sklep-api` |
+| `-l 'team in (blue,yellow)'` | jedna z wartości (= **lub**) | `raporty-api`, `sklep-www` |
+| `-l 'app=sklep,tier notin (frontend)'` | żadna z wartości | `sklep-api` |
+| `-l team` | ma etykietę, wartość dowolna | wszystkie trzy |
+| `-l '!env'` | **nie** ma etykiety | wszystkie trzy (po usunięciu `env` z `sklep-www`) |
+
+Selektory z `in`, `notin`, `!=` i `!` zawsze bierz w apostrofy `'…'` – inaczej bash potraktuje
+nawiasy i wykrzyknik po swojemu.
+
+Etykiety jako kolumny zamiast długiego `--show-labels`:
+
+```
+$ kubectl -n teoria get pods -L app,team
+NAME          READY   STATUS    RESTARTS   AGE   APP       TEAM
+raporty-api   1/1     Running   0          1s    raporty   yellow
+sklep-api     1/1     Running   0          1s    sklep     green
+sklep-www     1/1     Running   0          2s    sklep     blue
+```
+
+Dodawanie, zmiana i usuwanie etykiet:
+
+```
+$ kubectl -n teoria label pod sklep-www env=prod                  # dodaj
+pod/sklep-www labeled
+$ kubectl -n teoria label pod sklep-www team=red                  # zmień – bez zgody nie wolno
+error: 'team' already has a value (blue), and --overwrite is false
+$ kubectl -n teoria label pod sklep-www team=red --overwrite      # zmień
+pod/sklep-www labeled
+$ kubectl -n teoria label pod sklep-www env-                      # usuń: klucz z minusem
+pod/sklep-www unlabeled
+$ kubectl -n teoria delete pods -l app=raporty                    # usuń wszystko z etykietą
+pod "raporty-api" deleted from teoria namespace
+```
+
+⚠️ `kubectl delete pods -l …` usuwa **wszystko**, co pasuje. Najpierw `get` z tym samym `-l`,
+potem `delete`.
+
+### Pułapka: zmiana etykiety „zabiera” pod Deploymentowi
+
+ReplicaSet liczy pody **po etykietach**. Zmień etykietę poda, a ReplicaSet uzna, że poda ubyło,
+i dorobi nowy. Stary pod działa dalej, ale już nikt go nie pilnuje (sierota):
+
+```
+$ kubectl -n teoria label pod/hello-5f7f8fb76f-9mwf4 app=serwis --overwrite
+$ kubectl -n teoria get pods -L app
+NAME                     READY   STATUS    RESTARTS   AGE   APP
+hello-5f7f8fb76f-9mwf4   1/1     Running   0          14s   serwis    ← sierota, bez właściciela
+hello-5f7f8fb76f-fwgm5   1/1     Running   0          4s    hello     ← nowy, dorobiony przez ReplicaSet
+```
+
+To ma też dobrą stronę: tak **izoluje się chory pod do diagnozy**. Po zmianie etykiety znika
+z Service (nie dostaje ruchu), Deployment stawia zdrowy zamiennik, a Ty spokojnie oglądasz
+chory pod przez `kubectl exec` i `logs`.
+
+To samo w drugą stronę: literówka w selektorze Service (`app: wep` zamiast `web`) = Service bez
+endpointów. Diagnoza w [Etapie 5](../etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md#310-service-nie-działa--brak-endpointów).
+
+### Etykiety, które dodaje sam Kubernetes
+
+```
+$ kubectl get node k3s-worker-1 --show-labels      # fragment
+kubernetes.io/arch=amd64
+kubernetes.io/hostname=k3s-worker-1
+kubernetes.io/os=linux
+node-role.kubernetes.io/worker=worker
+
+$ kubectl -n demo get pods --show-labels
+NAME                      ...   LABELS
+podinfo-c9cdb7df5-j9jkm   ...   app=podinfo,pod-template-hash=c9cdb7df5
+```
+
+`pod-template-hash` dokleja Deployment – tak odróżnia pody starej i nowej wersji przy aktualizacji.
+Etykiety węzłów wykorzystasz w `nodeSelector` (np. „tylko na `kubernetes.io/arch=amd64`”).
+
+Zalecane etykiety w firmach: `app.kubernetes.io/name`, `app.kubernetes.io/instance`,
+`app.kubernetes.io/version`, `app.kubernetes.io/part-of` – tak oznacza swoje obiekty np. chart
+kube-prometheus-stack.
+
+### Etykieta a adnotacja
+
+| | Etykieta (`labels`) | Adnotacja (`annotations`) |
+|---|---|---|
+| Do czego | **wyszukiwanie i grupowanie** – selektory | **notatki** dla ludzi i narzędzi |
+| Można szukać po niej `-l`? | tak | nie |
+| Wartość | krótka (do 63 znaków, litery, cyfry, `-_.`) | dowolny tekst, nawet JSON |
+| Przykład | `app=podinfo` | `kubernetes.io/change-cause: "aktualizacja do 6.5"` |
+
+## 4. ConfigMap i Secret – ustawienia poza obrazem
+
+Obraz powinien być **jeden** dla wszystkich środowisk: test i produkcja różnią się tylko
+ustawieniami (adres bazy, kolor, poziom logów). Ustawienia nie trafiają więc do obrazu, tylko do:
+
+- **ConfigMap** – zwykłe ustawienia, jawne,
+- **Secret** – hasła, tokeny, klucze.
+
+Analogia: obraz to fabrycznie nowy telewizor, a ConfigMap to kartka z ustawieniami, którą
+dokładasz w każdym mieszkaniu. Telewizor ten sam, ustawienia inne.
+
+### Tworzenie ConfigMapy
+
+```
+$ kubectl -n teoria create configmap hello-config \
+    --from-literal=APP_COLOR=#c53030 --from-literal=APP_VERSION=cm-1 \
+    --from-file=powitanie.txt
+configmap/hello-config created
+
+$ kubectl -n teoria get configmap hello-config -o yaml
+apiVersion: v1
+data:
+  APP_COLOR: '#c53030'
+  APP_VERSION: cm-1
+  powitanie.txt: |
+    Witaj w labie k3s!
+kind: ConfigMap
+```
+
+- `--from-literal=KLUCZ=wartość` – jedno ustawienie,
+- `--from-file=plik` – cały plik; klucz = nazwa pliku, wartość = jego treść.
+
+W gicie trzymasz to samo jako YAML (`kind: ConfigMap`, sekcja `data:`) i wdrażasz przez `kubectl apply`.
+
+### Dwa sposoby podania ConfigMapy do poda
+
+```yaml
+spec:
+  containers:
+    - name: hello
+      image: 192.168.180.54:5000/hello-lab:1.0
+      envFrom:                      # 1) każdy klucz → zmienna środowiskowa
+        - configMapRef:
+            name: hello-config
+      volumeMounts:                 # 2) każdy klucz → plik w katalogu
+        - name: konfiguracja
+          mountPath: /etc/hello
+  volumes:
+    - name: konfiguracja
+      configMap:
+        name: hello-config
+```
+
+Wynik w podzie:
+
+```
+$ kubectl -n teoria exec deploy/hello -- env | grep APP_
+APP_COLOR=#c53030
+APP_VERSION=cm-1
+$ kubectl -n teoria exec deploy/hello -- ls /etc/hello
+APP_COLOR
+APP_VERSION
+powitanie.txt
+$ kubectl -n teoria exec deploy/hello -- cat /etc/hello/powitanie.txt
+Witaj w labie k3s!
+```
+
+Aplikacja [hello-lab](../../apps/hello-lab/app.py) czyta `APP_VERSION` ze zmiennej, więc odpowiada
+`{"app": "hello-lab", "version": "cm-1", ...}` – ten sam obraz, inna wersja w odpowiedzi.
+
+Zamiast `envFrom` (wszystkie klucze) można wziąć jeden klucz:
+`env: - name: KOLOR  valueFrom: configMapKeyRef: {name: hello-config, key: APP_COLOR}`.
+
+### Co się dzieje po zmianie ConfigMapy – ważne na rozmowie
+
+```
+12:32:51 $ kubectl -n teoria patch configmap hello-config -p '{"data":{"APP_VERSION":"cm-2"}}'
+         $ kubectl -n teoria exec deploy/hello -- env | grep APP_VERSION
+         APP_VERSION=cm-1                     ← zmienna: bez zmian
+12:34:08 $ kubectl -n teoria exec deploy/hello -- cat /etc/hello/APP_VERSION
+         cm-2                                 ← plik: zmienił się sam, po 77 s
+         $ kubectl -n teoria rollout restart deploy/hello
+         $ kubectl -n teoria exec deploy/hello -- env | grep APP_VERSION
+         APP_VERSION=cm-2                     ← zmienna: dopiero w nowym podzie
+```
+
+| Sposób | Po zmianie ConfigMapy |
+|---|---|
+| zmienna środowiskowa (`env`, `envFrom`) | **nie zmienia się** – zmienne ustawia się raz, przy starcie kontenera. Potrzebny restart: `kubectl rollout restart deploy/…` |
+| plik z wolumenu | zmienia się sam po ok. 1–2 min (kubelet sprawdza okresowo), ale aplikacja musi plik **przeczytać ponownie** |
+| plik z `subPath` | **nie zmienia się** nigdy – pułapka |
+
+Dlatego w firmach po zmianie konfiguracji robi się `rollout restart`, a Helm często dokleja do
+poda adnotację z sumą kontrolną ConfigMapy – zmiana ustawień = zmiana sumy = nowe pody.
+
+Brak ConfigMapy albo klucza, do którego odwołuje się pod = pod w stanie
+`CreateContainerConfigError` ([Etap 5](../etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md#36-createcontainerconfigerror--brak-secretu-lub-configmapy)).
+
+### Secret – prawie to samo, ale na hasła
+
+Secret tworzy się i podaje do poda tak samo (`kubectl create secret generic`, `secretRef`,
+`secretKeyRef`, wolumen `secret:`). Różnica w zapisie:
+
+```
+$ kubectl -n teoria create secret generic baza --from-literal=haslo=Lab123!
+secret/baza created
+$ kubectl -n teoria get secret baza -o jsonpath='{.data.haslo}'
+TGFiMTIzIQ==
+$ kubectl -n teoria get secret baza -o jsonpath='{.data.haslo}' | base64 -d
+Lab123!
+```
+
+⚠️ **base64 to nie szyfrowanie**, tylko zapis. Każdy, kto może czytać Secrety, odczyta hasło
+jednym poleceniem. Secret chronią: uprawnienia RBAC (kto może `get secrets`), szyfrowanie bazy
+klastra (etcd) i to, że **nie trafia do gita** w jawnej postaci. W gicie: Sealed Secrets, SOPS
+albo zewnętrzny sejf (Vault) – podobnie jak Ansible Vault w Etapie 2.
+
+W tym labie Secretem jest np. hasło Grafany: chart zrobił z `adminPassword` Secret
+`monitoring-grafana`, a pod czyta go przez `secretKeyRef` (`kubectl -n monitoring get deploy
+monitoring-grafana -o yaml | grep -A3 secretKeyRef`).
+
+| | ConfigMap | Secret |
+|---|---|---|
+| Na co | ustawienia | hasła, tokeny, certyfikaty |
+| Zapis w `-o yaml` | jawny tekst | base64 |
+| Limit rozmiaru | 1 MiB | 1 MiB |
+| W gicie | tak, zwykły YAML | nie wprost – zaszyfrowany (Sealed Secrets, SOPS) |
+| Gdzie w labie | 25 dashboardów Grafany (chart), [kubernetes/](../../kubernetes/) | hasło Grafany, `lab.env` → Secret |
+
+## 5. Węzły: master, workery i maszyna monitoring
 
 **Węzeł (node)** to maszyna, na której Kubernetes może uruchamiać pody. Na każdym węźle działa
 **kubelet** – agent, który dostaje polecenia od mastera i uruchamia kontenery.
@@ -87,7 +347,7 @@ k3s-worker-3   Ready    worker          v1.36.5+k3s1
 
 | Maszyna | Czy jest węzłem? | Rola |
 |---|---|---|
-| `k3s-master` | **tak** | „mózg” klastra: API, scheduler, baza danych klastra. Aplikacje na nim nie startują (rozdział 4) |
+| `k3s-master` | **tak** | „mózg” klastra: API, scheduler, baza danych klastra. Aplikacje na nim nie startują (rozdział 6) |
 | `k3s-worker-1..3` | **tak** | tu działają aplikacje i monitoring z Etapu 3 |
 | `monitoring` | **nie** | osobna maszyna poza klastrem: kontroler Ansible, a w Etapie 4 zewnętrzna Grafana i Uptime Kuma |
 
@@ -95,7 +355,7 @@ k3s-worker-3   Ready    worker          v1.36.5+k3s1
 klastra. Gdy klaster padnie, padną razem z nim i nie powiedzą, że jest awaria. Maszyna monitoring
 stoi obok i dalej działa. Zasada: **monitoring nie może zależeć od tego, co monitoruje.**
 
-## 4. Taint i toleration – kto może stanąć na masterze
+## 6. Taint i toleration – kto może stanąć na masterze
 
 W k3s master też jest węzłem – ma kubeleta i mógłby uruchamiać pody. W tym labie ma jednak
 **taint**, czyli „znak zakazu wjazdu”:
@@ -123,7 +383,7 @@ W Etapie 3:
 | Prometheus, Grafana, Alertmanager, kube-state-metrics, operator | tylko na workerach |
 | node-exporter (DaemonSet z toleration) | na wszystkich 4 węzłach, także na masterze |
 
-## 5. Zasoby węzłów i `kubectl top`
+## 7. Zasoby węzłów i `kubectl top`
 
 ```
 $ kubectl top nodes
@@ -157,7 +417,7 @@ resources:
     memory: 1536Mi   # tego pod nie może przekroczyć – inaczej zostanie zabity (OOMKilled)
 ```
 
-## 6. Kubeconfig – klucz do klastra
+## 8. Kubeconfig – klucz do klastra
 
 **Kubeconfig** to plik, który mówi narzędziom (kubectl, Helm), **gdzie jest klaster** (adres API)
 i **kim jesteś** (certyfikat). Kto ma ten plik, ten jest administratorem klastra.
@@ -186,7 +446,7 @@ mkdir -p ~/.kube && install -m 600 /etc/rancher/k3s/k3s.yaml ~/.kube/config
 > kubeconfig ma uprawnienia `600`, a administratorzy pracują z własnego komputera z osobnym
 > kubeconfigiem, zamiast logować się na mastera.
 
-## 7. Helm – menedżer paczek
+## 9. Helm – menedżer paczek
 
 Na Ubuntu instalujesz program przez `apt install nginx` i nie piszesz ręcznie plików
 konfiguracyjnych ani usług systemd – paczka ma to w sobie. **Helm to `apt` dla Kubernetesa.**
@@ -209,7 +469,7 @@ Helm **nie instaluje niczego na maszynie, na której go uruchamiasz**. Wysyła g
 API klastra, a Kubernetes sam rozkłada pody na workery. Helm mógłby działać z dowolnej maszyny,
 która ma kubeconfig – w labie używamy mastera, bo tam wszystko jest gotowe.
 
-## 8. Chart, values i release
+## 10. Chart, values i release
 
 ### Chart – paczka
 
@@ -291,7 +551,7 @@ Tych dwóch release'ów nie instalował administrator – zrobił to wbudowany w
 **helm-controller** przy budowie klastra. Nie aktualizuj ich ręcznie przez `helm upgrade`: k3s
 nadpisze zmiany przy restarcie. Ustawienia Traefika w k3s zmienia się plikiem `HelmChartConfig`.
 
-## 9. Repozytorium chartów i wersje
+## 11. Repozytorium chartów i wersje
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
@@ -316,7 +576,7 @@ najnowszą wersję, która może zmienić zachowanie. W labie służy do tego zm
 `KPS_CHART_VERSION` w `lab.env`. Wszystkie wersje pokazuje
 `helm search repo kube-prometheus-stack --versions`.
 
-## 10. Jak dostać się do aplikacji: NodePort i Ingress
+## 12. Jak dostać się do aplikacji: NodePort i Ingress
 
 Pody mają wewnętrzne adresy IP, których nie widać z Twojego komputera. Są dwa sposoby, żeby
 wejść do aplikacji z zewnątrz:
@@ -329,7 +589,7 @@ wejść do aplikacji z zewnątrz:
 NodePort jest prosty, ale przy wielu aplikacjach trzeba pamiętać wiele numerów portów. Ingress
 daje ładne adresy i jedno wejście dla wszystkich.
 
-## 11. Traefik – recepcja klastra
+## 13. Traefik – recepcja klastra
 
 Ingress to tylko **reguła** zapisana w YAML. Żeby ktoś ją wykonywał, potrzebny jest
 **Ingress Controller** – program, który przyjmuje ruch i kieruje go według reguł. W k3s jest nim
@@ -364,7 +624,7 @@ spec:
 Pody `svclb-traefik` widoczne na każdym węźle to „drzwi” Traefika – otwierają porty 80 i 443
 na każdej maszynie.
 
-## 12. CRD – nowe słowa w słowniku Kubernetesa
+## 14. CRD – nowe słowa w słowniku Kubernetesa
 
 Kubernetes zna z fabryki pewien zestaw typów obiektów: Pod, Deployment, Service, Ingress… To jego
 **słownik**.
@@ -393,7 +653,7 @@ kubectl get crd                 # wszystkie CRD w klastrze
 kubectl api-resources | less    # wszystkie typy obiektów, wbudowane i dodane
 ```
 
-## 13. Operator – program, który rozumie nowe słowa
+## 15. Operator – program, który rozumie nowe słowa
 
 Sam CRD to tylko słowo w słowniku – nic nie robi. Potrzebny jest program, który **czyta obiekty
 nowego typu i wykonuje to, co opisują**. Takie połączenie – **CRD + program, który je obsługuje** –
@@ -429,7 +689,7 @@ spec:
 Operator widzi nowy ServiceMonitor i sam dopisuje go do konfiguracji Prometheusa. Nie trzeba
 ręcznie edytować pliku `prometheus.yml` ani restartować Prometheusa.
 
-## 14. Jak to się składa w Etapie 3
+## 16. Jak to się składa w Etapie 3
 
 ```
 helm upgrade --install monitoring ...       ← jedno polecenie
@@ -454,7 +714,7 @@ Ten sam monitoring zainstalujesz w labie na trzy sposoby:
 | skryptem `scripts/04-install-monitoring.sh` | 3 (na koniec) |
 | przez GitOps: Argo CD instaluje i pilnuje stanu z gita | 7 |
 
-## 15. Słowniczek
+## 17. Słowniczek
 
 | Pojęcie | Jednym zdaniem |
 |---|---|
@@ -474,11 +734,16 @@ Ten sam monitoring zainstalujesz w labie na trzy sposoby:
 | **Ingress Controller / Traefik** | recepcja klastra, która wykonuje reguły Ingress |
 | **CRD** | nowe słowo w słowniku Kubernetesa, czyli nowy typ obiektu |
 | **operator** | CRD + program, który wykonuje to, co opisują obiekty nowego typu |
+| **etykieta (label)** | naklejka `klucz=wartość` na obiekcie, po której inne obiekty go znajdują |
+| **selektor** | zapytanie „wszystko z takimi etykietami” – używa go Service, Deployment, `kubectl -l` |
+| **adnotacja** | notatka na obiekcie dla ludzi i narzędzi; nie da się po niej szukać |
+| **ConfigMap** | ustawienia aplikacji poza obrazem, jako zmienne albo pliki |
+| **Secret** | jak ConfigMap, ale na hasła; zapis base64, który **nie** jest szyfrowaniem |
 
 Na rozmowie: *"Helm is a package manager for Kubernetes – a chart is a templated package, values
 customize it, and a release is an installed instance."*
 
-## 16. Ściągawka poleceń Helm
+## 18. Ściągawka poleceń Helm
 
 ```bash
 # Repozytoria
@@ -507,7 +772,7 @@ helm rollback NAZWA 1 -n NS                # wróć do rewizji 1
 helm uninstall NAZWA -n NS                 # usuń wszystko, co założył release
 ```
 
-## 17. Pytania, które mogą paść na rozmowie
+## 19. Pytania, które mogą paść na rozmowie
 
 Pytania z rozmów na stanowisko junior DevOps / administratora, z krótkimi odpowiedziami. Odpowiedź
 na rozmowie powinna mieć 2–4 zdania i – jeśli się da – przykład z labu („w moim labie…”).
@@ -566,6 +831,30 @@ po przekroczeniu limitu pamięci kontener zostaje zabity (OOMKilled), a CPU jest
 **Czym różni się liveness probe od readiness probe?**
 Liveness – „czy żyjesz?”; gdy nie odpowiada, kubelet restartuje kontener. Readiness – „czy jesteś
 gotowy przyjmować ruch?”; gdy nie, pod znika z Service'u, ale nie jest restartowany.
+
+### Etykiety i konfiguracja
+
+**Do czego służą etykiety i selektory?**
+Etykiety to pary klucz=wartość na obiektach, a selektory wybierają obiekty po etykietach. Tak
+Service znajduje pody, a Deployment liczy swoje repliki. W labie Service `podinfo` ma selektor
+`app: podinfo` i nie zna nazw podów, które zmieniają się przy każdym restarcie.
+
+**Co się stanie, gdy zmienię etykietę poda z Deploymentu?**
+ReplicaSet przestanie go liczyć i dorobi nowy pod, a stary zostanie bez właściciela i wypadnie
+z Service. Używa się tego do izolowania chorego poda do diagnozy.
+
+**Etykieta a adnotacja?**
+Po etykietach się wyszukuje (selektory), adnotacje to notatki dla ludzi i narzędzi, np. powód zmiany.
+
+**ConfigMap a Secret?**
+Oba przechowują konfigurację poza obrazem i podaje się je do poda jako zmienne albo pliki. Secret
+jest na dane wrażliwe, ale base64 to nie szyfrowanie – chroni go RBAC, szyfrowanie etcd i to, że
+nie trafia jawnie do gita (Sealed Secrets, SOPS, Vault).
+
+**Zmieniłem ConfigMapę, a aplikacja ma stare ustawienia. Dlaczego?**
+Zmienne środowiskowe ustawia się tylko przy starcie kontenera – trzeba `kubectl rollout restart`.
+Pliki z wolumenu odświeżają się same po ok. minucie (w labie 77 s), ale nie przy `subPath`,
+a aplikacja i tak musi przeczytać plik ponownie.
 
 ### Węzły i harmonogram
 

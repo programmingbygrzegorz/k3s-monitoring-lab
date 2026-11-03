@@ -55,7 +55,7 @@ z tabeli. Szczegóły:
 |---|---|---|
 | 1 | [01-instalacja-monitoringu.md](01-instalacja-monitoringu.md) | instalacja ręczna krok po kroku, każde polecenie wyjaśnione |
 | 2 | [02-plik-values.md](02-plik-values.md) | co robi każda linia pliku values |
-| 3 | [03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md) | teoria: węzły, kubeconfig, Helm, chart, release, CRD, operator |
+| 3 | [03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md) | teoria: etykiety i selektory, ConfigMap i Secret, węzły, kubeconfig, Helm, chart, release, CRD, operator |
 | 4 | [04-teoria-monitoringu.md](04-teoria-monitoringu.md) | teoria: Prometheus, ServiceMonitor, PromQL, alerty, Alertmanager, Grafana |
 | 5 | [05-cwiczenia-monitoringu.md](05-cwiczenia-monitoringu.md) | **ćwiczenia**, 8 poziomów – zrób je sam |
 | 6 | [06-cwiczenia-monitoringu-rozwiazania.md](06-cwiczenia-monitoringu-rozwiazania.md) | **rozwiązania** ćwiczeń ze zrzutami – porównaj po wykonaniu |

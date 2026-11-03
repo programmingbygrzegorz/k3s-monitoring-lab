@@ -3,7 +3,7 @@
 Opis pliku [monitoring/kube-prometheus-stack-values.yaml](../../monitoring/kube-prometheus-stack-values.yaml),
 z którym instalujesz chart **kube-prometheus-stack** w [Etapie 3](01-instalacja-monitoringu.md).
 
-Czym jest chart, values i release – [docs/etap-3-monitoring/03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md#8-chart-values-i-release).
+Czym jest chart, values i release – [docs/etap-3-monitoring/03-teoria-kubernetes-helm.md](03-teoria-kubernetes-helm.md#10-chart-values-i-release).
 
 ## Spis treści
 
