@@ -60,7 +60,8 @@ Stan na 03.11.2026:
 - 🔦 03.11 – **Headlamp 0.46.0 zainstalowany przez właściciela** (Etap 6 rozpoczęty wcześniej): namespace
   `headlamp`, NodePort `:30400`, logowanie tokenem `kubectl create token headlamp -n headlamp --duration=…`
   (konto z `cluster-admin`). Ustawienia przez `--set`, bez pliku values. Opis: `docs/etap-6-gui/01-headlamp.md`.
-- ⏭️ Następny: **Etap 4** – konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
+- ⏭️ Następny: **Etap 4** – **zacznij od przypomnienia o „Pełnym resecie”** (rejestr, Docker, CA
+  postawił Claude; właściciel chce je zbudować sam – decyzja 03.11, reset odłożony do startu Etapu 4), potem konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
   świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
