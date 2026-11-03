@@ -117,6 +117,27 @@ replika (`-0`, `-1`…) składa według niego własny PVC.
 `local-path` nie pilnuje rozmiaru: `10Gi` to tylko opis wniosku, a pod może zapisać tyle, ile
 jest wolnego miejsca na dysku węzła. Pilnuje tego `retention: 7d`.
 
+## Co jeszcze w labie potrzebuje trwałych danych
+
+Zasada: trwały dysk potrzebny jest tam, gdzie program **sam tworzy dane**, których nie da się
+odtworzyć z gita, obrazu czy ConfigMapy. Przegląd wolumenów wszystkich podów
+(`kubectl get pods -A -o jsonpath=…` po `.spec.volumes`) i kontenerów Dockera (`docker inspect`):
+
+| Usługa | Gdzie | Trwałe dane? | Stan |
+|---|---|---|---|
+| Prometheus, Grafana, Alertmanager | klaster | **tak** – metryki, ustawienia, wyciszenia | ten rozdział |
+| **baza klastra k3s** (wszystkie obiekty) | master, `/var/lib/rancher/k3s/server/db` (SQLite) | **tak – najważniejsze** | na dysku mastera, poza podami; kopię robi snapshot VMware |
+| rejestr obrazów `registry:3` | `monitoring`, Docker | **tak** – obrazy | ✅ wolumen Dockera `rejestr-dane` → `/var/lib/registry` |
+| Grafana i Uptime Kuma (Etap 4) | `monitoring`, docker compose | **tak** | ✅ wolumeny `grafana-data`, `uptime-kuma-data` w [docker-compose.yml](../../monitoring/monitoring-vm/docker-compose.yml) |
+| coredns, metrics-server, local-path-provisioner | klaster | nie – konfiguracja z ConfigMap | – |
+| traefik | klaster | nie – w labie nie wystawia certyfikatów Let's Encrypt (wtedy trzymałby je w `/data`) | – |
+| operator, kube-state-metrics, node-exporter | klaster | nie – tylko czytają i przeliczają | – |
+| podinfo, hello-lab, ćwiczenia | klaster | nie – aplikacje bezstanowe | – |
+
+Na przyszłość (dane własne – trzeba zaplanować dysk i kopię): GitLab (Etap 7: repozytoria, baza),
+Semaphore i Portainer (Etap 6: baza ustawień), Wazuh (Etap 9b: zdarzenia bezpieczeństwa).
+Nie potrzebują: Headlamp, Argo CD (stan bierze z gita i klastra), Kyverno, Falco.
+
 ## Krok 1. Pobierz zmiany na masterze
 
 🪟 Windows:
