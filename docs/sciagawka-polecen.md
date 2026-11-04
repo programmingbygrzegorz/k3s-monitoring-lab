@@ -67,7 +67,8 @@ Problem z tym związany: `permission denied … docker.sock` – sesja otwarta p
 | `k get all -A` | obiekty ze wszystkich namespace'ów |
 | `k api-resources --namespaced -o name \| xargs -n1 k -n NS get --ignore-not-found --show-kind` | naprawdę wszystko w namespace |
 | `k -n NS get svc` | Service: typ (ClusterIP / NodePort), porty `80:30400` |
-| `k -n NS get endpoints NAZWA` | do których podów Service kieruje ruch |
+| `k -n NS get endpoints NAZWA` | do których podów Service kieruje ruch (od k8s 1.33 ostrzeżenie „deprecated” – działa dalej) |
+| `k -n NS get endpointslices` | nowsza wersja tego samego: adresy podów za każdym Service (skrót `eps`) |
 | `k -n NS get rs` | ReplicaSety (stare wersje z `0` podów) |
 | `k get pods --show-labels`, `-l app=web` | etykiety / filtrowanie po etykiecie |
 | `k get deploy`, `po`, `svc`, `rs`, `ns`, `no`, `cm`, `pvc`, `ing` | skróty nazw: deployment, pod, service, replicaset, namespace, node, configmap, persistentvolumeclaim, ingress |
