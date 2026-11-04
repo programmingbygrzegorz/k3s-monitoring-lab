@@ -117,6 +117,10 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k exec toolbox -- cat /etc/resolv.conf` | jaki DNS i jakie domeny dopisuje pod (`search …svc.cluster.local`) |
 | `k exec toolbox -- getent hosts USŁUGA.NAMESPACE` | nazwa Service → IP (DNS klastra); `nslookup`/`dig` w obrazie `pnowy/toolbox` kończą się błędem |
 | `k exec toolbox -- curl -s http://USŁUGA.NAMESPACE:PORT/` | połączenie z usługą po nazwie |
+| `k get ingress -A` | wszystkie Ingressy: klasa, hosty, adresy węzłów |
+| `k describe ingress NAZWA -n NS` | reguły host → ścieżka → Service:port i **adresy podów za nim**; zdarzenia na dole |
+| `k get ingress NAZWA -n NS -o yaml` | pełna definicja (to, co w pliku, plus pola dodane przez klaster) |
+| `k get ingressclass` | kontrolery Ingress w klastrze; `(default)` = używany, gdy Ingress nie poda klasy |
 | `curl -H "Host: podinfo.lab.local" http://192.168.180.52/` | test Ingressa bez wpisu w DNS/hosts: dowolny węzeł (Traefik słucha na .51–.55), nazwa w nagłówku `Host`. Na Windowsie w PowerShell 5.1 pisz `curl.exe` |
 | `k -n kube-system get svc kube-dns` | adres DNS klastra (CoreDNS, `10.43.0.10`) |
 
