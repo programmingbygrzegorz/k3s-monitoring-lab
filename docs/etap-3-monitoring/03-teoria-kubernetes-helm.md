@@ -752,6 +752,37 @@ spec:
 Pody `svclb-traefik` widoczne na każdym węźle to „drzwi” Traefika – otwierają porty 80 i 443
 na każdej maszynie.
 
+### Droga jednego zapytania krok po kroku
+
+Co się dzieje, gdy wpiszesz w przeglądarce `http://podinfo.lab.local` (sprawdzone w labie 04.11):
+
+| # | Gdzie | Co się dzieje |
+|---|---|---|
+| 1 | 🪟 Windows | nazwa `podinfo.lab.local` zamienia się na IP – z pliku `hosts` (`192.168.180.52  podinfo.lab.local`), bo w DNS jej nie ma |
+| 2 | sieć | przeglądarka łączy się z `192.168.180.52:80` i w zapytaniu wysyła nagłówek **`Host: podinfo.lab.local`** |
+| 3 | węzeł | port 80 trzyma pod `svclb-traefik-…` (ServiceLB z k3s – obsługa Service typu LoadBalancer) i przekazuje ruch do poda Traefika, nawet jeśli ten stoi na innym węźle |
+| 4 | Traefik | czyta nagłówek `Host` i ścieżkę, szuka pasującej reguły we wszystkich Ingressach z `ingressClassName: traefik` – pasuje `podinfo` w `demo` |
+| 5 | Traefik | reguła wskazuje Service `podinfo`, port `http`; Traefik bierze adresy podów z jego EndpointSlice i wysyła zapytanie **prosto do jednego z podów** (`10.42.x.x:9898`) |
+| 6 | pod | podinfo odpowiada, Traefik odsyła odpowiedź przeglądarce |
+
+Traefik obserwuje API Kubernetesa: nowy albo zmieniony Ingress działa po kilku sekundach, bez
+restartu czegokolwiek. Dzięki nagłówkowi `Host` jedno IP i jeden port obsługują dowolnie wiele
+aplikacji – to **name-based virtual hosting**, ten sam mechanizm co w nginx czy Apache.
+
+Jak to sprawdzić i co znaczą błędy:
+
+```bash
+curl -H "Host: podinfo.lab.local" http://192.168.180.52/   # 200 – reguła pasuje, JSON z podinfo
+curl http://192.168.180.52/                                # 404 – Traefik działa, ale brak reguły dla tej nazwy
+kubectl describe ingress podinfo -n demo                   # reguły i adresy podów za Service
+```
+
+| Wynik | Znaczenie | Gdzie szukać |
+|---|---|---|
+| brak połączenia / timeout | ruch nie dochodzi do Traefika | firewall (port 80), pod Traefika, IP węzła |
+| **404** | Traefik działa, żadna reguła nie pasuje | nazwa w `host:` / plik `hosts`, `ingressClassName`, namespace |
+| **502 / 503** | reguła pasuje, ale nie ma zdrowego poda za Service | `kubectl get endpointslices -n NS`, selector Service vs etykiety podów, readinessProbe |
+
 ## 15. CRD – nowe słowa w słowniku Kubernetesa
 
 Kubernetes zna z fabryki pewien zestaw typów obiektów: Pod, Deployment, Service, Ingress… To jego
