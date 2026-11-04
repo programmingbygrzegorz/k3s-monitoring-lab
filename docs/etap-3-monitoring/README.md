@@ -64,8 +64,10 @@ z tabeli. Szczegóły:
 | 9 | [10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md](10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) | **rozwiązania** tych ćwiczeń ze zrzutami |
 | 10 | [11-cwiczenia-wlasny-chart-helm.md](11-cwiczenia-wlasny-chart-helm.md) | **ćwiczenia**, 7 poziomów: własny chart Helma od zera – `helm create`, szablony, `template`, `install`, `upgrade`, `rollback` |
 | 11 | [12-cwiczenia-wlasny-chart-helm-rozwiazania.md](12-cwiczenia-wlasny-chart-helm-rozwiazania.md) | **odpowiedzi** do tych ćwiczeń i wyniki z labu |
+| 12 | [13-cwiczenia-ingress.md](13-cwiczenia-ingress.md) | **ćwiczenia**, 7 poziomów: Ingress dla whoami, plik `hosts`, nip.io, własne CA i HTTPS na Traefiku |
+| 13 | [14-cwiczenia-ingress-rozwiazania.md](14-cwiczenia-ingress-rozwiazania.md) | **rozwiązania** z wynikami z labu i odpowiedziami |
 | – | [07-symulator-servicemonitor.html](07-symulator-servicemonitor.html) | interaktywny symulator ServiceMonitor → Service → pody: pobierz plik i otwórz w przeglądarce |
-| – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, kubectl na Windowsie, ErrImagePull, Alertmanager, błąd w szablonie |
+| – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, kubectl na Windowsie, ErrImagePull, Alertmanager, błąd w szablonie, `curl.exe` i unieważnianie certyfikatów |
 
 Pierwszy raz z Kubernetesem? Przeczytaj pliki 3 i 4 przed instalacją albo w jej trakcie.
 

@@ -112,3 +112,17 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   pliku (`cat > plik <<'EOF'`).
 - **Wniosek:** `helm template` łapie takie błędy, zanim cokolwiek trafi do klastra. Pliki
   w katalogu domowym twórz bez `sudo`.
+
+## curl.exe na Windowsie: CRYPT_E_NO_REVOCATION_CHECK
+
+- **Objaw:** po dodaniu CA labu do zaufanych na Windowsie przeglądarka otwiera
+  `https://nginx.192.168.180.51.nip.io` bez ostrzeżeń, ale `curl.exe` (4.11.2026) kończy się
+  `curl: (35) schannel: next InitializeSecurityContext failed: CRYPT_E_NO_REVOCATION_CHECK (0x80092012)`.
+- **Przyczyna:** `curl.exe` w Windows korzysta z Schannel, który domyślnie sprawdza, czy certyfikat
+  nie został unieważniony (CRL/OCSP). Certyfikaty z własnego CA labu nie mają adresu listy
+  unieważnień, więc sprawdzenia nie da się wykonać – Schannel traktuje to jako błąd.
+- **Diagnoza:** `curl.exe --ssl-no-revoke …` → `200`; na masterze `curl --cacert ca.crt …` → `200`.
+- **Rozwiązanie:** w labie `--ssl-no-revoke` (albo `curl.exe --ssl-revoke-best-effort`). W firmie CA
+  publikuje listę CRL albo serwer OCSP, a certyfikaty zawierają ich adresy.
+- **Wniosek:** „certyfikat zaufany” i „certyfikat sprawdzony pod kątem unieważnienia” to dwa różne
+  testy; różne programy robią je inaczej.

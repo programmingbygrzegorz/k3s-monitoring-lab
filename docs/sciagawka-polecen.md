@@ -17,8 +17,9 @@ Oznaczenia: 🪟 Windows (PowerShell / Git Bash), 🐧 maszyna Linux przez SSH.
 7. [kubectl – konta i tokeny](#kubectl--konta-i-tokeny)
 8. [Helm](#helm)
 9. [Docker i rejestr](#docker-i-rejestr)
-10. [Ansible (ad-hoc)](#ansible-ad-hoc)
-11. [Git](#git)
+10. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
+11. [Ansible (ad-hoc)](#ansible-ad-hoc)
+12. [Git](#git)
 
 ## Linux – tekst i pliki
 
@@ -183,6 +184,26 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 
 Kolejność przy własnym obrazie: **build → push → `k apply`** (raz na każdą wersję obrazu).
 Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
+
+## DNS, certyfikaty i HTTPS
+
+| Polecenie | Co robi |
+|---|---|
+| 🪟 `nslookup NAZWA` / `Resolve-DnsName NAZWA` | jaki IP ma nazwa i który serwer DNS odpowiedział |
+| 🪟 `ping NAZWA` | szybki test, czy Windows zna nazwę (np. z pliku `hosts`) |
+| `NAZWA.192.168.180.51.nip.io` | nip.io – nazwa, która sama zwraca IP zapisany w środku; bez wpisu w `hosts` |
+| `openssl genrsa -out ca.key 4096` | klucz prywatny (tu: dla CA); `chmod 600` |
+| `openssl req -x509 -new -key ca.key -sha256 -days 3650 -subj "/CN=…" -out ca.crt` | certyfikat własnego CA |
+| `openssl req -new -key tls.key -subj "/CN=NAZWA" -out X.csr` | wniosek o certyfikat serwera (CSR) |
+| `openssl x509 -req -in X.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 365 -sha256 -extfile X.ext -out tls.crt` | CA podpisuje certyfikat; w `X.ext` `subjectAltName=DNS:NAZWA` |
+| `openssl x509 -in tls.crt -noout -subject -issuer -dates -ext subjectAltName` | dla kogo, kto podpisał, ważność, nazwy |
+| `openssl verify -CAfile ca.crt tls.crt` | czy certyfikat jest podpisany przez to CA |
+| `kubectl create secret tls NAZWA --cert=tls.crt --key=tls.key -n NS` | certyfikat i klucz do klastra; Ingress wskazuje go w `tls.secretName` |
+| `curl --cacert ca.crt https://…` / `curl -k https://…` | HTTPS z zaufaniem do własnego CA / bez sprawdzania certyfikatu |
+| 🪟 `Import-Certificate -FilePath ca.crt -CertStoreLocation Cert:\CurrentUser\Root` | Windows ufa CA labu (tylko Twoje konto) |
+| 🪟 `curl.exe --ssl-no-revoke https://…` | pomija sprawdzanie unieważnienia (`CRYPT_E_NO_REVOCATION_CHECK` przy własnym CA) |
+
+Ćwiczenia: [Ingress, nip.io i HTTPS](etap-3-monitoring/13-cwiczenia-ingress.md).
 
 ## Ansible (ad-hoc)
 
