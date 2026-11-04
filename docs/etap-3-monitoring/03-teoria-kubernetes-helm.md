@@ -483,6 +483,27 @@ k3s-worker-3   Ready    worker          v1.36.5+k3s1
 klastra. Gdy klaster padnie, padną razem z nim i nie powiedzą, że jest awaria. Maszyna monitoring
 stoi obok i dalej działa. Zasada: **monitoring nie może zależeć od tego, co monitoruje.**
 
+### Kto jest orkiestratorem
+
+Orkiestratorem jest **Kubernetes** – u nas w dystrybucji **k3s** (v1.36.5+k3s1). Orkiestrator
+decyduje, **gdzie** uruchomić kontener, **pilnuje**, żeby działało tyle kopii, ile zamówiono,
+i **naprawia** różnice. Kontenerów sam nie uruchamia – zleca to węzłom.
+
+| Część | Co robi | Gdzie w labie |
+|---|---|---|
+| **kube-apiserver** | wejście do klastra: każde `kubectl`, Helm, Traefik, kubelet rozmawia tylko z nim | master, w procesie `k3s server` |
+| **baza stanu** | zapisany „stan zamówiony” – wszystkie obiekty | master, SQLite w `/var/lib/rancher/k3s/server/db` (w dużych klastrach etcd) |
+| **kube-scheduler** | wybiera węzeł dla nowego poda (zasoby, taint, nodeSelector, PVC) | master, w `k3s server` |
+| **kube-controller-manager** | pętle kontrolne: Deployment → ReplicaSet → pody, węzeł zniknął → pody gdzie indziej | master, w `k3s server` |
+| **kubelet** | agent na węźle: dostaje przydział poda i każe go uruchomić | każdy węzeł (`k3s agent` na workerach) |
+| **containerd** | runtime – faktycznie uruchamia kontenery z obrazów | każdy węzeł, `containerd://2.3.4-k3s1.36` |
+| **kube-proxy, flannel** | reguły dla Service'ów, sieć podów `10.42.x.x` | każdy węzeł |
+
+W zwykłym Kubernetesie części mastera to osobne pody w `kube-system`; k3s łączy je w jeden proces
+`k3s server` – dlatego `kubectl get pod -n kube-system` nie pokazuje schedulera ani API servera.
+Pętla, którą robią wszystkie kontrolery: **porównaj stan zamówiony z faktycznym → popraw różnicę →
+powtórz** (*reconciliation loop*). Ten sam wzór stosują operator Prometheusa, Traefik i Argo CD.
+
 ## 7. Taint i toleration – kto może stanąć na masterze
 
 W k3s master też jest węzłem – ma kubeleta i mógłby uruchamiać pody. W tym labie ma jednak
