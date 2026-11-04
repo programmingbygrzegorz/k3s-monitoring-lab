@@ -32,48 +32,40 @@ i Packer, własny rejestr obrazów – oraz ćwiczenia z ponad 130 zrzutami z pr
 ## Architektura
 
 ```mermaid
-flowchart LR
-    admin["🪟 Windows 11 + VMware<br/>kubectl · ssh · przeglądarka"]
-
-    subgraph cluster["☸️ Klaster k3s  ·  192.168.180.0/24"]
-        direction TB
-        master["k3s-master .51<br/>control plane · taint NoSchedule"]
-        subgraph workers["Workery"]
-            w1["worker-1 .52"]
-            w2["worker-2 .53"]
-            w3["worker-3 .55<br/>(zbudowany Packerem)"]
-        end
-        traefik["Traefik<br/>Ingress :80/:443"]
-        subgraph mon["namespace: monitoring"]
-            prom["Prometheus :30090<br/>PVC 10Gi"]
-            am["Alertmanager :30093"]
-            graf_in["Grafana :30300"]
-        end
-        subgraph apps["Aplikacje"]
-            podinfo["podinfo ×3<br/>sondy · limity · spread"]
-            hello["hello-lab :30880<br/>własny obraz"]
-        end
-        headlamp["Headlamp :30400<br/>GUI klastra"]
-    end
+flowchart TB
+    admin["🪟 Windows 11 + VMware Workstation<br/>kubectl · ssh · przeglądarka"]
 
     subgraph vm["🖥️ Maszyna monitoring .54"]
-        ansible["Ansible + Vault<br/>węzeł sterujący"]
-        registry["Docker registry:3<br/>:5000 z TLS (własne CA)"]
+        ansible["Ansible + Vault"]
+        registry["Docker registry:3<br/>:5000 z TLS"]
         kuma["Grafana + Uptime Kuma<br/>(Etap 4)"]
+    end
+
+    subgraph cluster["☸️ Klaster k3s · 192.168.180.0/24"]
+        master["k3s-master .51<br/>control plane"]
+        subgraph workers["Workery .52 · .53 · .55"]
+            traefik["Traefik Ingress"]
+            podinfo["podinfo ×3"]
+            hello["hello-lab<br/>własny obraz"]
+            prom["Prometheus<br/>PVC 10Gi"]
+            am["Alertmanager"]
+            graf_in["Grafana"]
+            headlamp["Headlamp"]
+        end
     end
 
     hc["☁️ healthchecks.io<br/>dead man's switch"]
 
-    admin --> master
-    admin --> headlamp
-    ansible -->|playbooki| cluster
-    master --- workers
+    admin -->|kubectl| master
+    admin -->|ssh| ansible
+    ansible -->|playbooki| master
+    master --> workers
     traefik --> podinfo
     prom -->|scrape| podinfo
     prom --> am
-    am -->|Watchdog co 1 min| hc
     graf_in --> prom
-    kuma -->|PromQL / HTTP checks| prom
+    am -->|Watchdog co 1 min| hc
+    kuma -.->|PromQL, HTTP| prom
     hello -.->|pull obrazu| registry
 ```
 
@@ -93,23 +85,32 @@ Host: Windows 11, VMware Workstation, sieć NAT `192.168.180.0/24`.
 
 ```mermaid
 flowchart LR
-    e0["✅ Etap 0<br/>sieć, VM, Packer"] --> e0b["✅ 0b<br/>klucze SSH"]
-    e0b --> e1["✅ Etap 1<br/>system + ćwiczenia<br/>admina Linuxa"]
-    e1 --> e2["✅ Etap 2<br/>k3s przez Ansible<br/>+ Vault"]
-    e2 --> e3["✅ Etap 3<br/>Prometheus, Grafana<br/>Helm, Ingress, PVC"]
-    e3 --> e4["🔧 Etap 4<br/>monitoring zewnętrzny<br/>własny obraz"]
-    e4 --> e5["🔧 Etap 5<br/>scenariusze awarii"]
-    e5 --> e6["🔧 Etap 6<br/>GUI: Headlamp ✅<br/>Portainer, Semaphore"]
-    e6 --> e7["🗓️ Etap 7<br/>GitLab CI, Trivy<br/>Argo CD"]
-    e7 --> e8["🗓️ Etap 8<br/>AIOps"]
-    e8 --> e9["🗓️ Etap 9<br/>kube-bench, Falco<br/>Kyverno, Wazuh, Kali"]
+    subgraph done["✅ Gotowe"]
+        direction TB
+        e0["Etap 0 · sieć, VM, Packer"] --> e0b["Etap 0b · klucze SSH"]
+        e0b --> e1["Etap 1 · system + ćwiczenia Linux, nginx, bazy"]
+        e1 --> e2["Etap 2 · k3s przez Ansible + Vault"]
+        e2 --> e3["Etap 3 · Prometheus, Grafana, Helm, Ingress, PVC"]
+    end
+    subgraph wip["🔧 W trakcie"]
+        direction TB
+        e4["Etap 4 · monitoring zewnętrzny, własny obraz"] --> e5["Etap 5 · scenariusze awarii"]
+        e5 --> e6["Etap 6 · GUI: Headlamp ✅, Portainer, Semaphore"]
+    end
+    subgraph plan["🗓️ W planie"]
+        direction TB
+        e7["Etap 7 · GitLab CI, Trivy, Argo CD"] --> e8["Etap 8 · AIOps"]
+        e8 --> e9["Etap 9 · kube-bench, Falco, Kyverno"]
+        e9 --> e9b["Etap 9b/9c · Wazuh, ataki z Kali"]
+    end
+    done --> wip --> plan
 
-    classDef done fill:#d1f7c4,stroke:#2e7d32,color:#1b5e20
-    classDef wip fill:#fff3c4,stroke:#f9a825,color:#6d4c00
-    classDef plan fill:#e8eaf6,stroke:#5c6bc0,color:#283593
-    class e0,e0b,e1,e2,e3 done
-    class e4,e5,e6 wip
-    class e7,e8,e9 plan
+    classDef d fill:#d1f7c4,stroke:#2e7d32,color:#1b5e20
+    classDef w fill:#fff3c4,stroke:#f9a825,color:#6d4c00
+    classDef p fill:#e8eaf6,stroke:#5c6bc0,color:#283593
+    class e0,e0b,e1,e2,e3 d
+    class e4,e5,e6 w
+    class e7,e8,e9,e9b p
 ```
 
 ## Zrzuty z labu
@@ -132,7 +133,7 @@ flowchart LR
 </tr>
 </table>
 
-Ponad 100 kolejnych zrzutów jest w rozwiązaniach ćwiczeń, każdy z rozpiską użytych poleceń.
+Ponad 120 kolejnych zrzutów jest w rozwiązaniach ćwiczeń, każdy z rozpiską użytych poleceń.
 
 ## Czego tu można się nauczyć (i czego ja się nauczyłem)
 
