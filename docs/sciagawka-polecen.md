@@ -145,6 +145,9 @@ Szczegóły: [Headlamp – logowanie tokenem](etap-6-gui/01-headlamp.md#logowani
 | `helm upgrade NAZWA repo/chart --version X -n NS --reuse-values --set klucz=wartość` | zmiana ustawień, z zachowaniem poprzednich |
 | `helm upgrade --install … -f values.yaml` | instaluje albo aktualizuje z pliku values (lepsza praktyka niż `--set`) |
 | `helm list -A` | wszystkie release'y i ich rewizje |
+| `helm list -A -a` | to samo, razem z release'ami nieudanymi i w trakcie (`failed`, `pending-…`) |
+| `helm history NAZWA -n NS` | historia jednego release'u: rewizje, daty, status, wersja chartu, opis zmiany |
+| `helm list -A --no-headers \| while read n ns rest; do echo "== $n ($ns)"; helm history "$n" -n "$ns"; done` | historia **wszystkich** release'ów naraz (Helm nie ma `history -A`, więc pętla po liście) |
 | `helm get values NAZWA -n NS` | ustawienia podane przez Ciebie (`-a` – wszystkie) |
 | `helm rollback NAZWA 1 -n NS` | powrót do rewizji 1 |
 | `helm uninstall NAZWA -n NS` | usuwa release |
