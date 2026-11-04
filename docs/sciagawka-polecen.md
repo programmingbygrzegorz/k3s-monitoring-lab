@@ -87,7 +87,7 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k -n NS delete all --all` | czyści typowe obiekty, namespace zostaje |
 | `k -n NS delete pod NAZWA` | usuwa pod (Deployment postawi nowy) |
 | `k -n NS scale deployment web --replicas=4` | zmienia liczbę kopii |
-| `k -n NS expose deployment web --port=80 --type=NodePort` | tworzy Service do Deploymentu |
+| `k -n NS expose deployment web --port=80 --type=NodePort` | tworzy Service do Deploymentu: nazwa i selector skopiowane z Deploymentu; bez `--type` = ClusterIP; `--target-port` gdy kontener słucha na innym porcie; `--dry-run=client -o yaml` pokaże YAML |
 
 ⚠️ `delete` nie ma kosza ani pytania „czy na pewno” – najpierw `get`, potem `delete`, i sprawdź `-n`.
 
