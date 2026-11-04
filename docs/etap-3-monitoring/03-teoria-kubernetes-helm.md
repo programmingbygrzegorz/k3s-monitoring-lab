@@ -717,6 +717,20 @@ wejść do aplikacji z zewnątrz:
 NodePort jest prosty, ale przy wielu aplikacjach trzeba pamiętać wiele numerów portów. Ingress
 daje ładne adresy i jedno wejście dla wszystkich.
 
+### Typy Service – wszystkie, z przykładami z labu (04.11)
+
+| Typ | Kto się dostanie | Przykład w labie |
+|---|---|---|
+| **ClusterIP** (domyślny) | tylko z wnętrza klastra: stały adres `10.43.x.x` i nazwa DNS | `whoami`, `kube-dns` (10.43.0.10), `kubernetes` (API, 10.43.0.1) |
+| **ClusterIP: None** (*headless*) | brak wspólnego adresu – DNS zwraca adresy **każdego poda osobno** | `prometheus-operated`, `alertmanager-operated` (StatefulSety) |
+| **NodePort** | ClusterIP + port 30000–32767 na **każdym węźle** | Grafana 30300, Prometheus 30090, Headlamp 30400, podinfo 30898 |
+| **LoadBalancer** | NodePort + **zewnętrzny adres** od load balancera (chmura, MetalLB, w k3s ServiceLB) | `traefik` (80/443 na IP węzłów, pod spodem NodePorty 30199/31497) |
+| **ExternalName** | nie prowadzi do podów – DNS zwraca alias do nazwy spoza klastra (CNAME) | brak; np. `baza` → `db.firma.pl` |
+
+Typy są „zagnieżdżone”: LoadBalancer zawiera NodePort, a NodePort zawiera ClusterIP – dlatego
+`traefik` ma i adres 10.43.201.224, i NodePorty, i adresy węzłów. Lista w labie:
+`kubectl get svc -A`.
+
 ## 14. Traefik – recepcja klastra
 
 Ingress to tylko **reguła** zapisana w YAML. Żeby ktoś ją wykonywał, potrzebny jest
