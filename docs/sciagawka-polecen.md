@@ -120,6 +120,9 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k get ingress -A` | wszystkie Ingressy: klasa, hosty, adresy węzłów |
 | `k describe ingress NAZWA -n NS` | reguły host → ścieżka → Service:port i **adresy podów za nim**; zdarzenia na dole |
 | `k get ingress NAZWA -n NS -o yaml` | pełna definicja (to, co w pliku, plus pola dodane przez klaster) |
+| `kubectl create ingress NAZWA -n NS --class=traefik --rule="host/*=service:port"` | nowy Ingress jednym poleceniem (`/*` = Prefix); `--dry-run=client -o yaml` wypisze YAML zamiast tworzyć |
+| `kubectl apply -f plik.yaml` / `kubectl edit ingress NAZWA -n NS` | zmiana reguł z pliku (lepiej – zostaje w gicie) albo na żywo w edytorze |
+| `kubectl delete ingress NAZWA -n NS` | usuwa tylko regułę – Service i pody działają dalej |
 | `k get ingressclass` | kontrolery Ingress w klastrze; `(default)` = używany, gdy Ingress nie poda klasy |
 | `curl -H "Host: podinfo.lab.local" http://192.168.180.52/` | test Ingressa bez wpisu w DNS/hosts: dowolny węzeł (Traefik słucha na .51–.55), nazwa w nagłówku `Host`. Na Windowsie w PowerShell 5.1 pisz `curl.exe` |
 | `k -n kube-system get svc kube-dns` | adres DNS klastra (CoreDNS, `10.43.0.10`) |
