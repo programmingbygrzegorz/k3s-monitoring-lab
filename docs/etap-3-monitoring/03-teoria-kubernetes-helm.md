@@ -765,6 +765,12 @@ Co się dzieje, gdy wpiszesz w przeglądarce `http://podinfo.lab.local` (sprawdz
 | 5 | Traefik | reguła wskazuje Service `podinfo`, port `http`; Traefik bierze adresy podów z jego EndpointSlice i wysyła zapytanie **prosto do jednego z podów** (`10.42.x.x:9898`) |
 | 6 | pod | podinfo odpowiada, Traefik odsyła odpowiedź przeglądarce |
 
+Stan w labie (04.11): **Traefik ma 1 replikę** (Deployment, pod na `k3s-worker-3`), a „drzwi”
+`svclb-traefik` to **DaemonSet** – po jednym podzie na każdym węźle, także na masterze. Zapytanie
+na `.52` wchodzi przez svclb na worker-1 i jest przekazywane do Traefika na worker-3. Awaria
+worker-3 zatrzymuje wszystkie Ingressy, dopóki Kubernetes nie uruchomi Traefika gdzie indziej.
+Liczbę replik w k3s zmienia się obiektem `HelmChartConfig` (chart Traefika instaluje sam k3s).
+
 Traefik obserwuje API Kubernetesa: nowy albo zmieniony Ingress działa po kilku sekundach, bez
 restartu czegokolwiek. Dzięki nagłówkowi `Host` jedno IP i jeden port obsługują dowolnie wiele
 aplikacji – to **name-based virtual hosting**, ten sam mechanizm co w nginx czy Apache.
