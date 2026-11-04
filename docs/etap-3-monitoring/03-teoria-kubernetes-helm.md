@@ -1135,6 +1135,13 @@ W klastrze, jako pody (często kilka replik, czasem na dedykowanych węzłach). 
 load balancer z jednym adresem VIP (w chmurze usługa dostawcy, on-premise np. HAProxy z keepalived
 albo MetalLB), a DNS kieruje nazwy aplikacji na ten VIP. Load balancer omija niedziałające węzły.
 
+**Skoro Ingress rozkłada ruch, po co przed nim load balancer?**
+Ingress rozkłada ruch **między pody**, ale sam działa na węzłach – ktoś musi zdecydować, na **który
+węzeł** trafi klient. DNS daje klientowi jeden adres; jeśli to IP zwykłego węzła, jego awaria albo
+restart przy aktualizacji zatrzymuje wszystkie aplikacje. Load balancer daje stały adres (VIP)
+niezależny od węzłów, sprawdza ich zdrowie i omija te, które nie odpowiadają. Dwa poziomy:
+load balancer (L4, między węzłami) → Ingress (L7, po nazwie między aplikacjami i pody).
+
 ### Rozszerzanie Kubernetesa
 
 **Czym jest CRD?**
