@@ -149,7 +149,8 @@ Szczegóły: [Headlamp – logowanie tokenem](etap-6-gui/01-headlamp.md#logowani
 | `helm rollback NAZWA 1 -n NS` | powrót do rewizji 1 |
 | `helm uninstall NAZWA -n NS` | usuwa release |
 
-Teoria: [Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md).
+Teoria: [Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md). Wszystkie polecenia i przełączniki:
+oficjalna ściągawka Helma (po angielsku) – [helm.sh/docs/intro/cheatsheet](https://helm.sh/docs/intro/cheatsheet/).
 
 ## Docker i rejestr
 

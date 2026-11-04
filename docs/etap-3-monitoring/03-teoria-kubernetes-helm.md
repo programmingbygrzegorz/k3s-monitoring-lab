@@ -903,6 +903,10 @@ helm rollback NAZWA 1 -n NS                # wróć do rewizji 1
 helm uninstall NAZWA -n NS                 # usuń wszystko, co założył release
 ```
 
+Pełna lista poleceń z przełącznikami: oficjalna ściągawka Helma (po angielsku) –
+[helm.sh/docs/intro/cheatsheet](https://helm.sh/docs/intro/cheatsheet/). Polecenia używane w labie
+zebrane razem: [ściągawka poleceń labu](../sciagawka-polecen.md#helm).
+
 ## 20. Pytania, które mogą paść na rozmowie
 
 Pytania z rozmów na stanowisko junior DevOps / administratora, z krótkimi odpowiedziami. Odpowiedź
