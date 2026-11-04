@@ -78,18 +78,3 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   `playbooks/prepare.yml --limit …`; do roli `k3s_agent` dołącz mastera: `--limit k3s-master,k3s-worker-1`.
 - **Wniosek:** `--limit` ogranicza też maszyny, z których zbierane są dane – przy rolach
   zależnych od innych hostów trzeba je dołączyć.
-
-## kubectl na Windowsie: `localhost:8080 … actively refused`
-
-- **Objaw:** w PowerShellu na Windowsie (4.11.2026) `kubectl get ingress -A` wypisuje serię
-  `couldn't get current server API group list: Get "http://localhost:8080/api…"` i na końcu
-  `Unable to connect to the server: dial tcp [::1]:8080: … actively refused it`.
-- **Przyczyna:** polecenie wpisane na Windowsie zamiast na `k3s-master`. `kubectl` na Windowsie
-  (z Docker Desktop / Minikube) nie ma kubeconfigu do klastra labu, więc próbuje domyślnego
-  `localhost:8080`, gdzie nic nie słucha.
-- **Diagnoza:** znak zachęty `PS C:\…>` zamiast `grzegorz@k3s-master:~$`; `kubectl config view`
-  pokazuje pustą konfigurację (albo kontekst `minikube`).
-- **Rozwiązanie:** `ssh k3s-master` i tam `kubectl …`. Opcjonalnie kubeconfig labu na Windowsie –
-  [teoria, rozdział 9](../etap-3-monitoring/03-teoria-kubernetes-helm.md#9-kubeconfig--klucz-do-klastra).
-- **Wniosek:** przed poleceniem spójrz na znak zachęty – mówi, na której maszynie jesteś.
-  `localhost:8080` w błędzie kubectl = brak kubeconfigu.

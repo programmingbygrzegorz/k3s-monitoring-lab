@@ -62,8 +62,10 @@ z tabeli. Szczegóły:
 | 7 | [08-trwale-dane.md](08-trwale-dane.md) | **trwałe dane**: PVC z `local-path` dla Prometheusa, Grafany i Alertmanagera – krok po kroku |
 | 8 | [09-cwiczenia-etykiety-configmap-pvc.md](09-cwiczenia-etykiety-configmap-pvc.md) | **ćwiczenia**, 8 poziomów: etykiety i selektory, ConfigMap, Secret, własny PVC |
 | 9 | [10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md](10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) | **rozwiązania** tych ćwiczeń ze zrzutami |
+| 10 | [11-cwiczenia-wlasny-chart-helm.md](11-cwiczenia-wlasny-chart-helm.md) | **ćwiczenia**, 7 poziomów: własny chart Helma od zera – `helm create`, szablony, `template`, `install`, `upgrade`, `rollback` |
+| 11 | [12-cwiczenia-wlasny-chart-helm-rozwiazania.md](12-cwiczenia-wlasny-chart-helm-rozwiazania.md) | **odpowiedzi** do tych ćwiczeń i wyniki z labu |
 | – | [07-symulator-servicemonitor.html](07-symulator-servicemonitor.html) | interaktywny symulator ServiceMonitor → Service → pody: pobierz plik i otwórz w przeglądarce |
-| – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, ErrImagePull, Alertmanager |
+| – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, kubectl na Windowsie, ErrImagePull, Alertmanager, błąd w szablonie |
 
 Pierwszy raz z Kubernetesem? Przeczytaj pliki 3 i 4 przed instalacją albo w jej trakcie.
 
