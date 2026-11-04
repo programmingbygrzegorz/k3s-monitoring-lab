@@ -42,6 +42,9 @@ W Etapie 2 to samo robi rola Ansible `common` – skrypt pokazuje, co dzieje si�
 |---|---|---|
 | 1 | [01-skrypt-prepare-node.md](01-skrypt-prepare-node.md) | co robi każda część skryptu |
 | 2 | [02-cwiczenia-admin-linux.md](02-cwiczenia-admin-linux.md) | **ćwiczenia**, 10 poziomów: codzienna praca administratora – logi, `grep`, nowy dysk (LVM), brak miejsca, usługi systemd, procesy, użytkownicy, cron |
-| – | [problemy.md](problemy.md) | problemy z tego etapu: sshd, uprawnienia, duplikaty |
+| 3 | [03-cwiczenia-admin-linux-rozwiazania.md](03-cwiczenia-admin-linux-rozwiazania.md) | rozwiązania ćwiczeń z poziomu 2 – zrzuty z labu i odpowiedzi |
+| 4 | [04-cwiczenia-nginx-bazy.md](04-cwiczenia-nginx-bazy.md) | **ćwiczenia**, 40 typowych problemów: nginx (wirtualne hosty, 403/404/502/504, logi, reverse proxy, HTTPS), PostgreSQL, MariaDB, kopie baz |
+| 5 | [05-cwiczenia-nginx-bazy-rozwiazania.md](05-cwiczenia-nginx-bazy-rozwiazania.md) | rozwiązania 40 problemów – zrzuty z labu i odpowiedzi |
+| – | [problemy.md](problemy.md) | problemy z tego etapu: sshd, uprawnienia, duplikaty, dysk VMware, systemd, logrotate, nginx i IPv6, PostgreSQL |
 
 Następny etap: [Etap 2 – klaster k3s przez Ansible](../etap-2-k3s-ansible/README.md).

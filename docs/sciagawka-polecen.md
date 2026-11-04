@@ -13,16 +13,19 @@ Oznaczenia: 🪟 Windows (PowerShell / Git Bash), 🐧 maszyna Linux przez SSH.
 3. [Linux – logi](#linux--logi)
 4. [Linux – dyski i miejsce](#linux--dyski-i-miejsce)
 5. [Linux – usługi, procesy i harmonogram](#linux--usługi-procesy-i-harmonogram)
-6. [kubectl – oglądanie](#kubectl--oglądanie)
-7. [kubectl – tworzenie, zmiany, usuwanie](#kubectl--tworzenie-zmiany-usuwanie)
-8. [kubectl – wdrożenia i wersje](#kubectl--wdrożenia-i-wersje)
-9. [kubectl – diagnoza](#kubectl--diagnoza)
-10. [kubectl – konta i tokeny](#kubectl--konta-i-tokeny)
-11. [Helm](#helm)
-12. [Docker i rejestr](#docker-i-rejestr)
-13. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
-14. [Ansible (ad-hoc)](#ansible-ad-hoc)
-15. [Git](#git)
+6. [nginx](#nginx)
+7. [PostgreSQL](#postgresql)
+8. [MariaDB / MySQL](#mariadb--mysql)
+9. [kubectl – oglądanie](#kubectl--oglądanie)
+10. [kubectl – tworzenie, zmiany, usuwanie](#kubectl--tworzenie-zmiany-usuwanie)
+11. [kubectl – wdrożenia i wersje](#kubectl--wdrożenia-i-wersje)
+12. [kubectl – diagnoza](#kubectl--diagnoza)
+13. [kubectl – konta i tokeny](#kubectl--konta-i-tokeny)
+14. [Helm](#helm)
+15. [Docker i rejestr](#docker-i-rejestr)
+16. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
+17. [Ansible (ad-hoc)](#ansible-ad-hoc)
+18. [Git](#git)
 
 ## Linux – tekst i pliki
 
@@ -115,6 +118,62 @@ Problem z tym związany: `permission denied … docker.sock` – sesja otwarta p
 | `grep CRON /var/log/syslog` | kiedy cron uruchomił zadania |
 | `sudo logrotate -d plik`, `sudo logrotate -f plik` | rotacja logów: próba bez zmian / wymuszenie |
 | `systemctl list-timers` | zadania uruchamiane przez systemd (np. `logrotate.timer`) |
+| `find katalog -name "*.gz" -mtime +7 -delete` | usuwa pliki starsze niż 7 pełnych dób (rotacja kopii) |
+| `setsid nohup polecenie >/dev/null 2>&1 </dev/null &` | proces w tle odłączony od sesji (SSH nie czeka na niego) |
+
+## nginx
+
+| Polecenie | Co robi |
+|---|---|
+| `sudo nginx -t` | test konfiguracji – **zawsze** przed reload |
+| `sudo nginx -t && sudo systemctl reload nginx` | wczytanie zmian bez przerwy (przy błędzie zostaje stara konfiguracja) |
+| `sudo nginx -T \| grep -E 'server_name\|listen'` | pełna, złożona konfiguracja – co nginx naprawdę wczytał |
+| `sudo ln -s /etc/nginx/sites-available/X /etc/nginx/sites-enabled/` | włączenie strony (wirtualnego hosta) |
+| `curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: sklep.lab' localhost/` | sam kod odpowiedzi wybranej strony |
+| `curl --resolve sklep.lab:443:127.0.0.1 https://sklep.lab` | test nazwy bez DNS (także HTTPS) |
+| `curl -v … 2>&1 \| grep Trying` | na jaki adres naprawdę łączy się `curl` (IPv4 czy IPv6) |
+| `sudo tail -f /var/log/nginx/error.log` | przyczyny 403, 404, 502, 504, 413 |
+| `awk '{print $9}' access.log \| sort \| uniq -c \| sort -nr` | ile odpowiedzi każdego kodu |
+| `awk '{print $1}' access.log \| sort \| uniq -c \| sort -nr` | najaktywniejsze adresy klientów |
+| `namei -l /var/www/strona/index.html` | prawa każdego katalogu w ścieżce (403 przez uprawnienia) |
+| `sudo ss -tlnp 'sport = :80'` | kto zajmuje port 80 |
+| `sudo htpasswd -c /etc/nginx/.htpasswd user` | plik haseł do `auth_basic` |
+| `openssl x509 -in cert.crt -noout -enddate -checkend 2592000` | data ważności; kod 1, gdy wygasa w ciągu 30 dni |
+| `echo \| openssl s_client -connect IP:443 -servername nazwa \| openssl x509 -noout -subject -enddate` | certyfikat, który serwer naprawdę wysyła |
+
+Ćwiczenia: [40 typowych problemów](etap-1-przygotowanie-systemu/04-cwiczenia-nginx-bazy.md).
+
+## PostgreSQL
+
+| Polecenie | Co robi |
+|---|---|
+| `sudo -u postgres psql` | konsola administratora bazy |
+| `pg_lsclusters`, `systemctl status postgresql@18-main` | czy klaster naprawdę działa (`postgresql.service` to tylko parasol) |
+| `psql -h localhost -U app sklep` | logowanie hasłem przez TCP (bez `-h` – `peer` przez gniazdo) |
+| `\l`, `\du`, `\dt`, `\di+`, `\q` (w `psql`) | bazy, role, tabele, indeksy z rozmiarem, wyjście |
+| `pg_hba.conf` + `sudo systemctl reload postgresql` | kto, skąd i jak może się łączyć |
+| `listen_addresses = '*'` w `conf.d/` + restart | nasłuch nie tylko na localhost |
+| `select * from pg_stat_activity;` | kto jest połączony i co robi |
+| `pg_blocking_pids(pid)`, `pg_terminate_backend(pid)` | kto kogo blokuje, zakończenie sesji |
+| `sudo -u postgres pg_dump -Fc baza -f plik.dump` | kopia bazy (format do `pg_restore`) |
+| `pg_restore -l plik.dump`, `pg_restore -d baza -t tabela plik.dump` | spis kopii, odtworzenie jednej tabeli |
+| `EXPLAIN ANALYZE select …` | plan i czas zapytania (`Seq Scan` = czyta całą tabelę) |
+| `select pg_size_pretty(pg_database_size('baza'));` | rozmiar bazy |
+| `/var/log/postgresql/postgresql-18-main.log` | log bazy – przyczyny błędów logowania i startu |
+
+## MariaDB / MySQL
+
+| Polecenie | Co robi |
+|---|---|
+| `sudo mariadb` | konsola jako root (przez `unix_socket`, bez hasła) |
+| `mariadb -h 127.0.0.1 -u blog -p blog` | logowanie przez TCP (`-h localhost` = gniazdo Unix) |
+| `CREATE USER 'blog'@'192.168.180.%' IDENTIFIED BY '…';` | konto = nazwa **i** skąd się łączy |
+| `GRANT ALL ON blog.* TO 'blog'@'localhost';`, `SHOW GRANTS FOR …` | uprawnienia |
+| `ALTER USER 'blog'@'localhost' IDENTIFIED BY '…';` | nowe hasło |
+| `bind-address` w `/etc/mysql/mariadb.conf.d/50-server.cnf` | na jakim adresie słucha serwer |
+| `sudo mariadb-dump --single-transaction baza > kopia.sql` | kopia bez blokowania tabel |
+| `sudo mariadb baza < kopia.sql` | odtworzenie |
+| `mariadb-admin ping`, `journalctl -u mariadb` | czy działa; dziennik (m.in. nieudane logowania) |
 
 ## kubectl – oglądanie
 

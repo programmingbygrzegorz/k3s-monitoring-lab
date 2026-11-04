@@ -80,3 +80,35 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Rozwiązanie:** `su root adm` (i ewentualnie `create 0640 root adm`) w bloku własnego pliku.
 - **Wniosek:** test pojedynczego pliku omija ustawienia globalne – plik w `logrotate.d/` powinien
   być kompletny sam w sobie.
+
+## nginx: nowa strona odpowiada stroną powitalną (IPv6)
+
+- **Objaw:** `curl -H 'Host: sklep.lab' localhost` – `Welcome to nginx!`, a
+  `curl -H 'Host: sklep.lab' http://127.0.0.1/` – właściwa strona. `nginx -t` bez błędów.
+- **Przyczyna:** `curl` łączy się z `localhost` najpierw po IPv6 (`::1`). Vhost miał tylko
+  `listen 80;` (IPv4), więc na `[::]:80` odpowiadał jedyny serwer tam słuchający – `default`.
+- **Diagnoza:** `curl -v … 2>&1 | grep Trying` (`Trying [::1]:80`), `sudo nginx -T | grep listen`.
+- **Rozwiązanie:** w każdym bloku `server` para `listen 80;` i `listen [::]:80;`.
+- **Wniosek:** test przez `127.0.0.1` może przejść, a klienci z IPv6 dostaną inną stronę.
+  Testuj tak, jak łączą się klienci.
+
+## `systemctl is-active postgresql` – `active`, a baza nie działa
+
+- **Objaw:** po zmianie konfiguracji restart „przechodzi”, a aplikacja nie może się połączyć.
+- **Przyczyna:** w Ubuntu `postgresql.service` to tylko jednostka-parasol. Prawdziwy serwer to
+  `postgresql@18-main.service` – on był `failed` (błąd w `postgresql.conf`).
+- **Diagnoza:** `pg_lsclusters` (`down`), `systemctl status postgresql@18-main`, przyczyna
+  w `/var/log/postgresql/postgresql-18-main.log`.
+- **Rozwiązanie:** poprawić konfigurację, `sudo systemctl restart postgresql@18-main`.
+- **Wniosek:** sprawdzaj usługę, która naprawdę wykonuje pracę, i to, czy przyjmuje połączenia
+  (`pg_isready`), a nie tylko stan jednostki.
+
+## SSH nie wraca po uruchomieniu procesu w tle
+
+- **Objaw:** `ssh host "polecenie &"` wypisuje wynik, ale się nie kończy – czeka, aż proces w tle
+  skończy pracę (ćwiczenie z blokadą w PostgreSQL, 04.11.2026).
+- **Przyczyna:** proces w tle odziedziczył standardowe wyjście lub błędy sesji SSH; `ssh` czeka
+  na zamknięcie wszystkich tych strumieni.
+- **Rozwiązanie:** całkowite odłączenie – `setsid nohup polecenie >/dev/null 2>&1 </dev/null &`
+  albo uruchomienie jako usługa (`systemd-run`).
+- **Wniosek:** proces w tle przez SSH musi mieć przekierowane wszystkie trzy strumienie.
