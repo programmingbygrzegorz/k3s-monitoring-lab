@@ -21,7 +21,7 @@ zepsujesz, nie ruszy Kubernetesa. Połączenie z 🪟 Windows: `ssh monitoring`.
 | Poziom | Sytuacja | Czego się uczysz |
 |---|---|---|
 | [0](#poziom-0--co-to-za-maszyna) | „co to za maszyna?” | `hostnamectl`, `uptime`, `free`, `df`, `lsblk`, `ip`, `ss` |
-| [1](#poziom-1--kto-próbował-się-zalogować) | „kto próbował się zalogować?” | `/var/log/auth.log`, `grep`, `awk`, `sort \| uniq -c`, `last` |
+| [1](#poziom-1--kto-próbował-się-zalogować) | „kto próbował się zalogować?” | `/var/log/auth.log`, `grep`, `awk`, `sort \| uniq -c`, `loginctl`, `wtmpdb last` |
 | [2](#poziom-2--logi-systemowe-journalctl) | „co się działo w nocy?” | `journalctl`: `-u`, `-p`, `--since`, `-f`, `-b` |
 | [3](#poziom-3--grep-w-plikach-konfiguracyjnych) | „gdzie to jest ustawione?” | `grep -r -n -i -v -E -A -B`, konfiguracja bez komentarzy |
 | [4](#poziom-4--nowy-dysk) | „dokładamy dysk” | `lsblk`, LVM: `pvcreate`, `vgextend`, `lvcreate`, `lvextend`, `mkfs`, `fstab` |
@@ -102,7 +102,10 @@ Ustal i zapisz w notatkach:
    potem `sort | uniq -c | sort -nr`.
 5. Jakie nazwy użytkowników próbowano – zestaw je tak samo (podpowiedź: `awk` i numer pola albo
    `grep -oE "invalid user [^ ]+"`).
-6. Udane logowania: `grep "Accepted" /var/log/auth.log | tail -5` oraz `last -n 10`.
+6. Udane logowania: `grep "Accepted" /var/log/auth.log | tail -5`. Bieżące sesje: `who`
+   i `loginctl list-sessions`. Historia logowań: na starszych systemach `last -n 10`, ale
+   **Ubuntu 26.04 nie ma już `last`** – zainstaluj następcę `sudo apt install wtmpdb` i użyj
+   `wtmpdb last`.
 7. Starsze wpisy są w `auth.log.1` (i `.gz`): przeszukaj wszystkie naraz – `zgrep`.
 
 **Co powinieneś zobaczyć:** wpisy `Invalid user admin from 192.168.180.1`; licznik prób
@@ -215,8 +218,9 @@ sdb  (PV) ─┘                         └─ data (LV)      → /data   5G
    sudo lvextend -r -L +3G /dev/ubuntu-vg/ubuntu-lv
    df -h /
    ```
-6. Restart i sprawdzenie, że `/data` sam się zamontował: `sudo reboot`, potem `ssh monitoring`
-   i `df -h /data`.
+6. Sprawdzenie `fstab` bez restartu: `sudo systemctl daemon-reload` i `sudo findmnt --verify`
+   (powinno być `Success, no errors or warnings detected`). Potem ostateczny test – restart:
+   `sudo reboot`, `ssh monitoring` i `df -h /data`.
 
 **Co powinieneś zobaczyć:** w `vgs` po kroku 2 około 10 GB wolnego (`VFree`); `/data` ~4,9G;
 `mount -a` bez błędów; `/` z 38G na ~41G; po restarcie `/data` zamontowany.
@@ -232,10 +236,13 @@ sdb  (PV) ─┘                         └─ data (LV)      → /data   5G
 
 **Sytuacja:** monitoring zgłasza „dysk `/` zajęty w 90%”. Znajdź winnego.
 
-1. Zasymuluj problem – duży plik logu i „zapomniany” plik w katalogu tymczasowym:
+1. Zasymuluj problem – duży plik logu i „zapomniany” plik w katalogu tymczasowym (`fallocate`
+   rezerwuje miejsce od razu, bez zapisywania danych). Rozmiary dobierz do wolnego miejsca – po
+   poziomie 4 `/` ma ~41G i ~27G wolnego, więc 15G + 8G daje ok. 90%:
    ```bash
-   sudo fallocate -l 6G /var/log/aplikacja-debug.log
-   sudo fallocate -l 4G /var/tmp/kopia-stara.tar
+   df -h /
+   sudo fallocate -l 15G /var/log/aplikacja-debug.log
+   sudo fallocate -l 8G /var/tmp/kopia-stara.tar
    df -h /
    ```
 2. Gdzie jest najwięcej danych – schodź katalog po katalogu:
@@ -264,7 +271,7 @@ sdb  (PV) ─┘                         └─ data (LV)      → /data   5G
 6. Bonus: co jeszcze często zajmuje miejsce na serwerach – `docker system df`, `/var/cache/apt`
    (`sudo apt clean`), stare jądra (`sudo apt autoremove`).
 
-**Co powinieneś zobaczyć:** `df` – `/` zajęty o ~10 GB więcej; `du` prowadzi do `/var/log` i `/var/tmp`;
+**Co powinieneś zobaczyć:** `df` – `/` zajęty w ~90%; `du` prowadzi do `/var/log` i `/var/tmp`;
 `find` pokazuje oba pliki; po `rm` miejsce nie wraca, `lsof +L1` pokazuje proces `sleep`
 z plikiem `(deleted)`; po `kill` miejsce wraca.
 
@@ -314,8 +321,12 @@ z plikiem `(deleted)`; po `kill` miejsce wraca.
    sudo sed -i 's#/usr/local/bin/licznik.sh#/usr/local/bin/licznk.sh#' /etc/systemd/system/licznik.service
    sudo systemctl restart licznik
    ```
+   Przeczytaj uważnie, co wypisał `restart`, i zrób to, o co prosi.
 4. Diagnoza **samodzielnie**: co mówi `systemctl status licznik`? Co mówi
    `journalctl -u licznik -n 20`? Znajdź przyczynę i napraw (pamiętaj o `daemon-reload`).
+   Jeśli po naprawie usługa **dalej** nie wstaje – przeczytaj ostatnie linie dziennika jeszcze raz.
+   Podpowiedź: `systemctl show -p StartLimitBurst -p StartLimitIntervalUSec licznik`
+   i `systemctl reset-failed`.
 5. Odporność: zabij proces usługi i zobacz, czy wstanie sam:
    ```bash
    sudo systemctl kill -s KILL licznik
@@ -324,8 +335,10 @@ z plikiem `(deleted)`; po `kill` miejsce wraca.
 6. Czy usługa wystartuje po restarcie maszyny: `systemctl is-enabled licznik`.
 
 **Co powinieneś zobaczyć:** w kroku 2 `active (running)` i co 5 s nowa linia w dzienniku. W kroku 3
-`restart` zwraca błąd, w `status` – `failed`, `status=203/EXEC`, w dzienniku
-`Failed to locate executable /usr/local/bin/licznk.sh`. Po naprawie – znowu `active (running)`.
+`restart` najpierw ostrzega, że plik się zmienił (`Run 'systemctl daemon-reload'`); po
+`daemon-reload` w `status` – `status=203/EXEC`, w dzienniku `Unable to locate executable
+'/usr/local/bin/licznk.sh'`. Po naprawie możesz trafić na `Start request repeated too quickly` –
+wtedy `reset-failed`. Na końcu znowu `active (running)`.
 W kroku 5 usługa startuje ponownie sama (nowy PID).
 
 **Sprawdź się:**
@@ -439,11 +452,14 @@ ale **bez** uprawnień administratora.
    sudo logrotate -f /etc/logrotate.d/kopia-zespol
    ls -l /var/log/kopia-zespol.log*
    ```
+   Jeśli `-f` odmówi – przeczytaj komunikat, porównaj z `/etc/logrotate.conf` (`grep -n '^su'`)
+   i napraw swój plik.
 5. Wyłącz zadanie co minutę (usuń linię w `sudo crontab -e`).
 
 **Co powinieneś zobaczyć:** co minutę nowy plik `zespol-….tar.gz` i linia `OK` w logu; w `syslog`
 wpisy `CRON[…]: (root) CMD (/usr/local/bin/kopia-zespol.sh)`; `logrotate -d` opisuje, co **by**
-zrobił; po `-f` plik `kopia-zespol.log.1` i nowy pusty log.
+zrobił; `-f` najpierw odmawia (`insecure permissions`), a po naprawie tworzy
+`kopia-zespol.log.1.gz`.
 
 **Sprawdź się:**
 - Co znaczy każde z pięciu pól w `0 2 * * *`? Jak zapisać „w dni robocze o 6:30”?
@@ -477,12 +493,12 @@ już jego częścią – dlatego snapshot jest lepszą drogą.
 | Sytuacja | Polecenia |
 |---|---|
 | co to za maszyna | `hostnamectl`, `uptime`, `free -h`, `df -h`, `lsblk`, `ip -br a`, `ss -tulpn` |
-| logowania | `grep … /var/log/auth.log`, `last`, `zgrep` |
+| logowania | `grep … /var/log/auth.log`, `zgrep`, `loginctl list-sessions`, `wtmpdb last` |
 | logi | `journalctl -u USŁUGA -p err --since … -f -b`, `dmesg -T` |
 | konfiguracja | `grep -rn`, `grep -Ev "^\s*(#\|$)"`, `sshd -T` |
 | dysk | `pvcreate`, `vgextend`, `lvcreate`, `lvextend -r`, `mkfs.ext4`, `blkid`, `/etc/fstab`, `mount -a` |
 | miejsce | `du -xh --max-depth=1 \| sort -h`, `find -size +500M`, `lsof +L1` |
-| usługi | `systemctl status/start/enable/daemon-reload`, `journalctl -u` |
+| usługi | `systemctl status/start/enable/daemon-reload/reset-failed`, `journalctl -u` |
 | procesy | `top`, `ps aux --sort=-%cpu`, `kill`, `pkill` |
 | użytkownicy | `adduser`, `usermod -aG`, `chmod 2770`, `sudo -l -U` |
 | harmonogram | `crontab -e/-l`, `logrotate -d/-f` |

@@ -33,3 +33,50 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   problem, zanim cokolwiek się zmieniło.
 - **Wniosek:** **idempotentność** – uruchomienie drugi raz nie może psuć. Przy przejściu
   ze skryptów na Ansible trzeba posprzątać po starym sposobie.
+
+## Nowy dysk z VMware niewidoczny w systemie
+
+- **Objaw:** po dodaniu dysku w VMware `lsblk` nie pokazuje `sdb` (ćwiczenia admina, 04.11.2026).
+- **Diagnoza:** `lsblk`, `sudo dmesg -T | grep sd` – brak wpisu o nowym dysku. Ponowne skanowanie
+  magistrali (`echo "- - -" | sudo tee /sys/class/scsi_host/host*/scan`) nic nie dało.
+- **Przyczyna:** pierwsze dodanie dysku nie trafiło do konfiguracji działającej maszyny
+  (dokładnej przyczyny nie ustalono – najczęściej okno *Settings* zamknięte bez *OK*).
+- **Rozwiązanie:** ponowne dodanie dysku w VMware i restart maszyny – w `dmesg`:
+  `[sdb] 20971520 512-byte logical blocks: (10.7 GB/10.0 GiB)`.
+- **Wniosek:** najpierw sprawdź, czy dysk w ogóle jest w konfiguracji maszyny, potem szukaj
+  przyczyny w systemie.
+
+## `last: command not found` na Ubuntu 26.04
+
+- **Objaw:** polecenie do historii logowań nie istnieje.
+- **Przyczyna:** Ubuntu 26.04 nie dostarcza już `last` – stary plik `/var/log/wtmp` miał problem
+  roku 2038 (czas zapisany na 32 bitach).
+- **Rozwiązanie:** `sudo apt install wtmpdb`, potem `wtmpdb last`. Bieżące sesje:
+  `loginctl list-sessions`.
+- **Wniosek:** polecenia znane z poradników znikają w nowych wersjach – sprawdzaj następcę,
+  zamiast instalować stare pakiety na siłę.
+
+## Usługa po naprawie dalej nie wstaje – `Start request repeated too quickly`
+
+- **Objaw:** po poprawieniu literówki w `ExecStart` i `daemon-reload` `systemctl restart` dalej
+  kończy się błędem, `is-active` – `failed`.
+- **Przyczyna:** `Restart=on-failure` wznawiał zepsutą usługę wiele razy, a systemd pozwala na
+  5 startów w 10 sekund (`StartLimitBurst`, `StartLimitIntervalSec`). Po przekroczeniu blokuje
+  usługę, nawet gdy jest już naprawiona.
+- **Diagnoza:** `journalctl -u licznik -n 5` – linia `Start request repeated too quickly`;
+  `systemctl show -p StartLimitBurst -p StartLimitIntervalUSec licznik`.
+- **Rozwiązanie:** `sudo systemctl reset-failed licznik`, potem `restart` (albo odczekać okno
+  10 s).
+- **Wniosek:** czytaj **ostatnie** linie dziennika – przyczyna obecnego błędu bywa inna niż ta,
+  którą właśnie naprawiłeś.
+
+## `logrotate -f`: `parent directory has insecure permissions`
+
+- **Objaw:** `sudo logrotate -f /etc/logrotate.d/kopia-zespol` – `error: skipping … because parent
+  directory has insecure permissions … Set "su" directive`.
+- **Przyczyna:** `/var/log` ma właściciela `root:syslog` i prawo zapisu dla grupy. W takim katalogu
+  `logrotate` wymaga dyrektywy `su`. Ubuntu ma `su root adm` w `/etc/logrotate.conf`, ale
+  uruchomienie z jednym plikiem z `logrotate.d/` nie czyta pliku głównego.
+- **Rozwiązanie:** `su root adm` (i ewentualnie `create 0640 root adm`) w bloku własnego pliku.
+- **Wniosek:** test pojedynczego pliku omija ustawienia globalne – plik w `logrotate.d/` powinien
+  być kompletny sam w sobie.

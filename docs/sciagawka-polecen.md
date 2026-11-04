@@ -10,16 +10,19 @@ Oznaczenia: 🪟 Windows (PowerShell / Git Bash), 🐧 maszyna Linux przez SSH.
 
 1. [Linux – tekst i pliki](#linux--tekst-i-pliki)
 2. [Linux – użytkownicy i grupy](#linux--użytkownicy-i-grupy)
-3. [kubectl – oglądanie](#kubectl--oglądanie)
-4. [kubectl – tworzenie, zmiany, usuwanie](#kubectl--tworzenie-zmiany-usuwanie)
-5. [kubectl – wdrożenia i wersje](#kubectl--wdrożenia-i-wersje)
-6. [kubectl – diagnoza](#kubectl--diagnoza)
-7. [kubectl – konta i tokeny](#kubectl--konta-i-tokeny)
-8. [Helm](#helm)
-9. [Docker i rejestr](#docker-i-rejestr)
-10. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
-11. [Ansible (ad-hoc)](#ansible-ad-hoc)
-12. [Git](#git)
+3. [Linux – logi](#linux--logi)
+4. [Linux – dyski i miejsce](#linux--dyski-i-miejsce)
+5. [Linux – usługi, procesy i harmonogram](#linux--usługi-procesy-i-harmonogram)
+6. [kubectl – oglądanie](#kubectl--oglądanie)
+7. [kubectl – tworzenie, zmiany, usuwanie](#kubectl--tworzenie-zmiany-usuwanie)
+8. [kubectl – wdrożenia i wersje](#kubectl--wdrożenia-i-wersje)
+9. [kubectl – diagnoza](#kubectl--diagnoza)
+10. [kubectl – konta i tokeny](#kubectl--konta-i-tokeny)
+11. [Helm](#helm)
+12. [Docker i rejestr](#docker-i-rejestr)
+13. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
+14. [Ansible (ad-hoc)](#ansible-ad-hoc)
+15. [Git](#git)
 
 ## Linux – tekst i pliki
 
@@ -53,7 +56,65 @@ Szczegóły grep: wyjaśnienie z rozmowy 03.11.2026 (przełączniki, wyrażenia 
 | `exit`, potem `ssh monitoring` | ponowne logowanie – nowe grupy zaczynają działać |
 | `ls -l /var/run/docker.sock` | uprawnienia pliku (`srw-rw---- root docker` – tylko root i grupa docker) |
 
+| `sudo adduser --disabled-password --gecos "Anna Nowak" anna` | nowe konto bez hasła (logowanie tylko kluczem) |
+| `sudo groupadd devops` | nowa grupa |
+| `sudo chown root:devops katalog`, `sudo chmod 2770 katalog` | wspólny katalog zespołu; `2` = setgid – nowe pliki dostają grupę katalogu |
+| `sudo -u anna polecenie` | uruchamia polecenie jako inny użytkownik (test uprawnień) |
+| `sudo -l -U anna` | co `anna` może robić przez `sudo` |
+| `getent group sudo`, `grep anna /etc/passwd` | członkowie grupy, wpis konta |
+| `sudo usermod -L anna`, `sudo passwd -S anna` | blokada konta, stan hasła (`L` = zablokowane) |
+
 Problem z tym związany: `permission denied … docker.sock` – sesja otwarta przed dodaniem do grupy.
+Ćwiczenia: [codzienna praca administratora Linuxa](etap-1-przygotowanie-systemu/02-cwiczenia-admin-linux.md).
+
+## Linux – logi
+
+| Polecenie | Co robi |
+|---|---|
+| `grep 'Invalid user' /var/log/auth.log` | nieudane próby logowania SSH (nieistniejące konta) |
+| `grep -oE 'from [0-9.]+' … \| sort \| uniq -c \| sort -nr` | ile razy wystąpił każdy adres, najczęstsze na górze |
+| `zgrep wzorzec /var/log/auth.log*` | `grep` także w starych, spakowanych logach (`.gz`) |
+| `loginctl list-sessions`, `who` | bieżące sesje (`last` w Ubuntu 26.04 zastąpiło `wtmpdb last`) |
+| `journalctl -b -p err` | błędy i gorsze od ostatniego uruchomienia |
+| `journalctl -u ssh --since "1 hour ago"` | logi jednej usługi z ostatniej godziny |
+| `journalctl -u licznik -f` | logi usługi na żywo (Ctrl+C kończy) |
+| `journalctl --list-boots`, `journalctl -b -1` | lista uruchomień, logi poprzedniego uruchomienia |
+| `journalctl --disk-usage`, `sudo journalctl --vacuum-size=200M` | ile zajmuje dziennik, przycięcie go |
+| `sudo dmesg -T \| tail`, `journalctl -k` | komunikaty jądra (dyski, sieć, OOM) |
+| `sudo sshd -T \| grep passwordauthentication` | ostateczna konfiguracja SSH po złożeniu wszystkich plików |
+
+## Linux – dyski i miejsce
+
+| Polecenie | Co robi |
+|---|---|
+| `lsblk`, `df -h`, `blkid` | dyski i partycje, zajęte miejsce, UUID systemu plików |
+| `sudo pvs`, `sudo vgs`, `sudo lvs` | LVM: dyski fizyczne, pule, wolumeny |
+| `sudo pvcreate /dev/sdb`, `sudo vgextend ubuntu-vg /dev/sdb` | nowy dysk do puli LVM |
+| `sudo lvcreate -n data -L 5G ubuntu-vg`, `sudo mkfs.ext4 /dev/ubuntu-vg/data` | nowy wolumen i system plików |
+| `sudo lvextend -r -L +3G /dev/ubuntu-vg/ubuntu-lv` | powiększa wolumen **i** system plików w trakcie pracy |
+| `UUID=…  /data  ext4  defaults  0  2` w `/etc/fstab`, `sudo mount -a` | montowanie na stałe i test bez restartu |
+| `sudo findmnt --verify` | sprawdza `fstab` (błąd = system nie wstanie) |
+| `sudo du -xh --max-depth=1 / \| sort -h` | które katalogi zajmują najwięcej (bez innych dysków) |
+| `sudo find / -xdev -type f -size +500M` | największe pliki |
+| `sudo lsof +L1` | pliki usunięte, ale wciąż otwarte – „usunąłem, a miejsca nie ma” |
+| `sudo truncate -s 0 /proc/PID/fd/N` | zwalnia miejsce po takim pliku bez zabijania procesu |
+
+## Linux – usługi, procesy i harmonogram
+
+| Polecenie | Co robi |
+|---|---|
+| `systemctl status usługa`, `systemctl is-active / is-enabled` | stan usługi |
+| `sudo systemctl daemon-reload` | wczytuje zmienione pliki `.service` |
+| `sudo systemctl enable --now usługa` | start teraz i przy każdym uruchomieniu systemu |
+| `sudo systemctl reset-failed usługa` | kasuje licznik po `Start request repeated too quickly` |
+| `systemctl show -p NRestarts -p MainPID usługa` | ile razy wznowiona, aktualny PID |
+| `uptime`, `top` (`P`, `M`, `1`, `q`), `htop` | obciążenie, procesy na żywo |
+| `ps aux --sort=-%cpu \| head`, `ps -o pid,user,lstart,cmd -p PID` | najbardziej obciążające procesy, kto i kiedy uruchomił |
+| `kill PID`, `kill -9 PID`, `pkill nazwa` | łagodne zakończenie / siłą / wszystkie po nazwie |
+| `sudo crontab -l`, `sudo crontab -e`, `sudo crontab -r` | zadania crona roota: pokaż / edytuj / usuń wszystkie |
+| `grep CRON /var/log/syslog` | kiedy cron uruchomił zadania |
+| `sudo logrotate -d plik`, `sudo logrotate -f plik` | rotacja logów: próba bez zmian / wymuszenie |
+| `systemctl list-timers` | zadania uruchamiane przez systemd (np. `logrotate.timer`) |
 
 ## kubectl – oglądanie
 
