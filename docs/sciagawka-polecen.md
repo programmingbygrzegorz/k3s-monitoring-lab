@@ -126,7 +126,7 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `kubectl delete ingress NAZWA -n NS` | usuwa tylko regułę – Service i pody działają dalej |
 | `k get ingressclass` | kontrolery Ingress w klastrze; `(default)` = używany, gdy Ingress nie poda klasy |
 | `curl -H "Host: podinfo.lab.local" http://192.168.180.52/` | test Ingressa bez wpisu w DNS/hosts: dowolny węzeł (Traefik słucha na .51–.55), nazwa w nagłówku `Host`. Na Windowsie w PowerShell 5.1 pisz `curl.exe` |
-| `curl -s http://192.168.180.52:9100/metrics | grep ^node_load` | surowe metryki node-exportera z węzła (port 9100, ok. 860 metryk `node_…`) – to samo, co co 30 s zbiera Prometheus |
+| `curl -s http://192.168.180.52:9100/metrics \| grep ^node_load` | surowe metryki node-exportera z węzła (port 9100, ok. 860 metryk `node_…`) – to samo, co co 30 s zbiera Prometheus |
 | `k -n kube-system get svc kube-dns` | adres DNS klastra (CoreDNS, `10.43.0.10`) |
 
 Typowe błędy (ImagePullBackOff, CrashLoopBackOff…):
