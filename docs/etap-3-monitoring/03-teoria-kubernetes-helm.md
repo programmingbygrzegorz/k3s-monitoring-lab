@@ -805,6 +805,18 @@ Internet → DNS (*.firma.pl → VIP) → firewall / WAF → load balancer (VIP)
 Load balancer sprawdza, które węzły odpowiadają (health check) – awaria węzła nie zatrzymuje
 ruchu, czego w labie nie daje wpis z jednym IP (.52) w pliku `hosts`.
 
+**MetalLB** – load balancer dla klastrów na własnych maszynach (bare metal, VMware), gdzie nie ma
+chmury, która przydzieli adres dla Service typu `LoadBalancer`. Dostaje pulę wolnych adresów z sieci
+(np. `192.168.180.200–210`) i każdemu takiemu Service daje z niej **osobny adres VIP**. Tryby:
+
+| Tryb | Jak ogłasza adres | Co daje |
+|---|---|---|
+| **L2** (najprostszy) | jeden węzeł odpowiada na ARP „kto ma .200?”; gdy padnie, adres przejmuje inny | przełączanie awaryjne (failover); cały ruch VIP idzie przez jeden węzeł |
+| **BGP** | węzły ogłaszają adres routerowi sieci | prawdziwe rozkładanie ruchu między węzły; wymaga routera z BGP |
+
+W k3s tę rolę pełni wbudowany **ServiceLB** (pody `svclb-traefik-…`): zamiast nowego adresu
+używa IP wszystkich węzłów. MetalLB w k3s instaluje się po wyłączeniu ServiceLB (`--disable servicelb`).
+
 ## 15. CRD – nowe słowa w słowniku Kubernetesa
 
 Kubernetes zna z fabryki pewien zestaw typów obiektów: Pod, Deployment, Service, Ingress… To jego
