@@ -41,6 +41,7 @@ W Etapie 2 to samo robi rola Ansible `common` – skrypt pokazuje, co dzieje si�
 | Kolejność | Plik | Co w nim jest |
 |---|---|---|
 | 1 | [01-skrypt-prepare-node.md](01-skrypt-prepare-node.md) | co robi każda część skryptu |
+| 2 | [02-cwiczenia-admin-linux.md](02-cwiczenia-admin-linux.md) | **ćwiczenia**, 10 poziomów: codzienna praca administratora – logi, `grep`, nowy dysk (LVM), brak miejsca, usługi systemd, procesy, użytkownicy, cron |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: sshd, uprawnienia, duplikaty |
 
 Następny etap: [Etap 2 – klaster k3s przez Ansible](../etap-2-k3s-ansible/README.md).
