@@ -3,6 +3,10 @@
 Wykonanie poziomów z [ćwiczeń](02-cwiczenia-admin-linux.md) na maszynie `monitoring`
 (`192.168.180.54`, Ubuntu 26.04.1), ze zrzutami terminala i odpowiedziami na „Sprawdź się”.
 
+**Pod każdym zrzutem** jest rozpiska jego poleceń („Polecenia ze zrzutu”). Elementy, które
+powtarzają się wszędzie (`|`, `2>/dev/null`, `$(…)`, `awk`, `sed`, `grep -E`…), są wyjaśnione
+w [słowniczku składni](06-jak-czytac-polecenia.md) – przeczytaj go przed rozwiązaniami.
+
 **Jak powstały zrzuty (04.11.2026):** polecenia wykonał Claude przez SSH z Windowsa, z tymczasowym
 `sudo` bez hasła (`/etc/sudoers.d/99-claude-tymczasowe`). Na zrzucie każde polecenie jest
 poprzedzone znakiem zachęty, a długie wyniki są przycięte (`cut`, `head`, `tail`). Restart
@@ -34,7 +38,24 @@ pojawił się dopiero po ponownym dodaniu w VMware i restarcie maszyny. W `lsblk
 
 ![hostnamectl, uptime, nproc, free](img/0-system.png)
 
+**Polecenia ze zrzutu:**
+
+- `hostnamectl` – nazwa maszyny, system, jądro, wirtualizacja w jednym miejscu.
+- `uname -r` – sama wersja jądra (`-r` = *release*).
+- `uptime` – godzina, jak długo działa (`up 2 min`), ilu zalogowanych, `load average` z 1, 5 i 15 minut.
+- `nproc` – liczba rdzeni procesora.
+- `free -h` – pamięć RAM i swap; `-h` = jednostki „ludzkie” (`Gi`, `Mi`) zamiast bajtów.
+
 ![lsblk, df, ip, ss, usługi](img/0-dyski-siec.png)
+
+**Polecenia ze zrzutu:**
+
+- `lsblk -e7` – dyski i partycje jako drzewo; `-e7` ukrywa urządzenia typu 7 (`loop` – obrazy snapów).
+- `df -h -x tmpfs -x overlay` – zajętość systemów plików; `-x` wyklucza typy: `tmpfs` (w pamięci) i `overlay` (Docker).
+- `ip -br a` – adresy wszystkich interfejsów w skrócie (`-br` = *brief*, `a` = *address*).
+- `ip r` – tablica tras (`r` = *route*); `default via` to brama.
+- `sudo ss -tulpn` – porty, na których coś słucha: `-t` TCP, `-u` UDP, `-l` tylko nasłuchujące, `-p` z nazwą procesu (stąd `sudo`), `-n` numery zamiast nazw.
+- `systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}' | head -25` – działające usługi; `--no-legend` bez nagłówka i podsumowania, `awk '{print $1}'` zostawia tylko pierwszą kolumnę (nazwę), `head -25` – pierwsze 25.
 
 **Notatka o maszynie:**
 
@@ -66,7 +87,23 @@ Z Windowsa: `ssh admin@…`, `ssh root@…`, `ssh test@…`, `ssh oracle@…`, `
 
 ![nieudane próby w auth.log](img/1-auth-nieudane.png)
 
+**Polecenia ze zrzutu:**
+
+- `grep -E 'Invalid user|Failed password|Connection closed by (invalid|authenticating) user' /var/log/auth.log | tail -6 | cut -c1-140` – linie z którymkolwiek z trzech komunikatów (`-E` pozwala na `|` = „albo” i nawiasy); z nich ostatnie 6 (`tail -6`), każda przycięta do 140 znaków (`cut -c1-140`).
+- `grep -c 'Invalid user' /var/log/auth.log` – tylko **liczba** pasujących linii (`-c` = *count*).
+- `grep 'Invalid user' … | grep -oE 'from [0-9.]+' | sort | uniq -c | sort -nr` – z linii z nieudanym logowaniem wytnij tylko fragment `from ADRES` (`-o` = tylko pasujący kawałek, `[0-9.]+` = cyfry i kropki), ułóż, policz powtórzenia, największe liczby na górę (`-n` liczbowo, `-r` odwrotnie). Rozpisane w [słowniczku](06-jak-czytac-polecenia.md#4-łączenie-poleceń----).
+- `grep -oE 'Invalid user [^ ]+' … | awk '{print $3}' | sort | uniq -c | sort -nr` – wytnij „Invalid user NAZWA” (`[^ ]+` = ciąg znaków bez spacji), `awk` bierze trzecie słowo (samą nazwę), dalej liczenie jak wyżej.
+- `zgrep -h 'Invalid user' /var/log/auth.log* | wc -l` – szukaj we **wszystkich** plikach `auth.log`, także spakowanych `.gz` (`zgrep`), bez nazw plików (`-h`), policz linie (`wc -l`).
+
 ![udane logowania, last, who, loginctl](img/1-auth-udane.png)
+
+**Polecenia ze zrzutu:**
+
+- `grep 'Accepted' /var/log/auth.log | tail -3 | cut -c1-150` – trzy ostatnie udane logowania.
+- `grep 'Accepted' … | awk '{print $5, $7, $9}' | sort | uniq -c` – z każdej linii pola 5, 7 i 9 (metoda, użytkownik, adres), potem policzone. Numery pól ustala się, licząc słowa w linii logu.
+- `last -n 5` – historia logowań; w Ubuntu 26.04 nie istnieje (`command not found`).
+- `who` – kto jest zalogowany na terminalu (tty).
+- `loginctl list-sessions --no-pager` – sesje według `systemd-logind` (także bez terminala).
 
 Rozwiązanie kroków 4 i 5:
 
@@ -108,9 +145,27 @@ wtmpdb last                       # historia logowań, jak dawniej last
 
 ![journalctl -p err, -u ssh, -u docker, list-boots](img/2-journal-bledy.png)
 
+**Polecenia ze zrzutu:**
+
+- `journalctl -b -p err --no-pager | cut -c1-130` – dziennik od ostatniego startu (`-b` = *boot*), tylko błędy i gorsze (`-p err` = *priority*), wypisany w całości (`--no-pager`), przycięty.
+- `journalctl -u ssh --since '10 min ago' --no-pager | tail -5` – tylko usługa `ssh` (`-u` = *unit*) z ostatnich 10 minut, ostatnie 5 linii.
+- `journalctl -u docker -n 5 --no-pager` – 5 ostatnich wpisów usługi `docker` (`-n` = liczba linii).
+- `journalctl --list-boots --no-pager` – lista uruchomień systemu z datami; `0` – bieżące, `-1` – poprzednie.
+- `journalctl --disk-usage` – ile miejsca zajmuje dziennik.
+
 ![journalctl -f – logowanie na żywo](img/2-journal-na-zywo.png)
 
+**Polecenia ze zrzutu:**
+
+- `timeout 9 journalctl -f -n 0 -u ssh --no-pager | cut -c1-140` – śledź dziennik `ssh` na żywo (`-f` = *follow*), bez starych wpisów (`-n 0`). `timeout 9` przerywa po 9 sekundach – w tym czasie nastąpiło logowanie z Windowsa. Ty zamiast `timeout` przerwiesz Ctrl+C.
+
 ![dmesg – wykrycie dysku sdb](img/2-dmesg.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo dmesg -T | grep -iE 'sd[ab]\b|sdb' | tail -8 | cut -c1-130` – komunikaty jądra z czytelnym czasem (`-T`), tylko o dyskach `sda`/`sdb` (`[ab]` = jedna z liter, `\b` = koniec słowa), ostatnie 8.
+- `journalctl -k -b --no-pager | grep -i 'sdb' | head -5` – to samo z dziennika: tylko jądro (`-k` = *kernel*) od startu, pierwsze 5 wzmianek o `sdb`.
+- `journalctl -b --no-pager | grep -ciE 'error|fail'` – ile linii od startu zawiera „error” albo „fail” bez względu na wielkość liter (`-c` liczba, `-i` wielkość liter, `-E` dla `|`).
 
 Wyniki: w `-p err` tylko jeden wpis – `piix4_smbus … SMBus Host Controller not enabled!`. To znany,
 niegroźny komunikat o wirtualnej płycie głównej VMware. Lista uruchomień: 6 (od 28.10). Dziennik
@@ -134,7 +189,22 @@ komunikaty, w których słowo „fail” występuje w nazwie opcji. Dlatego `-p 
 
 ![grep PasswordAuthentication i sshd -T](img/3-grep-ssh.png)
 
+**Polecenia ze zrzutu:**
+
+- `grep -n -i 'PasswordAuthentication' /etc/ssh/sshd_config` – szukaj ustawienia z numerami linii (`-n`), bez względu na wielkość liter (`-i`).
+- `sudo grep -rn -i 'PasswordAuthentication' /etc/ssh/sshd_config.d/` – to samo we wszystkich plikach katalogu (`-r` = rekurencyjnie); wynik ma postać `plik:linia:treść`.
+- `grep -n -i 'Include' /etc/ssh/sshd_config` – gdzie główny plik dołącza inne pliki.
+- `sudo sshd -T | grep -i -E 'passwordauthentication|permitrootlogin|…'` – `sshd -T` (*test*) wypisuje całą ostateczną konfigurację, `grep` zostawia cztery interesujące ustawienia.
+
 ![konfiguracja bez komentarzy, kontekst, /etc/hosts, ufw](img/3-grep-bez-komentarzy.png)
+
+**Polecenia ze zrzutu:**
+
+- `grep -Ev '^\s*(#|$)' /etc/ssh/sshd_config` – usuń (`-v`) linie, które od początku (`^`), po ewentualnych odstępach (`\s*`), mają `#` albo od razu koniec linii (`$`). Zostają tylko prawdziwe ustawienia.
+- `grep -n -B2 -A2 '^#Port' /etc/ssh/sshd_config` – linia zaczynająca się od `#Port` plus 2 linie przed (`-B2` = *before*) i 2 po (`-A2` = *after*).
+- `sudo grep -rl '192.168.180.51' /etc 2>/dev/null` – w całym `/etc` (`-r`) wypisz tylko **nazwy plików** (`-l`) z tym adresem; komunikaty o błędach do kosza (`2>/dev/null`).
+- `sudo ufw status | grep -ci deny` – ile linii reguł zawiera „deny”.
+- `sudo ufw status numbered | head -12` – reguły z numerami (potrzebne do `ufw delete NUMER`).
 
 **Niespodzianka – dwa pliki, dwa różne ustawienia:**
 
@@ -172,15 +242,55 @@ otwarte mimo `ufw`. To częsta pułapka w produkcji. Rozwiązania: publikować p
 
 ![lsblk, pvs, vgs, lvs przed zmianami](img/4-lvm-przed.png)
 
+**Polecenia ze zrzutu:**
+
+- `lsblk -e7 -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS` – drzewo dysków z wybranymi kolumnami (`-o` = *output*): nazwa, rozmiar, typ, system plików, punkt montowania.
+- `sudo pvs`, `sudo vgs`, `sudo lvs` – skrócone listy LVM: dyski fizyczne (*physical volumes*), pule (*volume groups*), wolumeny (*logical volumes*). `PFree`/`VFree` – wolne miejsce.
+- `df -h /` – zajętość tylko systemu plików `/`.
+
 ![pvcreate i vgextend](img/4-lvm-pv-vg.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo pvcreate /dev/sdb` – oznacz cały dysk `sdb` jako PV (zapisuje nagłówek LVM, kasuje to, co było).
+- `sudo vgextend ubuntu-vg /dev/sdb` – dołącz PV do istniejącej puli `ubuntu-vg`.
+- `sudo pvs`, `sudo vgs` – sprawdzenie: dwa PV, pula 47,99g, wolne `<10.00g`.
 
 ![lvcreate, mkfs, mount](img/4-lvm-data.png)
 
+**Polecenia ze zrzutu:**
+
+- `sudo lvcreate -n data -L 5G ubuntu-vg` – nowy wolumen o nazwie (`-n`) `data`, rozmiarze (`-L`) 5 GB, z puli `ubuntu-vg`.
+- `sudo mkfs.ext4 -q /dev/ubuntu-vg/data && echo 'mkfs OK'` – utwórz system plików ext4 (*make filesystem*), cicho (`-q`); po sukcesie wypisz `mkfs OK`.
+- `sudo mkdir /data` – katalog, w którym wolumen będzie widoczny (punkt montowania).
+- `sudo mount /dev/ubuntu-vg/data /data` – podłącz wolumen do katalogu (do restartu).
+- `df -h /data` – sprawdzenie rozmiaru.
+
 ![fstab po UUID i mount -a](img/4-fstab.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo cp /etc/fstab /etc/fstab.bak` – kopia przed zmianą.
+- `sudo blkid /dev/ubuntu-vg/data` – UUID i typ systemu plików.
+- `echo 'UUID=…  /data  ext4  defaults  0  2' | sudo tee -a /etc/fstab` – dopisz linię na końcu `fstab` (`tee -a`, bo `>>` nie działa z `sudo` – [dlaczego](06-jak-czytac-polecenia.md#5-przekierowania-i-devnull)). Pola: co, gdzie, typ, opcje, `0` – bez `dump`, `2` – sprawdzaj przy starcie po `/`.
+- `sudo umount /data` – odłącz, żeby sprawdzić, czy `fstab` sam go podłączy.
+- `sudo mount -a && echo 'mount -a OK'` – zamontuj wszystko z `fstab`; komunikat tylko przy sukcesie.
+- `findmnt /data` – co i z jakimi opcjami jest zamontowane w `/data`.
+- `tail -3 /etc/fstab` – trzy ostatnie linie pliku.
 
 ![lvextend -r: / z 38G na 41G](img/4-lvextend.png)
 
+**Polecenia ze zrzutu:**
+
+- `sudo lvextend -r -L +3G /dev/ubuntu-vg/ubuntu-lv` – powiększ wolumen o (`+`) 3 GB (`-L`) i od razu system plików na nim (`-r` = *resizefs*).
+- `lsblk -e7 -o NAME,SIZE,TYPE,MOUNTPOINTS` – widać, że `ubuntu-lv` leży na `sda3` i `sdb`.
+
 ![findmnt --verify zamiast restartu](img/4-fstab-verify.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo systemctl daemon-reload` – systemd tworzy z `fstab` jednostki montowania; po zmianie `fstab` trzeba je odświeżyć.
+- `sudo findmnt --verify --tab-file /etc/fstab` – sprawdź poprawność pliku (`--tab-file` – który plik).
 
 Po kroku 2 pula `ubuntu-vg` urosła do 47,99 GB, wolne `<10.00g`. `/data` ma 4,9G (część zajmują
 struktury ext4). `lvextend -r` powiększył wolumen i od razu system plików (`resize2fs … on-line
@@ -213,11 +323,31 @@ Pliki z ćwiczeń (6G i 4G) dały u nas tylko ~55% zajęcia, więc użyto **15G 
 
 ![fallocate – dysk zajęty w 91%](img/5-pelny-dysk.png)
 
+**Polecenia ze zrzutu:**
+
+- `sudo fallocate -l 15G /var/log/aplikacja-debug.log` – utwórz plik o długości (`-l`) 15 GB; miejsce jest rezerwowane od razu, bez zapisywania danych (trwa ułamek sekundy).
+
 ![du i find – szukanie winnego](img/5-du-find.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo du -xh --max-depth=1 / 2>/dev/null | sort -h | tail -5` – ile zajmuje każdy katalog pierwszego poziomu pod `/` (`--max-depth=1`), tylko ten system plików (`-x`), w czytelnych jednostkach (`-h`); bez błędów; posortuj „ludzko” (`sort -h` rozumie `G` i `M`); pokaż 5 największych.
+- `sudo find / -xdev -type f -size +500M -exec ls -lh {} \; 2>/dev/null` – pliki większe niż 500 MB, z pełnym opisem z `ls -lh`. Rozpisane w [słowniczku](06-jak-czytac-polecenia.md#13-find).
 
 ![rm nie zwolnił miejsca – lsof +L1](img/5-lsof.png)
 
+**Polecenia ze zrzutu:**
+
+- `sudo lsof +L1` – otwarte pliki (*list open files*), które mają mniej niż 1 dowiązanie (`+L1`), czyli są usunięte z katalogu, ale ktoś je trzyma. Kolumny: program, PID, deskryptor (`3r` – numer 3, do odczytu), rozmiar, nazwa z dopiskiem `(deleted)`.
+
 ![kill zwalnia miejsce; journal, docker, apt](img/5-kill-miejsce.png)
+
+**Polecenia ze zrzutu:**
+
+- `ps -o pid,user,cmd -p 7097` – pokaż wybrane kolumny (`-o`) dla procesu o numerze (`-p`) 7097.
+- `sudo kill 7097` – wyślij procesowi sygnał zakończenia (SIGTERM).
+- `docker system df` – ile miejsca zajmują obrazy, kontenery, wolumeny i cache Dockera; `RECLAIMABLE` – do odzyskania.
+- `du -sh /var/cache/apt` – suma (`-s`) jednego katalogu.
 
 `du` prowadzi krok po kroku: `/` → `/var` 27G → `/var/log` 16G i `/var/tmp` 8,1G. `find` znalazł oba
 pliki i **trzeci, niezapowiedziany: `/swap.img` 3,8G** z 28.10. W Etapie 1 swap został wyłączony
@@ -254,11 +384,40 @@ pokazuje 1,9 GB obrazów do odzyskania, a `/var/cache/apt` – 219 MB.
 
 ![licznik.service działa](img/6-licznik-start.png)
 
+**Polecenia ze zrzutu:**
+
+- `cat /etc/systemd/system/licznik.service` – wyświetl plik usługi.
+- `sudo systemctl enable --now licznik` – włącz przy starcie i uruchom teraz.
+- `sleep 11; systemctl status licznik --no-pager | head -12` – odczekaj 11 s (żeby powstały wpisy), potem pierwsze 12 linii statusu.
+- `journalctl -u licznik -n 4 --no-pager` – 4 ostatnie wpisy usługi.
+
 ![literówka: status=203/EXEC](img/6-licznik-awaria.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo sed -i 's#/usr/local/bin/licznik.sh#/usr/local/bin/licznk.sh#' /etc/systemd/system/licznik.service` – zamień ścieżkę w pliku na tę z literówką (`-i` – w pliku, `#` – separator, bo ścieżka zawiera `/`). [Więcej o `sed`](06-jak-czytac-polecenia.md#12-sed).
+- `sudo systemctl daemon-reload; sudo systemctl restart licznik` – wczytaj zmienione pliki usług, potem restart.
+- `systemctl status licznik --no-pager | head -8` – początek statusu z kodem `203/EXEC`.
+- `journalctl -u licznik -n 5 --no-pager | cut -c1-150` – przyczyna w dzienniku.
 
 ![po naprawie dalej failed – Start request repeated too quickly](img/6-licznik-limit.png)
 
+**Polecenia ze zrzutu:**
+
+- `grep ExecStart /etc/systemd/system/licznik.service` – która ścieżka jest teraz w pliku.
+- `sudo sed -i 's#licznk.sh#licznik.sh#' …` – poprawka literówki.
+- `sudo systemctl daemon-reload && sudo systemctl restart licznik` – restart tylko po udanym `daemon-reload`.
+- `systemctl is-active licznik; systemctl show -p MainPID licznik` – stan jednym słowem i numer głównego procesu (`0` = brak).
+- `systemctl show -p StartLimitBurst -p StartLimitIntervalUSec licznik` – limit startów: ile (`Burst`) w jakim czasie (`Interval`).
+
 ![reset-failed, restart, odporność na kill](img/6-licznik-naprawa.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo systemctl reset-failed licznik` – wyzeruj stan `failed` i licznik startów.
+- `sudo systemctl kill -s KILL licznik` – wyślij procesom usługi sygnał (`-s`) KILL – jak awaria.
+- `sleep 3; systemctl is-active licznik; systemctl show -p MainPID -p NRestarts licznik` – po 3 s: stan, nowy PID i ile razy systemd wznowił usługę.
+- `journalctl -u licznik -n 8 --no-pager | grep -v 'licznik: '` – ostatnie wpisy bez zwykłych linii skryptu (`-v` = odwrotnie), zostają komunikaty systemd.
 
 Przebieg:
 
@@ -295,7 +454,22 @@ Przebieg:
 
 ![top i ps – dwa procesy yes](img/7-cpu.png)
 
+**Polecenia ze zrzutu:**
+
+- `top -b -n 1 | head -12` – jeden „zrzut” programu `top` jako zwykły tekst (`-b` = *batch*, `-n 1` = jedna klatka), pierwsze 12 linii. Ty uruchomisz `top` interaktywnie.
+- `ps aux --sort=-%cpu | head -4` – wszystkie procesy (`aux` – wszystkich użytkowników, z kontem, także bez terminala) posortowane malejąco (`-`) po użyciu CPU.
+- `ps -o pid,user,lstart,etime,cmd -C yes` – procesy o nazwie (`-C`) `yes`: PID, właściciel, dokładny czas startu (`lstart`), ile już działają (`etime`), polecenie.
+
 ![pkill, swap, pamięć](img/7-kill.png)
+
+**Polecenia ze zrzutu:**
+
+- `pgrep -a yes` – numery procesów o nazwie `yes` z pełnym poleceniem (`-a`).
+- `pkill yes` – zakończ wszystkie procesy o tej nazwie.
+- `sleep 1; pgrep -a yes || echo 'brak procesow yes'` – `pgrep` nic nie znalazł (kod 1), więc wykonało się `echo` po `||`.
+- `top -b -n 1 | sed -n '3p'` – tylko 3. linia wyniku `top` (wiersz `%Cpu(s)`).
+- `swapon --show; echo "swap: $(swapon --show | wc -l) urzadzen"` – lista swapu (pusta) i jej długość policzona przez `wc -l` wstawiona w tekst przez `$(…)`.
+- `ps aux --sort=-%mem | head -4` – procesy zajmujące najwięcej pamięci.
 
 Dwa procesy `yes` po 100% CPU. Po minucie `load average: 1.44, 0.54, 0.23` – pierwsza liczba rośnie
 w stronę 2,0, pozostałe wolniej (dłuższe okno). `%Cpu(s): 9.1 us, 90.9 sy, 0.0 id` – procesor bez
@@ -321,7 +495,29 @@ Swapu nie ma (`swapon --show` pusty); najwięcej pamięci zajmują `dockerd`, `c
 
 ![adduser, groupadd, katalog 2770](img/8-konto-grupa.png)
 
+**Polecenia ze zrzutu:**
+
+- `sudo adduser --disabled-password --gecos 'Anna Nowak' anna 2>&1 | tail -3` – nowe konto bez hasła; `--gecos` – opis (imię i nazwisko), dzięki temu `adduser` o nic nie pyta.
+- `id anna` – UID, grupa główna i wszystkie grupy konta.
+- `sudo groupadd devops` – nowa grupa.
+- `sudo usermod -aG devops anna` – dopisz (`-a` = *append*) konto do grupy dodatkowej (`-G`). Bez `-a` konto wypadłoby z pozostałych grup!
+- `sudo chown root:devops /srv/zespol` – właściciel `root`, grupa `devops`.
+- `sudo chmod 2770 /srv/zespol` – prawa: `2` setgid, `7` właściciel rwx, `7` grupa rwx, `0` inni nic.
+- `ls -ld /srv/zespol` – prawa samego katalogu (`-d`), nie jego zawartości.
+
 ![po ponownym zalogowaniu: setgid i prawa Anny](img/8-uprawnienia.png)
+
+**Polecenia ze zrzutu:**
+
+- `id -nG` – Twoje grupy w tej sesji, same nazwy (`-n`), wszystkie (`-G`).
+- `touch /srv/zespol/plan.txt && ls -l /srv/zespol` – utwórz pusty plik, potem pokaż zawartość katalogu.
+- `sudo -u anna touch /srv/zespol/anna.txt` – utwórz plik **jako Anna** (test jej uprawnień).
+- `sudo -u anna ls /root` – czy Anna może zajrzeć do katalogu roota.
+- `sudo -l -U anna` – co Anna może przez `sudo`.
+- `grep anna /etc/passwd`, `grep devops /etc/group` – wpis konta i grupy.
+- `sudo grep anna /etc/shadow | cut -d: -f1-3` – wpis z pliku haseł, tylko pola 1–3 rozdzielone `:` (nazwa, skrót hasła, data zmiany).
+- `sudo usermod -L anna; sudo passwd -S anna` – zablokuj konto (`-L` = *lock*), pokaż stan hasła (`-S` = *status*).
+- `getent group sudo` – członkowie grupy `sudo` (z plików i ewentualnie z LDAP).
 
 Wyniki: `uid=1001(anna)`, katalog `drwxrws--- root devops` (litera `s` w miejscu `x` grupy to
 setgid). Oba pliki w `/srv/zespol` mają grupę **`devops`**, choć grupa podstawowa użytkowników to
@@ -371,7 +567,17 @@ Zamiast `crontab -e` (edytor) wpis dodano jednym poleceniem – przydatne w skry
 
 ![skrypt kopii i crontab roota](img/9-cron.png)
 
+**Polecenia ze zrzutu:**
+
+- `(sudo crontab -l 2>/dev/null; echo '* * * * * /usr/local/bin/kopia-zespol.sh') | sudo crontab -` – nawias grupuje dwa polecenia w jeden wynik: dotychczasowy crontab (błąd „no crontab” wyrzucony) **plus** nowa linia. Całość idzie do `crontab -`, który wczytuje crontab z wejścia (`-`). Tak dopisuje się zadanie bez edytora.
+- `date '+%T'` – bieżąca godzina (`%T` = `GG:MM:SS`).
+
 ![kopie co minutę, log i wpisy CRON](img/9-wynik.png)
+
+**Polecenia ze zrzutu:**
+
+- `grep CRON /var/log/syslog | tail -3 | cut -c1-120` – kiedy cron uruchamiał zadania.
+- `tar tzf $(ls /data/kopie/*.tar.gz | tail -1)` – lista zawartości (`t`) archiwum gzip (`z`) z pliku (`f`); nazwę pliku podstawia `$(…)` – ostatni z listy.
 
 Cron uruchamia zadanie w pełnej minucie (`17:04:01`, `17:05:01`) – co minutę nowy plik
 `zespol-…tar.gz`, linia `OK` w logu i wpis `CRON[…]: (root) CMD (…)` w `syslog`. W archiwum są
@@ -380,6 +586,14 @@ oba pliki zespołu.
 **Niespodzianka – `logrotate -f` odmówił:**
 
 ![logrotate -d i -f: skipping … insecure permissions](img/9-logrotate.png)
+
+**Polecenia ze zrzutu:**
+
+- `sudo logrotate -d /etc/logrotate.d/kopia-zespol 2>&1 | grep -vE '^\s*$' | head -14` – próba na sucho (`-d`); `logrotate` pisze na *stderr*, więc `2>&1`; `grep -vE '^\s*$'` usuwa puste linie.
+- `sudo logrotate -f …` – wymuś rotację teraz (`-f` = *force*).
+- `ls -l /var/log/kopia-zespol.log*` – log i jego rotowane wersje (`*`).
+- `sudo crontab -r; sudo crontab -l` – usuń cały crontab roota (`-r`), sprawdź.
+- `systemctl list-timers logrotate.timer --no-pager | head -2` – kiedy systemd uruchomi `logrotate` następnym razem.
 
 ```
 error: skipping "/var/log/kopia-zespol.log" because parent directory has insecure permissions
@@ -394,6 +608,13 @@ atakiem przez podmienione pliki). Ubuntu ma na to ustawienie `su root adm` w **g
 z naszym plikiem**, więc ustawień globalnych nie było. Naprawa – `su` w naszym pliku:
 
 ![su root adm i udana rotacja](img/9-logrotate-naprawa.png)
+
+**Polecenia ze zrzutu:**
+
+- `ls -ld /var/log` – prawa katalogu `/var/log`.
+- `grep -n '^su' /etc/logrotate.conf`, `grep -n include …` – linie zaczynające się od `su` i linia `include` w głównym pliku.
+- `sudo sed -i 's/^    daily/    su root adm\n    daily/' …` – przed linią `    daily` wstaw linię `    su root adm` (`\n` = nowa linia w zamianie).
+- `zcat /var/log/kopia-zespol.log.1.gz` – wyświetl spakowany log bez rozpakowywania pliku.
 
 Po rotacji jest `kopia-zespol.log.1.gz`, a nowego, pustego logu **nie ma** – z tego samego powodu
 (dyrektywa `create` też jest tylko w `logrotate.conf`). Nie szkodzi: skrypt dopisuje `>>`, więc
