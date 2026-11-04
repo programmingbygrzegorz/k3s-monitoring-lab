@@ -149,6 +149,7 @@ Szczegóły: [Headlamp – logowanie tokenem](etap-6-gui/01-headlamp.md#logowani
 | `helm history NAZWA -n NS` | historia jednego release'u: rewizje, daty, status, wersja chartu, opis zmiany. Bez `-n` Helm szuka w `default` → `Error: release: not found` (np. `helm history monitoring -n monitoring`) |
 | `helm list -A --no-headers \| while read n ns rest; do echo "== $n ($ns)"; helm history "$n" -n "$ns"; done` | historia **wszystkich** release'ów naraz (Helm nie ma `history -A`, więc pętla po liście) |
 | `helm get values NAZWA -n NS` | ustawienia podane przez Ciebie (`-a` – wszystkie) |
+| `helm get values NAZWA -n NS --revision 1` | ustawienia z konkretnej rewizji – porównanie z bieżącą pokazuje, co zmienił upgrade |
 | `helm rollback NAZWA 1 -n NS` | powrót do rewizji 1 |
 | `helm uninstall NAZWA -n NS` | usuwa release |
 
