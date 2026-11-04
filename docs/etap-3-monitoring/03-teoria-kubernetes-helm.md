@@ -783,6 +783,28 @@ kubectl describe ingress podinfo -n demo                   # reguły i adresy po
 | **404** | Traefik działa, żadna reguła nie pasuje | nazwa w `host:` / plik `hosts`, `ingressClassName`, namespace |
 | **502 / 503** | reguła pasuje, ale nie ma zdrowego poda za Service | `kubectl get endpointslices -n NS`, selector Service vs etykiety podów, readinessProbe |
 
+### Ingress w produkcji – gdzie stoi
+
+Kontroler Ingress (Traefik, ingress-nginx) to **pody w klastrze**, na węzłach – nie osobna maszyna
+„przed” klastrem. Przed nim w produkcji stoi za to **zewnętrzny load balancer** z jednym stałym
+adresem (VIP), a DNS kieruje nazwy aplikacji na ten adres:
+
+```
+Internet → DNS (*.firma.pl → VIP) → firewall / WAF → load balancer (VIP)
+         → węzły z kontrolerem Ingress (pody Traefika/nginx, często 2–3 repliki)
+         → Service → pody aplikacji
+```
+
+| Element | Lab | Produkcja |
+|---|---|---|
+| nazwa → IP | plik `hosts` na Windowsie | rekord DNS, często wildcard `*.apps.firma.pl` |
+| wejście do klastra | IP dowolnego węzła (ServiceLB k3s na każdym) | load balancer: w chmurze (AWS ELB, Azure LB) albo on-premise (HAProxy/keepalived, F5, MetalLB) |
+| kontroler Ingress | 1 pod Traefika | kilka replik, czasem na **dedykowanych węzłach brzegowych** (taint + nodeSelector) |
+| HTTPS | brak | certyfikaty na Ingressie (cert-manager + Let's Encrypt) albo na load balancerze |
+
+Load balancer sprawdza, które węzły odpowiadają (health check) – awaria węzła nie zatrzymuje
+ruchu, czego w labie nie daje wpis z jednym IP (.52) w pliku `hosts`.
+
 ## 15. CRD – nowe słowa w słowniku Kubernetesa
 
 Kubernetes zna z fabryki pewien zestaw typów obiektów: Pod, Deployment, Service, Ingress… To jego
@@ -1102,6 +1124,16 @@ obsługiwać HTTPS.
 **Czym jest Ingress Controller? Dlaczego sam obiekt Ingress nie wystarcza?**
 Ingress to tylko reguła. Ingress Controller to program, który przyjmuje ruch i wykonuje reguły –
 np. Traefik (domyślny w k3s) albo ingress-nginx. Bez kontrolera reguły Ingress nic nie robią.
+
+**Jak Ingress rozpoznaje, do której aplikacji wysłać zapytanie, skoro wszystkie mają ten sam IP i port?**
+Po nagłówku HTTP `Host` (i ścieżce). Przeglądarka dopisuje do zapytania nazwę z paska adresu,
+kontroler dopasowuje ją do `host:` w regułach. W labie: `curl -H "Host: whoami.lab.local"` na
+IP węzła daje whoami, `Host: podinfo.lab.local` – podinfo, bez nagłówka – 404.
+
+**Gdzie w produkcji stoi Ingress Controller i co jest przed nim?**
+W klastrze, jako pody (często kilka replik, czasem na dedykowanych węzłach). Przed nim zewnętrzny
+load balancer z jednym adresem VIP (w chmurze usługa dostawcy, on-premise np. HAProxy z keepalived
+albo MetalLB), a DNS kieruje nazwy aplikacji na ten VIP. Load balancer omija niedziałające węzły.
 
 ### Rozszerzanie Kubernetesa
 
