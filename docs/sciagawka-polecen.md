@@ -161,6 +161,9 @@ Szczegóły: [Headlamp – logowanie tokenem](etap-6-gui/01-headlamp.md#logowani
 | `helm get values NAZWA -n NS --revision 1` | ustawienia z konkretnej rewizji – porównanie z bieżącą pokazuje, co zmienił upgrade |
 | `helm rollback NAZWA 1 -n NS` | powrót do rewizji 1 |
 | `helm uninstall NAZWA -n NS` | usuwa release |
+| `helm create NAZWA` | szkielet własnego chartu: `Chart.yaml`, `values.yaml`, `templates/` z przykładami |
+| `rm -rf NAZWA/templates/*` | czyści przykładowe szablony z `helm create`, katalog `templates/` zostaje na własne pliki |
+| `helm template NAZWA ./katalog` | pokazuje gotowe YAML-e z szablonów, niczego nie instaluje |
 
 Teoria: [Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md). Wszystkie polecenia i przełączniki:
 oficjalna ściągawka Helma (po angielsku) – [helm.sh/docs/intro/cheatsheet](https://helm.sh/docs/intro/cheatsheet/).
