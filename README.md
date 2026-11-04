@@ -1,161 +1,200 @@
-# k3s Monitoring Lab
+<div align="center">
 
-Domowe laboratorium DevOps: **trójwęzłowy klaster Kubernetes (k3s)** z pełnym stosem monitoringu,
-zewnętrznym nadzorem dostępności i przygotowanymi scenariuszami awarii.
+# 🧪 k3s Monitoring Lab
 
-Celem projektu jest praktyczna nauka utrzymania i monitorowania klastra Kubernetes:
-od instalacji, przez zbieranie metryk i alerty, po diagnozowanie typowych awarii.
+**Domowe laboratorium DevOps zbudowane od zera, ręcznie i krok po kroku.**
+Klaster Kubernetes (k3s) na 5 maszynach wirtualnych, monitoring z alertami, automatyzacja Ansible
+i Packer, własny rejestr obrazów – oraz ćwiczenia z ponad 130 zrzutami z prawdziwego labu.
 
-![lint](https://github.com/<twoj-login>/k3s-monitoring-lab/actions/workflows/lint.yml/badge.svg)
+![k3s](https://img.shields.io/badge/k3s-Kubernetes-FFC61C?logo=k3s&logoColor=black)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?logo=ubuntu&logoColor=white)
+![Ansible](https://img.shields.io/badge/Ansible-Vault-EE0000?logo=ansible&logoColor=white)
+![Packer](https://img.shields.io/badge/Packer-autoinstall-02A8EF?logo=packer&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-charts-0F1689?logo=helm&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-Alertmanager-E6522C?logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-dashboards-F46800?logo=grafana&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-registry%20TLS-2496ED?logo=docker&logoColor=white)
+![nginx](https://img.shields.io/badge/nginx-vhosts%20%2F%20HTTPS-009639?logo=nginx&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)
+
+</div>
+
+> Projekt powstaje jako nauka i portfolio na stanowisko **junior DevOps / administrator Linux**.
+> Wszystko jest udokumentowane po polsku: każde polecenie z wyjaśnieniem, prawdziwe wyniki z labu,
+> zrzuty ekranu, problemy, na które trafiłem, i pytania rekrutacyjne do każdego etapu.
+
+## W liczbach
+
+| 🖥️ Maszyny | ☸️ Węzły k3s | 📚 Etapy | 🧩 Ćwiczenia | 🐞 Opisane problemy |
+|:---:|:---:|:---:|:---:|:---:|
+| 5 działa, 3 w planie | 1 master + 3 workery | 5 gotowych, 3 w trakcie, 5 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
 
 ## Architektura
 
 ```mermaid
 flowchart LR
-    admin["Komputer administratora<br/>kubectl / k9s"]
+    admin["🪟 Windows 11 + VMware<br/>kubectl · ssh · przeglądarka"]
 
-    subgraph cluster["Klaster k3s"]
-        master["k3s-master<br/>control plane"]
-        w1["k3s-worker-1"]
-        w2["k3s-worker-2"]
+    subgraph cluster["☸️ Klaster k3s  ·  192.168.180.0/24"]
+        direction TB
+        master["k3s-master .51<br/>control plane · taint NoSchedule"]
+        subgraph workers["Workery"]
+            w1["worker-1 .52"]
+            w2["worker-2 .53"]
+            w3["worker-3 .55<br/>(zbudowany Packerem)"]
+        end
+        traefik["Traefik<br/>Ingress :80/:443"]
         subgraph mon["namespace: monitoring"]
-            prom["Prometheus"]
-            am["Alertmanager"]
-            graf_in["Grafana"]
+            prom["Prometheus :30090<br/>PVC 10Gi"]
+            am["Alertmanager :30093"]
+            graf_in["Grafana :30300"]
         end
-        subgraph demo["namespace: demo"]
-            app["podinfo x3"]
+        subgraph apps["Aplikacje"]
+            podinfo["podinfo ×3<br/>sondy · limity · spread"]
+            hello["hello-lab :30880<br/>własny obraz"]
         end
+        headlamp["Headlamp :30400<br/>GUI klastra"]
     end
 
-    subgraph ext["Maszyna monitoring (poza klastrem)"]
-        graf_ext["Grafana"]
-        kuma["Uptime Kuma"]
+    subgraph vm["🖥️ Maszyna monitoring .54"]
+        ansible["Ansible + Vault<br/>węzeł sterujący"]
+        registry["Docker registry:3<br/>:5000 z TLS (własne CA)"]
+        kuma["Grafana + Uptime Kuma<br/>(Etap 4)"]
     end
 
-    hc["healthchecks.io<br/>dead man's switch"]
+    hc["☁️ healthchecks.io<br/>dead man's switch"]
 
     admin --> master
-    master --- w1
-    master --- w2
-    prom -->|scrape| app
+    admin --> headlamp
+    ansible -->|playbooki| cluster
+    master --- workers
+    traefik --> podinfo
+    prom -->|scrape| podinfo
     prom --> am
     am -->|Watchdog co 1 min| hc
-    graf_ext -->|zapytania PromQL| prom
-    kuma -->|HTTP checks| app
+    graf_in --> prom
+    kuma -->|PromQL / HTTP checks| prom
+    hello -.->|pull obrazu| registry
 ```
 
-| Maszyna | Rola | vCPU | RAM | Dysk |
-|---|---|---|---|---|
-| ubuntu-template | szablon do klonowania (potem wyłączony) | 2 | 4 GB | 40 GB |
-| k3s-master | węzeł sterujący (control plane) | 2 | 4 GB | 40 GB |
-| k3s-worker-1 | węzeł roboczy | 2 | 6 GB | 40 GB |
-| k3s-worker-2 | węzeł roboczy | 2 | 6 GB | 40 GB |
-| k3s-worker-3 | węzeł roboczy (opcjonalny, `WORKER3_IP` w `lab.env`) | 2 | 6 GB | 40 GB |
-| monitoring | zewnętrzny monitoring (Docker), węzeł sterujący Ansible | 2 | 4 GB | 40 GB |
-| gitlab | GitLab CE: repozytoria, CI/CD, rejestr obrazów (Etap 7, planowany) | 4 | 8 GB | 60 GB |
-| security | Wazuh – SIEM: logi, integralność plików, podatności (Etap 9b, opcjonalny) | 4 | 8 GB | 80 GB |
-| kali | Kali Linux – kontrolowane ataki na lab (Etap 9c, opcjonalny) | 2 | 4 GB | 60 GB |
+| Maszyna | IP | Rola | Stan |
+|---|---|---|---|
+| k3s-master | 192.168.180.51 | control plane k3s (taint `NoSchedule`) | ✅ |
+| k3s-worker-1 / -2 / -3 | .52 / .53 / .55 | workery; worker-3 zainstalowany automatycznie Packerem | ✅ |
+| monitoring | .54 | węzeł sterujący Ansible, Docker, rejestr obrazów, monitoring zewnętrzny | ✅ |
+| gitlab | .56 | GitLab CE, Runner, rejestr – Etap 7 | 🗓️ |
+| security | .57 | Wazuh SIEM – Etap 9b | 🗓️ |
+| kali | .58 | kontrolowane ataki na lab – Etap 9c | 🗓️ |
 
-System na wszystkich maszynach: **Ubuntu Server 24.04 LTS lub nowszy** (laboratorium działa na 26.04 –
-różnice, np. sudo-rs, opisane w dokumentacji). Wirtualizacja: VMware Workstation
-(działa też VirtualBox, Hyper-V lub Proxmox).
+System: **Ubuntu Server 26.04** (różnice względem 24.04, np. `sudo-rs` i brak `last`, opisane w dokumentacji).
+Host: Windows 11, VMware Workstation, sieć NAT `192.168.180.0/24`.
 
-## Stos technologiczny
+## Postęp prac
 
-- **Kubernetes:** k3s, Traefik (Ingress), Helm
-- **Infrastructure as Code:** Ansible – przygotowanie maszyn i instalacja klastra (role, inventory, idempotentne playbooki);
-  Packer – instalacja nowych maszyn z ISO bez klikania (autoinstall Ubuntu)
-- **Monitoring w klastrze:** kube-prometheus-stack – Prometheus, Alertmanager, Grafana, node-exporter, kube-state-metrics
-- **Monitoring zewnętrzny:** Grafana i Uptime Kuma w Docker Compose, healthchecks.io jako dead man's switch
-- **Aplikacja demo:** [podinfo](https://github.com/stefanprodan/podinfo) z metrykami Prometheusa, sondami i Ingressem
-- **Bezpieczeństwo:** ufw na węzłach, sekrety poza repozytorium, taint na węźle sterującym
-- **CI:** GitHub Actions – ShellCheck, yamllint, kubeconform, ansible-lint
+```mermaid
+flowchart LR
+    e0["✅ Etap 0<br/>sieć, VM, Packer"] --> e0b["✅ 0b<br/>klucze SSH"]
+    e0b --> e1["✅ Etap 1<br/>system + ćwiczenia<br/>admina Linuxa"]
+    e1 --> e2["✅ Etap 2<br/>k3s przez Ansible<br/>+ Vault"]
+    e2 --> e3["✅ Etap 3<br/>Prometheus, Grafana<br/>Helm, Ingress, PVC"]
+    e3 --> e4["🔧 Etap 4<br/>monitoring zewnętrzny<br/>własny obraz"]
+    e4 --> e5["🔧 Etap 5<br/>scenariusze awarii"]
+    e5 --> e6["🔧 Etap 6<br/>GUI: Headlamp ✅<br/>Portainer, Semaphore"]
+    e6 --> e7["🗓️ Etap 7<br/>GitLab CI, Trivy<br/>Argo CD"]
+    e7 --> e8["🗓️ Etap 8<br/>AIOps"]
+    e8 --> e9["🗓️ Etap 9<br/>kube-bench, Falco<br/>Kyverno, Wazuh, Kali"]
+
+    classDef done fill:#d1f7c4,stroke:#2e7d32,color:#1b5e20
+    classDef wip fill:#fff3c4,stroke:#f9a825,color:#6d4c00
+    classDef plan fill:#e8eaf6,stroke:#5c6bc0,color:#283593
+    class e0,e0b,e1,e2,e3 done
+    class e4,e5,e6 wip
+    class e7,e8,e9 plan
+```
+
+## Zrzuty z labu
+
+<table>
+<tr>
+<td width="50%"><b>Alert w Prometheusie</b> – reguła <code>PodinfoDown</code> przechodzi w FIRING po wyłączeniu aplikacji<br/><img src="docs/etap-3-monitoring/img/6-alert-firing.png" alt="Alert PodinfoDown w stanie FIRING w Prometheusie"/></td>
+<td width="50%"><b>Alertmanager</b> – alerty pogrupowane i gotowe do wysłania<br/><img src="docs/etap-3-monitoring/img/5-alertmanager-alerty.png" alt="Lista alertów w Alertmanagerze"/></td>
+</tr>
+<tr>
+<td><b>Skrypt kontrolny</b> – usługi, strony, bazy, certyfikat, dyski i kopie jednym poleceniem<br/><img src="docs/etap-1-przygotowanie-systemu/img/nginx-bazy/p40-przeglad.png" alt="Skrypt sprawdz-uslugi.sh: wynik 0 błędów, potem 4 błędy po zatrzymaniu usług"/></td>
+<td><b>Nowy dysk przez LVM</b> – PV, VG, LV, system plików i wpis w fstab<br/><img src="docs/etap-1-przygotowanie-systemu/img/4-lvm-data.png" alt="Tworzenie woluminu LVM /data"/></td>
+</tr>
+<tr>
+<td><b>Własny obraz w klastrze</b> – zbudowany w Dockerze, wypchnięty do rejestru z TLS, uruchomiony w k3s<br/><img src="docs/etap-4-monitoring-zewnetrzny/img/obraz-hello-lab-w-k3s.png" alt="Aplikacja hello-lab z własnego obrazu działa w k3s"/></td>
+<td><b>Trwałe dane</b> – PVC w stanie Bound, dane przetrwały usunięcie poda<br/><img src="docs/etap-3-monitoring/img/k8s-7-pvc-bound.png" alt="PersistentVolumeClaim w stanie Bound"/></td>
+</tr>
+<tr>
+<td colspan="2"><b>Headlamp</b> – zdarzenia klastra: nieudana sonda readiness tuż po starcie poda<br/><img src="docs/etap-6-gui/img/headlamp-zdarzenia-readiness.png" alt="Zdarzenia w Headlamp: Readiness probe failed"/></td>
+</tr>
+</table>
+
+Ponad 100 kolejnych zrzutów jest w rozwiązaniach ćwiczeń, każdy z rozpiską użytych poleceń.
+
+## Czego tu można się nauczyć (i czego ja się nauczyłem)
+
+| Obszar | Co konkretnie zrobiłem |
+|---|---|
+| 🐧 **Linux** | LVM i nowy dysk, `fstab` po UUID, pełny dysk i usunięte pliki trzymane przez proces (`lsof +L1`), systemd (limity restartów, własne usługi), cron, logrotate, użytkownicy i katalogi setgid, `journalctl`, `grep`/`awk`/`sed` |
+| 🌐 **nginx** | wirtualne hosty, `default_server` i IPv6, kody 403/404/502/504/413, reverse proxy, analiza `access.log`, HTTPS z własnym CA, przekierowania, basic auth |
+| 🗄️ **Bazy danych** | PostgreSQL 18 (`pg_hba.conf`, `pg_dump`/`pg_restore`, blokady, `EXPLAIN ANALYZE`, przeniesienie katalogu danych) i MariaDB (konta `'user'@'host'`, `mariadb-dump`), nocne kopie |
+| 🤖 **Automatyzacja** | Packer + autoinstall Ubuntu (maszyna z ISO bez klikania), Ansible: role, inventory, idempotencja, sekrety w Ansible Vault |
+| ☸️ **Kubernetes** | k3s z Ansible, `kubectl` od podstaw, etykiety i selektory, ConfigMap, Secret, PVC (`local-path`), Ingress na Traefiku, własny chart Helm, sondy, `topologySpreadConstraints` |
+| 📈 **Monitoring** | kube-prometheus-stack przez Helm, ServiceMonitor, własne reguły alertów (PromQL), Alertmanager z wyciszeniami, Watchdog jako dead man's switch |
+| 🐳 **Kontenery** | własny obraz (Dockerfile, warstwy, `.dockerignore`), prywatny rejestr `registry:3` z TLS i własnym CA zaufanym przez wszystkie węzły |
+| 🔥 **Diagnoza** | `CrashLoopBackOff`, `ImagePullBackOff`, `Pending`, OOM, błędne selektory – 11 celowo zepsutych obiektów do naprawy |
+
+**Najważniejsze wnioski z labu:**
+
+- **Monitoring nie może zależeć tylko od tego, co monitoruje.** Prometheus w klastrze padnie razem z nim, dlatego jest Watchdog do healthchecks.io i drugi monitoring na osobnej maszynie.
+- **Najpierw objaw, potem log, potem konfiguracja.** Prawie każdy z 40 problemów z nginx i bazami rozwiązał się po przeczytaniu właściwego logu, a nie po zgadywaniu.
+- **Automatyzacja zaczyna się od zrobienia rzeczy ręcznie.** Najpierw skrypty bash, potem te same kroki w rolach Ansible – dzięki temu wiem, co Ansible robi pod spodem.
+- **Bezpieczne skróty bywają pułapką.** Zamiast `insecure-registries` w Dockerze lepiej wystawić własne CA – wtedy TLS działa wszędzie, także w k3s.
 
 ## Najważniejsze decyzje projektowe
 
-- **Monitoring na dwóch poziomach.** Prometheus zbiera metryki wewnątrz klastra, bo ma tam pełny dostęp
-  do podów i zdarzeń. Wizualizacja i sprawdzanie dostępności działają dodatkowo **poza klastrem**,
-  bo monitoring uruchomiony tylko w klastrze padłby razem z nim.
-- **Dead man's switch.** Alert `Watchdog` jest zawsze aktywny i co minutę trafia do healthchecks.io.
-  Gdy przestanie docierać, healthchecks.io powiadamia, że monitoring lub cały klaster przestał działać.
-- **Węzeł sterujący bez aplikacji.** Master ma taint `NoSchedule`, więc aplikacje działają tylko na workerach.
-- **Odporność aplikacji.** Trzy repliki podinfo są rozkładane na różne węzły (`topologySpreadConstraints`),
-  mają sondy `readiness` i `liveness` oraz limity zasobów.
-- **Dopasowanie do k3s.** k3s nie wystawia metryk controller-managera, schedulera i kube-proxy w standardowy
-  sposób, więc te cele są wyłączone w konfiguracji – bez tego Prometheus zgłaszałby fałszywe alerty `TargetDown`.
+- **Monitoring na dwóch poziomach.** Prometheus zbiera metryki w klastrze, gdzie widzi pody i zdarzenia; wizualizacja i sprawdzanie dostępności działają dodatkowo **poza klastrem**.
+- **Dead man's switch.** Alert `Watchdog` jest zawsze aktywny i co minutę trafia do healthchecks.io – gdy przestanie docierać, przychodzi powiadomienie, że monitoring albo klaster nie działa.
+- **Węzeł sterujący bez aplikacji.** Master ma taint `NoSchedule`, aplikacje działają tylko na workerach.
+- **Trwałe dane.** Prometheus, Grafana i Alertmanager trzymają dane na wolumenach `local-path` i przeżywają restart poda.
+- **Dopasowanie do k3s.** Cele, których k3s nie wystawia standardowo (controller-manager, scheduler, kube-proxy), są wyłączone – bez tego Prometheus zgłaszałby fałszywe `TargetDown`.
+- **Sekrety poza repozytorium.** Hasła w `lab.env` (poza gitem) i w Ansible Vault.
 
-## Struktura repozytorium
+## Dokumentacja – od czego zacząć
 
-```
-.
-├── lab.env.example              # wzór konfiguracji (adresy IP, hasła) – kopiujesz do lab.env
-├── ansible/
-│   ├── site.yml                 # całe laboratorium jednym poleceniem
-│   ├── inventory.ini.example    # lista maszyn i grup
-│   ├── group_vars/all/          # wspólne ustawienia (main.yml) i sekrety (vault.yml)
-│   ├── playbooks/               # prepare.yml, k3s.yml
-│   └── roles/                   # common, k3s_server, k3s_agent
-├── scripts/
-│   ├── 00-prepare-node.sh       # przygotowanie maszyny: hosts, aktualizacje, swap, firewall
-│   ├── 01-install-master.sh     # instalacja węzła sterującego k3s
-│   ├── 02-install-worker.sh     # dołączenie workera
-│   ├── 03-post-install.sh       # role węzłów, kontrola klastra
-│   ├── 04-install-monitoring.sh # kube-prometheus-stack przez Helm
-│   ├── 05-deploy-demo.sh        # aplikacja demo + ServiceMonitor + reguły alertów
-│   ├── 06-setup-monitoring-vm.sh# Grafana + Uptime Kuma poza klastrem
-│   ├── chaos.sh                 # scenariusze awarii
-│   └── get-kubeconfig.sh        # kubectl z własnego komputera
-├── kubernetes/
-│   ├── demo-app/                # Namespace, Deployment, Service, Ingress
-│   ├── monitoring/              # ServiceMonitor, PrometheusRule
-│   ├── chaos/                   # manifesty awarii (OOM, CrashLoop, ImagePull, CPU)
-│   ├── awarie/                  # 11 zepsutych obiektów do ćwiczeń z diagnozy (Etap 5)
-│   ├── cwiczenia-k8s/           # ćwiczenia: etykiety, ConfigMap, Secret, PVC (Etap 3)
-│   └── hello-lab/               # wdrożenie własnego obrazu z rejestru labu (Etap 4)
-├── apps/
-│   └── hello-lab/               # własna aplikacja: app.py, Dockerfile, .dockerignore (Etap 4)
-├── monitoring/
-│   ├── kube-prometheus-stack-values.yaml
-│   └── monitoring-vm/           # Docker Compose: Grafana + Uptime Kuma
-├── packer/                      # nowa maszyna z ISO: przepis + autoinstall Ubuntu (opis: packer/README.md)
-├── tools/                       # sprawdzanie odnośników, zrzuty do ćwiczeń (opis: tools/README.md)
-└── docs/                        # przewodnik + folder dla każdego etapu (etap-0-…, etap-1-…)
-```
-
-## Szybki start
-
-**Cała budowa krok po kroku, z każdym poleceniem do wpisania:
-[docs/00-przewodnik.md](docs/00-przewodnik.md).**
-
-Każdy etap ma w `docs/` swój folder. W nim są instrukcja, teoria, ćwiczenia z rozwiązaniami
-i problemy z tego etapu, ponumerowane w kolejności czytania:
+**Cała budowa krok po kroku, z każdym poleceniem do wpisania: [docs/00-przewodnik.md](docs/00-przewodnik.md).**
+Każdy etap ma w `docs/` swój folder z instrukcją, teorią, ćwiczeniami, rozwiązaniami i problemami.
 
 | Etap | Folder | Teoria | Ćwiczenia |
 |---|---|---|---|
 | 0 – sieć i maszyny wirtualne, Packer | [etap-0-maszyny-wirtualne](docs/etap-0-maszyny-wirtualne/README.md) | – | – |
 | 0b – klucze SSH | [etap-0b-klucze-ssh](docs/etap-0b-klucze-ssh/README.md) | [klucze SSH](docs/etap-0b-klucze-ssh/01-klucze-ssh.md) | – |
-| 1 – przygotowanie systemu | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | – | – |
-| 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md), [Ansible plik po pliku](docs/etap-2-k3s-ansible/07-ansible-plik-po-pliku.md) | [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md); Ansible: [zadanie](docs/etap-2-k3s-ansible/08-cwiczenie-ansible-pakiet.md), [rozwiązanie](docs/etap-2-k3s-ansible/09-cwiczenie-ansible-pakiet-rozwiazanie.md) |
-| 3 – monitoring w klastrze | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md), [trwałe dane](docs/etap-3-monitoring/08-trwale-dane.md) | [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md); etykiety, ConfigMap, PVC: [zadania](docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md), [rozwiązania](docs/etap-3-monitoring/10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md) |
-| 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
-| 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | własna reguła alertu, [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
+| 1 – przygotowanie systemu, administracja Linuxem | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | [skrypt prepare-node](docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md), [jak czytać polecenia](docs/etap-1-przygotowanie-systemu/06-jak-czytac-polecenia.md) | admin Linuxa, 10 poziomów: [zadania](docs/etap-1-przygotowanie-systemu/02-cwiczenia-admin-linux.md), [rozwiązania](docs/etap-1-przygotowanie-systemu/03-cwiczenia-admin-linux-rozwiazania.md); 40 problemów nginx i bazy: [zadania](docs/etap-1-przygotowanie-systemu/04-cwiczenia-nginx-bazy.md), [rozwiązania](docs/etap-1-przygotowanie-systemu/05-cwiczenia-nginx-bazy-rozwiazania.md) |
+| 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md), [Ansible plik po pliku](docs/etap-2-k3s-ansible/07-ansible-plik-po-pliku.md) | kubectl: [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md); Ansible: [zadanie](docs/etap-2-k3s-ansible/08-cwiczenie-ansible-pakiet.md), [rozwiązanie](docs/etap-2-k3s-ansible/09-cwiczenie-ansible-pakiet-rozwiazanie.md) |
+| 3 – monitoring w klastrze, Helm, Ingress | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md), [trwałe dane](docs/etap-3-monitoring/08-trwale-dane.md) | monitoring: [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md); etykiety, ConfigMap, PVC: [zadania](docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md), [rozwiązania](docs/etap-3-monitoring/10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md); własny chart Helm: [zadania](docs/etap-3-monitoring/11-cwiczenia-wlasny-chart-helm.md), [rozwiązania](docs/etap-3-monitoring/12-cwiczenia-wlasny-chart-helm-rozwiazania.md); Ingress: [zadania](docs/etap-3-monitoring/13-cwiczenia-ingress.md), [rozwiązania](docs/etap-3-monitoring/14-cwiczenia-ingress-rozwiazania.md) |
+| 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [monitoring zewnętrzny](docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md), [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | obraz i rejestr: [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
+| 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | [scenariusze awarii](docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md), [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
 | 6 – zarządzanie przez GUI | [etap-6-gui](docs/etap-6-gui/README.md) | [Headlamp: Service, NodePort, token](docs/etap-6-gui/01-headlamp.md) | – |
 
-Metoda diagnozowania i spis wszystkich problemów według etapów:
-[docs/problemy-ogolne.md](docs/problemy-ogolne.md).
-Wszystkie omawiane polecenia w jednym miejscu: [ściągawka poleceń](docs/sciagawka-polecen.md).
+Przydatne na co dzień:
+- [ściągawka poleceń](docs/sciagawka-polecen.md) – wszystkie omawiane polecenia w jednym miejscu,
+- [problemy-ogolne.md](docs/problemy-ogolne.md) – metoda diagnozowania i spis problemów według etapów.
+
+## Szybki start
 
 ```bash
 # Na każdej maszynie
-git clone https://github.com/<twoj-login>/k3s-monitoring-lab.git && cd k3s-monitoring-lab
+git clone https://github.com/programmingbygrzegorz/k3s-monitoring-lab.git && cd k3s-monitoring-lab
 cp lab.env.example lab.env && nano lab.env
 sudo ./scripts/00-prepare-node.sh <k3s-master | k3s-worker-1 | k3s-worker-2 | monitoring>
 
 # k3s-master
 sudo ./scripts/01-install-master.sh        # zapisz wyświetlony token
 
-# k3s-worker-1 i k3s-worker-2 (po wpisaniu K3S_TOKEN do lab.env)
+# workery (po wpisaniu K3S_TOKEN do lab.env)
 sudo ./scripts/02-install-worker.sh <IP_TEGO_WĘZŁA>
 
 # k3s-master
@@ -167,19 +206,7 @@ sudo ./scripts/05-deploy-demo.sh
 sudo ./scripts/06-setup-monitoring-vm.sh
 ```
 
-| Usługa | Adres |
-|---|---|
-| Grafana w klastrze | `http://<MASTER_IP>:30300` |
-| Prometheus | `http://<MASTER_IP>:30090` |
-| Alertmanager | `http://<MASTER_IP>:30093` |
-| Aplikacja demo (NodePort) | `http://<MASTER_IP>:30898` |
-| Grafana zewnętrzna | `http://<MONITORING_IP>:3000` |
-| Uptime Kuma | `http://<MONITORING_IP>:3001` |
-
-## Wariant z Ansible
-
-Zamiast uruchamiać skrypty `00`–`03` na każdej maszynie osobno, możesz przygotować maszyny
-i postawić klaster jednym poleceniem z węzła sterującego Ansible:
+**Wariant z Ansible** – przygotowanie maszyn i klaster jednym poleceniem z maszyny `monitoring`:
 
 ```bash
 cd ansible
@@ -188,9 +215,18 @@ ansible-galaxy collection install -r requirements.yml
 ansible-playbook site.yml --ask-become-pass
 ```
 
-Szczegóły: [docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md). Hasło sudo bez wpisywania (Ansible Vault): [docs/etap-2-k3s-ansible/03-ansible-vault.md](docs/etap-2-k3s-ansible/03-ansible-vault.md). Pierwszy raz z Ansible? Wprowadzenie:
-[docs/etap-2-k3s-ansible/01-teoria-ansible.md](docs/etap-2-k3s-ansible/01-teoria-ansible.md).
+Szczegóły: [k3s przez Ansible](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md), [Ansible Vault](docs/etap-2-k3s-ansible/03-ansible-vault.md).
 
+| Usługa | Adres w labie |
+|---|---|
+| Grafana w klastrze | `http://192.168.180.51:30300` |
+| Prometheus | `http://192.168.180.51:30090` |
+| Alertmanager | `http://192.168.180.51:30093` |
+| Headlamp (logowanie tokenem) | `http://192.168.180.51:30400` |
+| Aplikacja demo podinfo | `http://192.168.180.51:30898` |
+| hello-lab (własny obraz) | `http://192.168.180.51:30880` |
+| Rejestr obrazów (TLS) | `https://192.168.180.54:5000` |
+| Grafana zewnętrzna / Uptime Kuma | `http://192.168.180.54:3000` / `:3001` (Etap 4) |
 
 ## Scenariusze awarii
 
@@ -198,32 +234,49 @@ Szczegóły: [docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md](docs/etap-2-k3s-a
 |---|---|---|
 | Awaria węzła | wyłącz maszynę `k3s-worker-1` | `KubeNodeNotReady`, przeniesienie podów, `PodinfoDegraded` |
 | Brak pamięci | `sudo ./scripts/chaos.sh oom` | status `OOMKilled`, alert `ContainerOOMKilled` |
-| Aplikacja się wywraca | `sudo ./scripts/chaos.sh crashloop` | `CrashLoopBackOff`, `KubePodCrashLooping`, `PodRestartingTooOften` |
+| Aplikacja się wywraca | `sudo ./scripts/chaos.sh crashloop` | `CrashLoopBackOff`, `KubePodCrashLooping` |
 | Zły obraz | `sudo ./scripts/chaos.sh imagepull` | `ImagePullBackOff` w zdarzeniach |
 | Obciążenie CPU | `sudo ./scripts/chaos.sh cpu` | throttling CPU w Grafanie |
 | Błędne wdrożenie | `sudo ./scripts/chaos.sh bad-deploy` | historia wdrożeń, `rollout undo` |
 | Awaria całego klastra | wyłącz wszystkie węzły | powiadomienie z healthchecks.io, alarm w Uptime Kuma |
 
-Opis krok po kroku: [docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md](docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md).
+## Struktura repozytorium
 
-## Czego się nauczyłem
-
-<!-- Uzupełnij własnymi wnioskami po przejściu laboratorium – to najcenniejsza część dla rekrutera. -->
-
-- ...
-- ...
-- ...
+```
+.
+├── lab.env.example        # wzór konfiguracji (adresy IP, hasła) – kopiujesz do lab.env
+├── packer/                # nowa maszyna z ISO: przepis + autoinstall Ubuntu
+├── ansible/               # site.yml, inventory, role common / k3s_server / k3s_agent, Vault
+├── scripts/               # te same kroki w bashu: prepare-node, k3s, monitoring, chaos.sh
+├── kubernetes/
+│   ├── demo-app/          # podinfo: Deployment, Service, Ingress
+│   ├── monitoring/        # ServiceMonitor, PrometheusRule
+│   ├── chaos/             # manifesty awarii (OOM, CrashLoop, ImagePull, CPU)
+│   ├── awarie/            # 11 zepsutych obiektów do diagnozy
+│   ├── cwiczenia-k8s/     # etykiety, ConfigMap, Secret, PVC
+│   └── hello-lab/         # wdrożenie własnego obrazu z rejestru labu
+├── apps/hello-lab/        # własna aplikacja: app.py, Dockerfile
+├── monitoring/            # values kube-prometheus-stack, Docker Compose dla maszyny monitoring
+├── tools/                 # sprawdzanie odnośników, generowanie zrzutów do ćwiczeń
+└── docs/                  # przewodnik + folder dla każdego etapu
+```
 
 ## Plan rozwoju
 
-- [ ] Logi w Grafana Loki
-- [ ] Klaster HA – trzy węzły sterujące z wbudowanym etcd
-- [ ] Etap 6: zarządzanie przez GUI – Headlamp (k3s) ✅ zainstalowany, Portainer (Docker na `monitoring`), Semaphore UI (Ansible)
-- [ ] Etap 7: CI/CD i GitOps – GitLab CE we własnym labie, GitLab Runner, własny obraz Docker, skan Trivy w pipeline, Argo CD
-- [ ] Etap 8: AIOps – Hermes Agent jako asystent administratora (diagnoza po alercie, RBAC tylko do odczytu, zmiany po akceptacji)
-- [ ] Etap 9: bezpieczeństwo klastra – kube-bench (CIS), Falco (alerty do Alertmanagera), Kyverno (polityki)
-- [ ] Etap 9b (opcjonalny): Wazuh na maszynie `security` – agenty na wszystkich maszynach
-- [ ] Etap 9c (opcjonalny): kontrolowane ataki z maszyny `kali` i sprawdzenie, czy obrona je wykrywa
-- [ ] Instalacja monitoringu i aplikacji demo również w Ansible
-- [ ] Infrastruktura laboratorium w chmurze (Terraform, Azure)
-- [ ] Kopie zapasowe zasobów klastra w Velero
+- [ ] **Etap 4** – Grafana i Uptime Kuma na `monitoring`, healthchecks.io
+- [ ] **Etap 6** – Portainer (Docker na `monitoring`), Semaphore UI (Ansible z przeglądarki) – Headlamp ✅
+- [ ] **Etap 7** – CI/CD i GitOps: GitLab CE, GitLab Runner, skan Trivy w pipeline, Argo CD
+- [ ] **Etap 8** – AIOps: asystent administratora diagnozujący po alercie (RBAC tylko do odczytu, zmiany po akceptacji)
+- [ ] **Etap 9** – bezpieczeństwo klastra: kube-bench (CIS), Falco (alerty do Alertmanagera), Kyverno
+- [ ] **Etap 9b / 9c** (opcjonalne) – Wazuh SIEM na maszynie `security`, kontrolowane ataki z `kali` (purple teaming)
+- [ ] Logi w Grafana Loki, kopie zasobów klastra w Velero, klaster HA (3 węzły sterujące)
+- [ ] Infrastruktura labu w chmurze (Terraform, Azure)
+
+> ℹ️ Workflow GitHub Actions (ShellCheck, yamllint, ansible-lint) jest w `.github/workflows/lint.yml`,
+> ale od 28.10.2026 nie uruchamia się z powodu blokady konta po stronie GitHub (billing) – sprawa w toku.
+
+<div align="center">
+
+**Autor:** Grzegorz Starzyński · [GitHub](https://github.com/programmingbygrzegorz)
+
+</div>
