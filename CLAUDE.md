@@ -35,7 +35,7 @@ krok po kroku**, a każde polecenie ma być wyjaśnione. Komunikacja **po polsku
 
 ## Stan labu (aktualizuj!)
 
-Stan na 03.11.2026:
+Stan na 05.11.2026:
 
 - ✅ Etap 0 (sieć, maszyny, Packer), 0b (klucze SSH), 1 (przygotowanie systemu),
   2 (k3s przez Ansible + Vault), 3 (kube-prometheus-stack 92.16.1 przez Helm, podinfo, reguły).
@@ -47,22 +47,26 @@ Stan na 03.11.2026:
   (przebieg b304583 nadal zablokowany) – następny krok: zgłoszenie na support.github.com. Do tego czasu ShellCheck, yamllint
   i ansible-lint nie są sprawdzane automatycznie.
 - 🧱 03.11 – rozdziały „własny obraz” (Etap 4: `02-wlasny-obraz.md`, ćwiczenia 03/04) i „typowe
-  awarie Kubernetesa” (Etap 5: `02-…`, manifest `kubernetes/awarie/zepsute.yaml`). Ćwiczenia z obrazu
-  wykonał Claude, więc w labie już jest: **Docker 29.9.2 na `monitoring`** (użytkownik w grupie `docker`),
-  **rejestr `registry:3` z TLS na `192.168.180.54:5000`** (CA labu i klucze w `~/rejestr-certs` na
-  `monitoring`, poza gitem), `ca.crt` w `/etc/docker/certs.d/…`, na wszystkich węzłach k3s
-  `/etc/rancher/k3s/lab-ca.crt` + `registries.yaml`, namespace `hello-lab` (NodePort 30880).
-  Właściciel ma przejść ćwiczenia sam po „Pełnym resecie” z `04-cwiczenia-obraz-rozwiazania.md`.
+  awarie Kubernetesa” (Etap 5: `02-…`, manifest `kubernetes/awarie/zepsute.yaml`).
   `insecure-registries` jest zablokowane przez tryb auto (osłabienie TLS) – stąd własne CA.
+- 🐳 05.11 – **Pełny reset zrobiony, właściciel postawił wszystko sam** (opis z wynikami:
+  `docs/etap-4-monitoring-zewnetrzny/05-przebieg-wdrozenia.md`): snapshot `monitoring` przywrócony,
+  Docker od nowa (grupa `docker`), obraz `hello-lab:1.0` bez roota (`~/hello-lab` na `monitoring`),
+  nowe CA labu w `~/rejestr-certs` (poza gitem), rejestr `registry:3` z TLS na `192.168.180.54:5000`
+  (wolumen `rejestr-dane`; do kontenera **tylko** `registry.crt` + `registry.key`, nie `ca.key`),
+  `ca.crt` w `/etc/docker/certs.d/…`, na 4 węzłach `/etc/rancher/k3s/lab-ca.crt` + `registries.yaml`.
+  W rejestrze `app:1.0.0` (z kopii `~/kopia-app-1.0.0.tar`, digest `159255640ed6…` = pod `default/app`)
+  i `hello-lab:1.0` (`f0d8d97…`). Namespace `hello-lab` wdrożony (2 pody, NodePort 30880).
+  Ćwiczenia z obrazu: zrobione poziomy 0, 1, 3, 5, 6, 7; **pominięte 2, 4, 8**.
 - 💾 03.11 – trwałe dyski `local-path` **wdrożone** (właściciel, helm rewizja 2): PVC Prometheusa
   (10Gi) na worker-2, Grafany (2Gi) i Alertmanagera (1Gi) na worker-1 – te pody startują już tylko
   na tych węzłach. Test z kroku 7 (`08-trwale-dane.md`) wykonał Claude: wszystkie dane przetrwały.
 - 🔦 03.11 – **Headlamp 0.46.0 zainstalowany przez właściciela** (Etap 6 rozpoczęty wcześniej): namespace
   `headlamp`, NodePort `:30400`, logowanie tokenem `kubectl create token headlamp -n headlamp --duration=…`
   (konto z `cluster-admin`). Ustawienia przez `--set`, bez pliku values. Opis: `docs/etap-6-gui/01-headlamp.md`.
-- ⏭️ Następny: **Etap 4** – **zacznij od przypomnienia o „Pełnym resecie”** (rejestr, Docker, CA
-  postawił Claude; właściciel chce je zbudować sam – decyzja 03.11, reset odłożony do startu Etapu 4), potem konto healthchecks.io i prawdziwy `HEALTHCHECKS_URL` (do tego czasu
-  świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma na `monitoring`.
+- ⏭️ Następny: **Etap 4 właściwy** – konto healthchecks.io (zakłada właściciel) i prawdziwy
+  `HEALTHCHECKS_URL` (do tego czasu świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma
+  w Dockerze na `monitoring`. Prowadź krok po kroku: podajesz polecenie, właściciel wykonuje i wkleja wynik.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
   Kyverno, Wazuh, ataki z Kali tylko na maszyny labu .51–.58).

@@ -17,8 +17,8 @@ tego obrazu na k3s.
 Pliki do ćwiczeń: [apps/hello-lab/](../../apps/hello-lab/) (aplikacja, `Dockerfile`,
 `.dockerignore`, `k3s-registries.yaml`) i [kubernetes/hello-lab/](../../kubernetes/hello-lab/hello-lab.yaml).
 
-Stan na 03.11.2026: Docker jest już zainstalowany na `monitoring` (przy ćwiczeniach z obrazu),
-więc `06-setup-monitoring-vm.sh` pominie instalację. Rejestr `192.168.180.54:5000` działa,
-a węzły k3s mu ufają. Kroki Grafany i Uptime Kumy w przewodniku zostaną dopisane po przejściu etapu.
+Stan na 05.11.2026: po pełnym resecie Docker, CA labu, rejestr `192.168.180.54:5000` z TLS
+i zaufanie węzłów k3s są postawione od zera ([przebieg](05-przebieg-wdrozenia.md)). Docker jest
+już na `monitoring`, więc `06-setup-monitoring-vm.sh` pominie instalację. Kroki Grafany i Uptime Kumy w przewodniku zostaną dopisane po przejściu etapu.
 
 Następny etap: [Etap 5 – scenariusze awarii](../etap-5-scenariusze-awarii/README.md).

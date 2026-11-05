@@ -19,7 +19,7 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 3 | Pełny reset rejestru, Dockera i CA | ✅ |
 | 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ✅ |
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
-| 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ⏳ |
+| 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
 | 7 | Grafana, Uptime Kuma, healthchecks.io | |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
@@ -588,4 +588,53 @@ Po tym oba pody działają na `sha256:f0d8d97…`.
 > przypięty po digest `image: …@sha256:…`. `imagePullPolicy: Always` też pomaga, ale każdy start poda zależy
 > wtedy od rejestru.
 
-*Dalsze wyniki – dopisywane w trakcie.*
+### 7.4. Sprawdzenie końcowe (🐧 k3s-master)
+
+```text
+$ kubectl get pod app -o wide
+NAME   READY   STATUS    RESTARTS   AGE   IP           NODE
+app    1/1     Running   0          47h   10.42.3.45   k3s-worker-3
+$ kubectl get pod app -o jsonpath='{.status.containerStatuses[0].imageID}{"\n"}'
+192.168.180.54:5000/app@sha256:159255640ed6dda8a696f215b3e648d43035ef3e73bbaac7a091ae716eb1138a
+
+$ kubectl -n hello-lab get svc,endpoints hello-lab
+Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice
+NAME                TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+service/hello-lab   NodePort   10.43.140.142  <none>        80:30880/TCP   48m
+NAME                  ENDPOINTS                           AGE
+endpoints/hello-lab   10.42.1.38:8080,10.42.3.56:8080     48m
+
+$ for i in 1 2 3 4 5 6; do curl -s http://192.168.180.52:30880/api; echo; done
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-gtvsg"}
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-fqs7f"}
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-fqs7f"}
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-gtvsg"}
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-fqs7f"}
+{"app": "hello-lab", "version": "1.0", "host": "hello-lab-55b8fb57c9-fqs7f"}
+```
+
+Jak czytać:
+
+- Pod `app` działa 47 h bez restartu (z cache węzła), a jego digest `159255640ed6…` jest **identyczny** z tym,
+  który dziś wypchnęliśmy z kopii. W rejestrze jest dokładnie ten sam obraz – restart poda go odtworzy.
+- `80:30880/TCP` – Service słucha w klastrze na porcie **80**, na węzłach na **30880**; `ENDPOINTS` pokazują port
+  **8080**, czyli `targetPort` – port aplikacji w kontenerze. Trzy różne porty jednej usługi.
+- Dwa endpointy: `10.42.1.38` (worker-2) i `10.42.3.56` (worker-3, nowy pod `gtvsg` po usunięciu starego obrazu).
+  Pod, który nie jest Ready, nie trafia na tę listę.
+- Zapytanie szło na worker-1 (`.52`), na którym nie ma żadnego poda hello-lab – NodePort działa na każdym węźle.
+- Rozkład 2:4, a nie równo na zmianę – kube-proxy w trybie iptables wybiera pod **losowo**, nie po kolei.
+- Ostrzeżenie o `Endpoints`: od Kubernetesa 1.33 zastępuje je **EndpointSlice**
+  (`kubectl -n hello-lab get endpointslices`). Stare polecenie nadal działa.
+
+**Poziom 7 zakończony.** Wszystko, co 03.11 postawił Claude (Docker, CA, rejestr, zaufanie węzłów, hello-lab),
+jest teraz postawione od zera przez właściciela, a obraz `app` wrócił do rejestru bez przerwy w działaniu poda.
+
+> **Pytanie rekrutacyjne:** *Service ma `PORT(S) 80:30880/TCP`, a endpointy `:8080`. Który port do czego?* –
+> `port` 80: adres Service w klastrze (`hello-lab.hello-lab.svc:80`); `nodePort` 30880: port na każdym węźle,
+> dostęp z zewnątrz; `targetPort` 8080: port kontenera, na który kube-proxy przekazuje ruch.
+
+## Co dalej (następna sesja)
+
+- konto healthchecks.io (zakłada właściciel) i prawdziwy `HEALTHCHECKS_URL` – zgaśnie `AlertmanagerFailedToSendAlerts`;
+- Grafana i Uptime Kuma w Dockerze na `monitoring` (`scripts/06-setup-monitoring-vm.sh`);
+- pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
