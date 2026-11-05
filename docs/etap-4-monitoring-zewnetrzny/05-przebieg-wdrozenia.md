@@ -554,4 +554,38 @@ kopiujące CA się nie wykonało. `k3s.yaml` z 16:23 – k3s przepisuje kubeconf
 dowód restartu mastera. Naprawa: ponowny `copy` z `ca.crt` – opis w
 [problemach](problemy.md#unable-to-read-ca-cert-etcrancherk3slab-cacrt-no-such-file-or-directory).
 
+### 7.3. Ten sam tag, dwa różne obrazy
+
+Po skopiowaniu `lab-ca.crt` oba nowe pody wstały, ale który obraz naprawdę działa, pokazuje dopiero digest:
+
+```text
+$ kubectl -n hello-lab get pods -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,IMAGE:.status.containerStatuses[0].imageID
+POD                          NODE           IMAGE
+hello-lab-55b8fb57c9-fqs7f   k3s-worker-2   192.168.180.54:5000/hello-lab@sha256:f0d8d9721afcece15164a4490c3638b35a1fd99b89832f471b1620c56dca6ae1
+hello-lab-55b8fb57c9-pdrh5   k3s-worker-3   192.168.180.54:5000/hello-lab@sha256:cb8a86b8bb7ca49c27a7112d5d7419836e5986e91af41074d5f948b2e9e1492d
+```
+
+- worker-2 pobrał obraz z nowego rejestru – digest `f0d8d97…` jest **ten sam co w `docker push`** z kroku 6.4.
+- worker-3 znów wziął obraz z cache (`already present on machine`) – digest `cb8a86b…` to obraz zbudowany 03.11.
+- Manifest w obu przypadkach mówi `hello-lab:1.0`. Tag to etykieta, digest to skrót treści.
+
+Naprawa – usunięcie starej kopii z cache containerd na worker-3 i nowy pod:
+
+```bash
+# 🐧 k3s-worker-3
+sudo k3s crictl images | grep hello-lab                    # obrazy w containerd (Dockera na węzłach nie ma)
+sudo k3s crictl rmi 192.168.180.54:5000/hello-lab:1.0      # usuń obraz z cache węzła
+# 🐧 k3s-master
+kubectl -n hello-lab delete pod hello-lab-55b8fb57c9-pdrh5 # ReplicaSet tworzy nowy pod, ten pobiera obraz z rejestru
+```
+
+Po tym oba pody działają na `sha256:f0d8d97…`.
+
+> **Pytanie rekrutacyjne:** *Dwa pody jednego Deploymentu z tym samym `image: app:1.0` zachowują się inaczej. Jak to
+> możliwe i jak temu zapobiec?* – Tag został nadpisany nowym obrazem, a węzeł z obrazem w cache przy
+> `imagePullPolicy: IfNotPresent` go nie pobrał. Sprawdzam `.status.containerStatuses[].imageID` (digest).
+> Zapobieganie: niezmienne tagi (każda wersja = nowy numer, rejestry mają opcję „immutable tags”) albo obraz
+> przypięty po digest `image: …@sha256:…`. `imagePullPolicy: Always` też pomaga, ale każdy start poda zależy
+> wtedy od rejestru.
+
 *Dalsze wyniki – dopisywane w trakcie.*

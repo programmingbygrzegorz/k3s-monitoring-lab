@@ -311,6 +311,8 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `curl --cacert ca.crt https://REJESTR:5000/v2/_catalog` | lista obrazów w rejestrze; `/v2/NAZWA/tags/list` – tagi jednego obrazu |
 | `docker exec KONTENER POLECENIE` | uruchamia jedno polecenie w działającym kontenerze, np. `docker exec rejestr ls -l /certs` |
 | `docker inspect KONTENER --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'` | co jest podpięte do kontenera z zewnątrz (`-v`) i skąd |
+| 🐧 węzeł k3s: `sudo k3s crictl images` / `sudo k3s crictl rmi OBRAZ:TAG` | obrazy w containerd na węźle / usunięcie obrazu z cache węzła (na węzłach k3s nie ma Dockera) |
+| `kubectl -n NS get pods -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,IMAGE:.status.containerStatuses[0].imageID` | który obraz (digest) naprawdę działa w każdym podzie |
 | `-v ~/katalog/plik.crt:/certs/plik.crt:ro` | podpięcie **pojedynczego pliku** tylko do odczytu – kontener nie widzi reszty katalogu |
 
 Kolejność przy własnym obrazie: **build → push → `k apply`** (raz na każdą wersję obrazu).
