@@ -203,6 +203,10 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 |---|---|
 | `k apply -f plik.yaml` | tworzy albo aktualizuje obiekty opisane w pliku |
 | `k diff -f plik.yaml` | co by się zmieniło – bez zmiany |
+| `k apply --dry-run=server -f plik.yaml` | pełna walidacja przez API server (nieznane pola, zgodność selektora), nic nie zapisuje; `--dry-run=client` łapie tylko składnię |
+| `k create deployment NAZWA --image=OBRAZ --replicas=3 --port=9898 --dry-run=client -o yaml > plik.yaml` | szkielet Deploymentu do pliku – nic nie tworzy w klastrze |
+| `k create service nodeport NAZWA --tcp=9898:9898 --node-port=30898 --dry-run=client -o yaml` | szkielet Service'u NodePort |
+| `k explain deployment.spec.selector` | dokumentacja pola: typ (`<[]…>` = lista, `<map…>` = słownik) i opis; `--recursive` = całe drzewo |
 | `k delete -f plik.yaml` | usuwa obiekty opisane w pliku |
 | `k delete namespace NS` | usuwa namespace **ze wszystkim w środku** |
 | `k -n NS delete all --all` | czyści typowe obiekty, namespace zostaje |

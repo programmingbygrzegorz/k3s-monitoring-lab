@@ -66,6 +66,7 @@ z tabeli. Szczegóły:
 | 11 | [12-cwiczenia-wlasny-chart-helm-rozwiazania.md](12-cwiczenia-wlasny-chart-helm-rozwiazania.md) | **odpowiedzi** do tych ćwiczeń i wyniki z labu |
 | 12 | [13-cwiczenia-ingress.md](13-cwiczenia-ingress.md) | **ćwiczenia**, 7 poziomów: Ingress dla whoami, plik `hosts`, nip.io, własne CA i HTTPS na Traefiku |
 | 13 | [14-cwiczenia-ingress-rozwiazania.md](14-cwiczenia-ingress-rozwiazania.md) | **rozwiązania** z wynikami z labu i odpowiedziami |
+| 14 | [15-jak-pisac-yaml-podinfo.md](15-jak-pisac-yaml-podinfo.md) | **jak czytać i pisać YAML** na przykładzie podinfo: `apiVersion`, `kind`, `metadata`, `spec`, `selector`, generowanie szkieletów, `explain`, `--dry-run=server`, `diff`, typowe błędy, ćwiczenie |
 | – | [07-symulator-servicemonitor.html](07-symulator-servicemonitor.html) | interaktywny symulator ServiceMonitor → Service → pody: pobierz plik i otwórz w przeglądarce |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: Helm, kubectl na Windowsie, ErrImagePull, Alertmanager, błąd w szablonie, `curl.exe` i unieważnianie certyfikatów |
 
