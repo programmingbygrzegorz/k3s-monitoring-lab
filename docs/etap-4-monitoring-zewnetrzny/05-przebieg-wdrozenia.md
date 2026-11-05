@@ -15,8 +15,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | Krok | Co | Stan |
 |---|---|---|
 | 1 | Przywrócenie snapshotu `monitoring` i sprawdzenie | ✅ |
-| 2 | Aktualne repozytorium, kopia obrazu `app`, snapshoty | ⏳ |
-| 3 | Pełny reset rejestru, Dockera i CA | |
+| 2 | Aktualne repozytorium, kopia obrazu `app`, snapshoty | ✅ |
+| 3 | Pełny reset rejestru, Dockera i CA | ⏳ |
 | 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | |
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | |
@@ -126,5 +126,69 @@ tar -tf ~/kopia-app-1.0.0.tar | head
 `blobs/sha256/…` z warstwami – format OCI, ten sam, którego używa rejestr.
 
 `-rw-------` – plik czyta tylko właściciel; `docker save` tworzy go z ostrożnymi uprawnieniami.
+
+### Niespodzianka: master nie odpowiadał na ping
+
+Po zrobieniu snapshotów `ssh k3s-master` z Windowsa nie działał, a `ping 192.168.180.51` nie dostawał
+odpowiedzi, choć w VMware maszyna była włączona. Kilka minut później Ansible z `monitoring` łączył się
+z masterem bez problemu. Wyjaśnienie widać w wyniku restartu z kroku 3.2: k3s na masterze miał
+`ActiveEnterTimestampMonotonic: 15180728` – licznik od startu systemu w mikrosekundach, czyli usługa
+wystartowała **15 sekund po uruchomieniu maszyny** (13:57). Master właśnie się uruchamiał od nowa,
+a w trakcie startu systemu sieć jeszcze nie odpowiada.
+
+Lekcja: „włączona w VMware” ≠ „gotowa”. Przed szukaniem awarii sieci warto odczekać minutę
+i sprawdzić konsolę maszyny (ekran logowania = system wstał).
+
+## Krok 3 – Pełny reset
+
+### 3.2. Węzły k3s przestają ufać rejestrowi (🐧 monitoring, Ansible)
+
+```bash
+cd ~/k3s-monitoring-lab/ansible
+ansible k3s_cluster -b -m file -a "path=/etc/rancher/k3s/registries.yaml state=absent"
+ansible k3s_cluster -b -m file -a "path=/etc/rancher/k3s/lab-ca.crt state=absent"
+ansible k3s_server -b -m systemd -a "name=k3s state=restarted"
+ansible k3s_agents -b -f 1 -m systemd -a "name=k3s-agent state=restarted"
+```
+
+| Część | Znaczenie |
+|---|---|
+| `ansible GRUPA` | polecenie ad-hoc (bez playbooka) na grupie maszyn z `inventory.ini`: `k3s_cluster` = master + 3 workery, `k3s_server` = master, `k3s_agents` = workery |
+| `-b` | *become* – przez sudo (pliki w `/etc`, restart usług) |
+| `-m file -a "path=… state=absent"` | moduł `file`: plik ma **nie istnieć** – jest, to usuń; nie ma, nic nie rób |
+| `-m systemd -a "name=… state=restarted"` | moduł `systemd`: zrestartuj usługę (master: `k3s`, workery: `k3s-agent`) |
+| `-f 1` | *forks* – po jednej maszynie naraz, żeby zawsze 2 z 3 workerów działały (*rolling restart*) |
+
+Restart jest potrzebny, bo k3s czyta `registries.yaml` tylko przy starcie.
+
+Wynik z labu (skrócony – moduł `systemd` wypisuje ok. 300 linii stanu usługi):
+
+```text
+k3s-master   | CHANGED => { "changed": true, "path": "/etc/rancher/k3s/registries.yaml", "state": "absent" }
+k3s-worker-3 | CHANGED => { ... registries.yaml ... }
+k3s-worker-2 | CHANGED => { ... }
+k3s-worker-1 | CHANGED => { ... }
+
+k3s-worker-3 | CHANGED => { "changed": true, "path": "/etc/rancher/k3s/lab-ca.crt", "state": "absent" }
+...                                         (4 × CHANGED)
+
+# to samo polecenie drugi raz:
+k3s-worker-2 | SUCCESS => { "changed": false, "path": "/etc/rancher/k3s/lab-ca.crt", "state": "absent" }
+...                                         (4 × SUCCESS)
+
+k3s-master   | CHANGED => { "name": "k3s", "state": "started", "status": { "ActiveState": "active", ... } }
+k3s-worker-1 | CHANGED => { "name": "k3s-agent", "state": "started", ... }
+k3s-worker-2 | CHANGED => { ... }
+k3s-worker-3 | CHANGED => { ... }
+```
+
+**Idempotencja na żywo.** Polecenie z `lab-ca.crt` uruchomione przypadkiem drugi raz dało
+`SUCCESS` i `"changed": false` – pliku już nie było, więc Ansible niczego nie zrobił. To właśnie
+idempotencja: to samo polecenie można powtarzać bez szkody, a wynik mówi, czy coś się zmieniło
+(`CHANGED`, żółty) czy stan już był dobry (`SUCCESS`/`ok`, zielony).
+
+**Jak czytać wynik modułu `systemd`.** Pole `status` to stan usługi **sprzed** restartu (dlatego na
+workerach widać daty z 03.11 – wtedy ostatnio startowały). Najważniejsze: `"changed": true` i brak
+`FAILED`. Gdyby trzeba było sprawdzić usługę po restarcie: `ansible k3s_agents -b -a "systemctl is-active k3s-agent"`.
 
 *Dalsze wyniki – dopisywane w trakcie.*
