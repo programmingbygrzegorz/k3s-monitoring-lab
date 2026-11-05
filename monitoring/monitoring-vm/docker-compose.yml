@@ -15,7 +15,8 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
 
   uptime-kuma:
-    image: louislam/uptime-kuma:1
+    # Tag "2" = najnowsza wersja 2.x (zalecana). Wersja 1 nie dostaje już poprawek bezpieczeństwa.
+    image: louislam/uptime-kuma:2
     container_name: uptime-kuma
     restart: unless-stopped
     ports:
