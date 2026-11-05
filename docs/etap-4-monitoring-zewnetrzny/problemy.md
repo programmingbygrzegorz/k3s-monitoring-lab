@@ -62,3 +62,20 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   `.env` itp. Kontekst spadł do 130 B, a obraz wrócił do 178 MB.
 - **Wniosek:** bez `.dockerignore` do obrazu trafia wszystko z katalogu, także sekrety (`.env`)
   i historia gita. Każdy, kto pobierze obraz, może je z niego wyciągnąć.
+
+## docker build: "/app.py": not found
+
+- **Objaw:** `docker build --build-arg APP_VERSION=1.0 -t hello-lab:1.0 .` kończy się błędem na kroku
+  `COPY app.py .`:
+  `ERROR: failed to build: failed to solve: failed to compute cache key: failed to calculate checksum of ref …: "/app.py": not found`.
+  Wcześniej w wyniku: `transferring context: 2B`, a kroki obok mają `CANCELED`.
+- **Przyczyna:** budowanie uruchomione w złym katalogu – w `~` zamiast w `~/hello-lab` (05.11.2026,
+  po ponownym zalogowaniu terminal startuje w katalogu domowym). Kropka na końcu `docker build … .` to
+  **kontekst budowania** – Docker widzi tylko pliki z bieżącego katalogu. Dockerfile tam był, `app.py` nie.
+- **Diagnoza:** prompt `grzegorz@monitoring:~$` (a nie `~/hello-lab$`), `transferring context: 2B`
+  (kontekst praktycznie pusty), `ls` – brak `app.py`. Ścieżka w błędzie (`"/app.py"`) jest liczona od
+  katalogu kontekstu, nie od korzenia systemu.
+- **Rozwiązanie:** `cd ~/hello-lab && ls` – muszą być **oba** pliki: `Dockerfile` i `app.py`
+  (Dockerfile przeniesiony z `~` przez `mv ~/Dockerfile ~/hello-lab/`). Potem ponowny `docker build`.
+- **Wniosek:** przed `docker build … .` sprawdź prompt albo `ls`. `CANCELED` przy innych krokach to skutek,
+  nie przyczyna – szukaj linii `ERROR` i fragmentu Dockerfile oznaczonego `>>>`.

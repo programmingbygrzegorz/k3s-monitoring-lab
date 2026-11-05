@@ -226,4 +226,46 @@ kopia `~/kopia-app-1.0.0.tar` na miejscu. **Reset zakończony.**
 konfigurację. Żaden nie rusza danych w `/var/lib/docker` – obrazy i wolumeny trzeba skasować ręcznie,
 jeśli naprawdę chcemy zacząć od zera.
 
+## Krok 4 – Docker od zera
+
+### Poziom 0 – instalacja (🐧 monitoring)
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh   # oficjalny skrypt: repozytorium apt + pakiety
+sudo usermod -aG docker $USER                 # -a = DOPISZ do grupy (bez -a tracisz pozostałe grupy, w tym sudo!)
+exit                                          # nowe logowanie = nowa lista grup
+id                                            # na liście: docker
+docker version                                # sekcje Client i Server – działa bez sudo
+```
+
+`curl … | sudo sh` uruchamia cudzy skrypt jako root bez czytania. W firmie: `curl -fsSL https://get.docker.com -o get-docker.sh`,
+`less get-docker.sh`, dopiero potem `sudo sh get-docker.sh`.
+
+### Poziom 1 – pierwszy kontener
+
+`docker run hello-world`, `nginx:alpine` z `-p 8081:80`, `docker ps -a`, `docker rm -f web` – obraz
+zostaje po usunięciu kontenera (obraz = szablon, kontener = uruchomiona kopia).
+
+### Poziom 3 – obraz hello-lab:1.0
+
+```bash
+mkdir -p ~/hello-lab && cd ~/hello-lab
+cp ~/k3s-monitoring-lab/apps/hello-lab/app.py .
+nano Dockerfile                    # FROM python:3.14-slim, ARG/ENV APP_VERSION, WORKDIR, COPY, EXPOSE, CMD
+docker build --build-arg APP_VERSION=1.0 -t hello-lab:1.0 .
+docker run -d --name hello -p 8080:8080 hello-lab:1.0
+curl localhost:8080/api
+docker exec hello whoami           # root – poprawione w poziomie 5
+```
+
+**Pierwsza próba się nie udała:** `"/app.py": not found` przy `COPY app.py .` i `transferring context: 2B`.
+Budowanie poszło z katalogu domowego (`~`), a nie z `~/hello-lab` – po ponownym zalogowaniu terminal
+zaczyna w `~`. Opis: [problemy – docker build: "/app.py": not found](problemy.md#docker-build-apppy-not-found).
+Po `cd ~/hello-lab` (Dockerfile i `app.py` w jednym katalogu) budowanie przeszło.
+
+**Kto czyta Dockerfile?** Tylko `docker build` – szuka pliku `Dockerfile` w katalogu kontekstu (kropka)
+i zapisuje wynik jako obraz `hello-lab:1.0`. `docker run hello-lab:1.0` bierze **gotowy obraz** po nazwie
+(a gdy go nie ma lokalnie – pobiera z rejestru); Dockerfile nie jest mu potrzebny. Dlatego obraz da się
+zbudować na `monitoring`, a uruchomić na workerze k3s.
+
 *Dalsze wyniki – dopisywane w trakcie.*
