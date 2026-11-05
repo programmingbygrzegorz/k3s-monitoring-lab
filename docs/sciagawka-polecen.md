@@ -309,6 +309,9 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `docker save OBRAZ:TAG -o plik.tar` | kopia obrazu ze wszystkimi warstwami do pliku – niezależna od rejestru |
 | `docker load -i plik.tar` | przywraca obraz z pliku do lokalnego Dockera (potem `docker push`) |
 | `curl --cacert ca.crt https://REJESTR:5000/v2/_catalog` | lista obrazów w rejestrze; `/v2/NAZWA/tags/list` – tagi jednego obrazu |
+| `docker exec KONTENER POLECENIE` | uruchamia jedno polecenie w działającym kontenerze, np. `docker exec rejestr ls -l /certs` |
+| `docker inspect KONTENER --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'` | co jest podpięte do kontenera z zewnątrz (`-v`) i skąd |
+| `-v ~/katalog/plik.crt:/certs/plik.crt:ro` | podpięcie **pojedynczego pliku** tylko do odczytu – kontener nie widzi reszty katalogu |
 
 Kolejność przy własnym obrazie: **build → push → `k apply`** (raz na każdą wersję obrazu).
 Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
@@ -326,6 +329,7 @@ Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
 | `openssl x509 -req -in X.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 365 -sha256 -extfile X.ext -out tls.crt` | CA podpisuje certyfikat; w `X.ext` `subjectAltName=DNS:NAZWA` |
 | `openssl x509 -in tls.crt -noout -subject -issuer -dates -ext subjectAltName` | dla kogo, kto podpisał, ważność, nazwy |
 | `openssl verify -CAfile ca.crt tls.crt` | czy certyfikat jest podpisany przez to CA |
+| `openssl x509 -in tls.crt -noout -pubkey \| sha256sum` i `openssl pkey -in tls.key -pubout \| sha256sum` | czy klucz pasuje do certyfikatu – skróty muszą być identyczne |
 | `kubectl create secret tls NAZWA --cert=tls.crt --key=tls.key -n NS` | certyfikat i klucz do klastra; Ingress wskazuje go w `tls.secretName` |
 | `curl --cacert ca.crt https://…` / `curl -k https://…` | HTTPS z zaufaniem do własnego CA / bez sprawdzania certyfikatu |
 | 🪟 `Import-Certificate -FilePath ca.crt -CertStoreLocation Cert:\CurrentUser\Root` | Windows ufa CA labu (tylko Twoje konto) |

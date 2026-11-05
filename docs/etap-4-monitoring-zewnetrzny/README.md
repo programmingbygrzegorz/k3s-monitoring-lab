@@ -11,6 +11,7 @@ tego obrazu na k3s.
 | 3 | [03-cwiczenia-obraz.md](03-cwiczenia-obraz.md) | ćwiczenia: 8 poziomów od pierwszego kontenera do wdrożenia i wycofania na k3s |
 | 4 | [04-cwiczenia-obraz-rozwiazania.md](04-cwiczenia-obraz-rozwiazania.md) | rozwiązania z prawdziwymi wynikami z labu i pełny reset |
 | 5 | [05-przebieg-wdrozenia.md](05-przebieg-wdrozenia.md) | **przebieg prawdziwej sesji 05.11**: przywrócenie snapshotu, kopia obrazu `app`, reset, Docker i rejestr od zera, monitoring – polecenia i wyniki z labu |
+| 6 | [06-certyfikaty-gdzie-jaki-klucz.md](06-certyfikaty-gdzie-jaki-klucz.md) | certyfikaty z diagramami: który plik jest czym, gdzie leży, kto go używa, co się dzieje przy `docker push`, porównanie z prawdziwym urzędem (Certum by Asseco), pytania rekrutacyjne |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: rejestr bez TLS, `x509 unknown authority`, brak katalogu na workerach, `.dockerignore` |
 
 Pliki do ćwiczeń: [apps/hello-lab/](../../apps/hello-lab/) (aplikacja, `Dockerfile`,

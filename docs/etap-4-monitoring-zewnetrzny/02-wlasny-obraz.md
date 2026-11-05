@@ -229,6 +229,9 @@ Gdzie trafia `ca.crt`:
 | Docker na `monitoring` (`docker push`) | `/etc/docker/certs.d/192.168.180.54:5000/ca.crt` | nie trzeba |
 | k3s na **każdym** węźle | `/etc/rancher/k3s/lab-ca.crt` + [`/etc/rancher/k3s/registries.yaml`](../../apps/hello-lab/k3s-registries.yaml) | `k3s` (master) / `k3s-agent` (workery) |
 
+Diagramy „który klucz gdzie leży” i porównanie z prawdziwym urzędem certyfikacji:
+[06-certyfikaty-gdzie-jaki-klucz.md](06-certyfikaty-gdzie-jaki-klucz.md).
+
 Zaufanie dotyczy **tylko tego jednego rejestru**. Nie dodajemy CA labu do zaufanych certyfikatów
 całego systemu.
 

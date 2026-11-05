@@ -393,6 +393,8 @@ Co jest w kontenerze `rejestr`:
 | `-v` wolumen | `/var/lib/registry` – warstwy i manifesty obrazów, przetrwa `docker rm` |
 | `-e` | `REGISTRY_HTTP_TLS_*` – nadpisują `config.yml` i włączają HTTPS |
 
+Gdzie który klucz leży (diagramy): [06-certyfikaty-gdzie-jaki-klucz.md](06-certyfikaty-gdzie-jaki-klucz.md).
+
 Sprawdzenie: `docker exec rejestr env`, `docker exec rejestr cat /etc/distribution/config.yml`,
 `docker inspect rejestr --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'`.
 
