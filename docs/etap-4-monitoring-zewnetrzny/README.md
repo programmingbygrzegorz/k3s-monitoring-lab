@@ -10,6 +10,7 @@ tego obrazu na k3s.
 | 2 | [02-wlasny-obraz.md](02-wlasny-obraz.md) | jak zbudować własny obraz: Dockerfile, warstwy, tagi, dobry obraz, rejestr z TLS i własnym CA, obraz na k3s, pytania rekrutacyjne |
 | 3 | [03-cwiczenia-obraz.md](03-cwiczenia-obraz.md) | ćwiczenia: 8 poziomów od pierwszego kontenera do wdrożenia i wycofania na k3s |
 | 4 | [04-cwiczenia-obraz-rozwiazania.md](04-cwiczenia-obraz-rozwiazania.md) | rozwiązania z prawdziwymi wynikami z labu i pełny reset |
+| 5 | [05-przebieg-wdrozenia.md](05-przebieg-wdrozenia.md) | **przebieg prawdziwej sesji 05.11**: przywrócenie snapshotu, kopia obrazu `app`, reset, Docker i rejestr od zera, monitoring – polecenia i wyniki z labu |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: rejestr bez TLS, `x509 unknown authority`, brak katalogu na workerach, `.dockerignore` |
 
 Pliki do ćwiczeń: [apps/hello-lab/](../../apps/hello-lab/) (aplikacja, `Dockerfile`,
