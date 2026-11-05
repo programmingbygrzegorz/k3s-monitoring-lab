@@ -463,4 +463,50 @@ Jak czytać:
 > (content-addressable). Klient najpierw pyta, czy warstwa o danym `sha256` istnieje; jeśli tak, nie wysyła jej.
 > Wspólne warstwy (np. obraz bazowy) są w rejestrze tylko raz, niezależnie od liczby obrazów.
 
+## Krok 6 – k3s ufa rejestrowi (poziom 7)
+
+### 7.1. Wdrożenie bez zaufania – błąd celowo (🐧 k3s-master)
+
+```bash
+cd ~/k3s-monitoring-lab && git pull
+kubectl apply -f kubernetes/hello-lab/hello-lab.yaml
+kubectl -n hello-lab get pods -o wide
+kubectl -n hello-lab get events --sort-by=.lastTimestamp | grep -iE "pull|x509|present"
+```
+
+Wynik z labu – **niespodzianka: jeden pod działa, drugi nie**:
+
+```text
+NAME                         READY   STATUS             NODE
+hello-lab-57dd97cd57-jhckb   1/1     Running            k3s-worker-3
+hello-lab-57dd97cd57-rwzzd   0/1     ImagePullBackOff   k3s-worker-2
+
+pod/…-jhckb   Container image "192.168.180.54:5000/hello-lab:1.0" already present on machine and can be accessed by the pod
+pod/…-rwzzd   Pulling image "192.168.180.54:5000/hello-lab:1.0"
+pod/…-rwzzd   Failed to pull image "192.168.180.54:5000/hello-lab:1.0": failed to pull and unpack image …:
+              failed to resolve reference …: failed to do request:
+              Head "https://192.168.180.54:5000/v2/hello-lab/manifests/1.0":
+              tls: failed to verify certificate: x509: certificate signed by unknown authority
+pod/…-rwzzd   Error: ErrImagePull  →  Error: ImagePullBackOff  →  Back-off pulling image
+```
+
+Dlaczego tak:
+
+- Manifest nie ustawia `imagePullPolicy`, więc dla tagu innego niż `latest` obowiązuje **`IfNotPresent`** –
+  pobieraj tylko, gdy węzła nie ma obrazu.
+- **worker-3** miał `hello-lab:1.0` w containerd z ćwiczeń 03.11. Pełny reset usunął zaufanie węzłów
+  i namespace, ale **nie obrazy z cache węzłów**. Worker-3 nie łączył się z rejestrem wcale.
+- **worker-2** obrazu nie miał, więc containerd zapytał rejestr o manifest (`HEAD /v2/hello-lab/manifests/1.0`
+  – to samo API, które pytaliśmy curlem) i nie rozpoznał CA → x509.
+- `ErrImagePull` → `ImagePullBackOff` – k3s ponawia próbę coraz rzadziej (10 s, 20 s, 40 s… do 5 min).
+- Pod na worker-3 działa najpewniej na **starym** obrazie o tym samym tagu. Tag to tylko etykieta – stąd
+  w firmach przypinanie obrazu po digest (`image: …@sha256:…`) i zasada „nigdy nie używaj tagu drugi raz”.
+- `tail -5` w tym miejscu ucięło linię `already present` – przy kilku podach lepszy jest `grep` po słowach.
+
+> **Pytanie rekrutacyjne:** *Dwa pody tego samego Deploymentu: jeden `Running`, drugi `ImagePullBackOff`.
+> Co sprawdzasz?* – Na których węzłach są (`-o wide`) i zdarzenia (`get events`/`describe pod`).
+> Typowo: jeden węzeł ma obraz w cache (`already present`, `IfNotPresent`), drugi musi pobrać i nie może
+> (x509, brak dostępu do rejestru, brak `imagePullSecrets`, zła nazwa). Działający pod nie dowodzi, że
+> rejestr jest osiągalny.
+
 *Dalsze wyniki – dopisywane w trakcie.*
