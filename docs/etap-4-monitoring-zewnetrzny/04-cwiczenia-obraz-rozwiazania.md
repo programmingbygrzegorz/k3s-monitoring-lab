@@ -472,6 +472,47 @@ deployment "hello-lab" successfully rolled out
 
 Żeby przejść ćwiczenie od zera, cofnij to, co zrobiły poziomy 0–8.
 
+### Najpierw: czy w rejestrze są Twoje inne obrazy?
+
+`docker volume rm rejestr-dane` usuwa **wszystkie** obrazy z rejestru, a `docker image prune -a -f`
+także ich lokalne kopie. Pody, które już działają, nie padną od razu (węzeł ma obraz w pamięci
+podręcznej containerd), ale po restarcie lub przeniesieniu na inny węzeł dostaną `ImagePullBackOff`.
+Dlatego przed resetem sprawdź, co jest w rejestrze i kto z tego korzysta:
+
+🐧 monitoring:
+
+```bash
+curl -s --cacert ~/rejestr-certs/ca.crt https://192.168.180.54:5000/v2/_catalog
+```
+
+🐧 k3s-master – które pody biorą obrazy z rejestru labu:
+
+```bash
+kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}{"  "}{.spec.containers[*].image}{"\n"}{end}' | grep 5000
+```
+
+W labie 05.11.2026 był tam, oprócz `hello-lab`, obraz `app:1.0.0` z kursu Kubernetesa
+(pod `default/app`). Każdy taki obraz zapisz do pliku **przed** resetem:
+
+```bash
+docker pull 192.168.180.54:5000/app:1.0.0          # gdyby nie było go lokalnie
+docker save 192.168.180.54:5000/app:1.0.0 -o ~/kopia-app-1.0.0.tar
+ls -lh ~/kopia-app-1.0.0.tar
+```
+
+`docker save` pakuje obraz ze wszystkimi warstwami do jednego pliku `.tar` – kopia jest niezależna
+od rejestru. Po postawieniu nowego rejestru (poziom 6) przywracasz go dwoma poleceniami:
+
+```bash
+docker load -i ~/kopia-app-1.0.0.tar               # obraz wraca do lokalnego Dockera
+docker push 192.168.180.54:5000/app:1.0.0          # i do nowego rejestru
+```
+
+Druga droga: zbudować obraz ponownie z jego `Dockerfile` (`docker build -t … .` i `docker push`).
+Kopia `.tar` jest pewniejsza – daje dokładnie ten sam obraz.
+
+### Reset
+
 🐧 k3s-master:
 
 ```bash

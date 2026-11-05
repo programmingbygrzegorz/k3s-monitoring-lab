@@ -306,6 +306,9 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `docker ps -a`, `docker images`, `docker volume ls` | kontenery, obrazy, wolumeny |
 | `docker rm -f NAZWA` | zatrzymuje i usuwa kontener |
 | `docker image prune -a -f` | usuwa nieużywane obrazy |
+| `docker save OBRAZ:TAG -o plik.tar` | kopia obrazu ze wszystkimi warstwami do pliku – niezależna od rejestru |
+| `docker load -i plik.tar` | przywraca obraz z pliku do lokalnego Dockera (potem `docker push`) |
+| `curl --cacert ca.crt https://REJESTR:5000/v2/_catalog` | lista obrazów w rejestrze; `/v2/NAZWA/tags/list` – tagi jednego obrazu |
 
 Kolejność przy własnym obrazie: **build → push → `k apply`** (raz na każdą wersję obrazu).
 Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
