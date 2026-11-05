@@ -21,7 +21,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
 | 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
-| 7b | Grafana, Uptime Kuma, test awarii | następna sesja |
+| 7b | Grafana, Uptime Kuma | 🟡 postawione; przerwane awarią hosta |
+| 7c | Reguła 6443 w roli Ansible, test awarii | następna sesja |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -710,8 +711,100 @@ więc `url` jest linię niżej. Lepiej szukać samej wartości (`grep hc-ping`).
 > ustawieniami: wszystko spoza `--set` wraca do domyślnych chartu (np. znikają trwałe dyski, NodePorty).
 > Zawsze pełny plik values z repo jako jedyne źródło prawdy; `--reuse-values` ukrywa stan w klastrze.
 
+## Krok 8 – Grafana i Uptime Kuma na `monitoring`
+
+Ręcznie, bez skryptu `06-setup-monitoring-vm.sh` (🐧 monitoring):
+
+```bash
+cd ~/k3s-monitoring-lab && git pull
+grep -E "^(MASTER_IP|WORKER2_IP|MONITORING_IP)=" lab.env                 # prawdziwe adresy, nie 192.168.1.x z wzoru
+grep -c "^GRAFANA_ADMIN_PASSWORD=." lab.env; grep -c "zmien-to-haslo" lab.env   # 1 i 0 – hasło jest, nie przykładowe
+cd monitoring/monitoring-vm
+set -a && source ../../lab.env && set +a
+umask 077 && printf 'MASTER_IP=%s\nWORKER2_IP=%s\nGRAFANA_ADMIN_PASSWORD=%s\n' "$MASTER_IP" "$WORKER2_IP" "$GRAFANA_ADMIN_PASSWORD" > .env
+ls -l .env && cut -d= -f1 .env && git check-ignore -v .env              # 600, same nazwy, ignorowany przez git
+docker compose up -d
+```
+
+Wynik z labu: `.env` z prawami `-rw-------` (600), w środku trzy nazwy zmiennych, `git check-ignore` wskazał
+regułę z `.gitignore`, a `docker compose up -d` pobrał obrazy, utworzył sieć `monitoring-vm_default`, wolumeny
+`monitoring-vm_grafana-data` i `monitoring-vm_uptime-kuma-data` oraz uruchomił kontenery `grafana` i `uptime-kuma`
+(`Started`).
+
+- `.env` czyta Docker Compose sam (luki `${…}` w `docker-compose.yml`). `ls` go nie pokazuje – pliki z kropką są ukryte (`ls -a`).
+- `cut -d= -f1` i `grep -c` sprawdzają plik z hasłem **bez wypisywania hasła**.
+- Hasło z `GF_SECURITY_ADMIN_PASSWORD` działa tylko przy **pierwszym** starcie Grafany – potem jego hash jest
+  w `grafana.db` w wolumenie, a zmiana `.env` nic nie zmienia.
+- Zmienne środowiskowe kontenera widzi każdy z grupy `docker` (`docker inspect grafana`) – kolejny powód,
+  dla którego grupa `docker` = root.
+
+### Grafana
+
+Pusta po starcie – to poprawne: z `grafana/provisioning/` dostaje tylko **źródło danych** „Prometheus (k3s-lab)”
+(`http://192.168.180.51:30090`, Prometheus w klastrze). Dashboard: *Dashboards → New → Import → 1860*
+(*Node Exporter Full*) → źródło „Prometheus (k3s-lab)”. Grafana na `monitoring` czyta **te same** dane co
+Grafana w klastrze – przy awarii klastra pokaże „No data”. Własne dane dostałaby dopiero z magazynem metryk
+poza klastrem (np. VictoriaMetrics + `remote_write`) – pomysł na później.
+
+### Uptime Kuma – wersja 1 nieutrzymywana
+
+Strona `:3001` pokazała: *„This Uptime Kuma version is outdated! Current Version: 1.23.17”*. Plik compose miał
+`louislam/uptime-kuma:1` – wersja 1 nie dostaje już poprawek bezpieczeństwa. Zmiana na tag **`2`** (zalecany,
+najnowsza 2.x) i wymiana kontenera, zanim powstało konto:
+
+```bash
+git pull                                            # docker-compose.yml z uptime-kuma:2
+docker compose rm -sf uptime-kuma                   # stop + usuń tylko ten kontener
+docker volume rm monitoring-vm_uptime-kuma-data     # pusta baza po v1 – v2 startuje od czysta
+docker compose up -d uptime-kuma
+```
+
+Przycisk „Stwórz” przy zakładaniu konta nie działał – przeglądarka miała w pamięci stronę wersji 1. Po
+`Ctrl+Shift+R` Kuma 2 zapytała najpierw o bazę: **SQLite** (jeden plik w wolumenie; wbudowana MariaDB ma sens
+przy setkach monitorów). Konto administratora zakłada właściciel – login inny niż `admin`, hasło w menedżerze haseł.
+
+Monitory:
+
+| Nazwa | Typ | Adres |
+|---|---|---|
+| hello-lab | HTTP(s) | `http://192.168.180.51:30880/healthz` |
+| podinfo (NodePort) | HTTP(s) | `http://192.168.180.51:30898/healthz` |
+| podinfo (Ingress) | HTTP(s) | `http://podinfo.lab.local/healthz` |
+| Prometheus | HTTP(s) | `http://192.168.180.51:30090/-/healthy` |
+| API Kubernetesa | TCP Port | `192.168.180.51` : `6443` |
+| Rejestr obrazów | TCP Port | `192.168.180.54` : `5000` |
+
+Interwał 60 s, 2 ponowienia (awaria ogłoszona po ~3 min). `/healthz` to adres zdrowia aplikacji – w hello-lab
+napisany w `app.py`; ten sam adres pytają `HEALTHCHECK` w Dockerze i sondy readiness/liveness w Kubernetesie.
+
+**API Kubernetesa – czerwone.** `nc -zv -w 3 192.168.180.51 6443` z `monitoring` → timeout. Rola Ansible `common`
+otwiera 6443 tylko dla `admin_cidr`, a NodePorty – dla `admin_cidr` **i** maszyny `monitoring`
+([problem](problemy.md#uptime-kuma-api-kubernetesa-6443-czerwone--firewall-na-masterze)). Szybka łatka na masterze:
+`sudo ufw allow from 192.168.180.54 to any port 6443 proto tcp` → `Rule added`. Do zrobienia: ta sama reguła
+w roli Ansible (właściciel), żeby nie było **configuration drift** – różnicy między kodem a serwerem.
+
+### Awaria hosta (ok. 20:10)
+
+Monitor API dalej czerwony, SSH na mastera nie odpowiadało, a konsola VMware mastera pokazywała:
+
+```text
+rcu: INFO: rcu_preempt detected stalls on CPUs/tasks
+rcu_preempt kthread timer wakeup didn't happen for 55995 jiffies
+Unless rcu_preempt kthread gets sufficient CPU time, OOM is now expected behavior
+```
+
+Maszyna przez ~56 s nie dostała procesora od VMware – problem po stronie **hosta**, nie k3s. Chwilę później
+zawiesił się cały Windows i trzeba było go wyłączyć twardo. Potem k3s-worker-3 nie startował:
+*„Cannot open the disk …\k3s-worker-3\disk-000005.vmdk or one of the snapshot disks it depends on”* – zostały
+**pliki blokad `*.lck`** po nagłym zakończeniu
+([problem](problemy.md#vmware-cannot-open-the-disk--pozostałe-blokady-lck)).
+
 ## Co dalej (następna sesja)
 
-- potwierdzić na healthchecks.io pingi co minutę (POST) i zgaśnięcie `AlertmanagerFailedToSendAlerts`;
-- Grafana i Uptime Kuma w Dockerze na `monitoring` (`scripts/06-setup-monitoring-vm.sh`);
+- sprawdzić, czy wszystkie maszyny wstały (blokady `.lck`, ewentualnie snapshot worker-3), `kubectl get nodes`,
+  `docker ps` na `monitoring`, monitory w Kumie i dashboard w Grafanie;
+- reguła 6443 dla `monitoring` w roli Ansible (`ansible/roles/common/tasks/main.yml`) – właściciel, potem
+  `--syntax-check`, `ansible-lint roles/common`, `--check --diff`;
+- przyczyna zawieszenia hosta: wolne miejsce na C:, dziennik zdarzeń Windows z ok. 20:10;
+- powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).

@@ -68,10 +68,17 @@ Stan na 05.11.2026:
   5 min, e-mail), prawdziwy `HEALTHCHECKS_URL` w `lab.env` na masterze i na `monitoring`, `helm upgrade` →
   rewizja 3. Pingi z Alertmanagera i zgaśnięcie `AlertmanagerFailedToSendAlerts` **niepotwierdzone** zrzutem.
   Snapshoty wszystkich 5 maszyn: „2026-11-05 Etap4 rejestr+healthchecks”.
-- ⏭️ Następny: **dokończenie Etapu 4** – sprawdź pingi na healthchecks.io (zdejmij pauzę, jeśli była),
-  potem Grafana i Uptime Kuma w Dockerze na `monitoring` (`monitoring/monitoring-vm/docker-compose.yml`),
-  test awarii (wyłączenie węzłów → alarm z Uptime Kuma i e-mail z healthchecks.io), zamknięcie etapu.
-  Prowadź krok po kroku: podajesz polecenie, właściciel wykonuje i wkleja wynik.
+- 📊 05.11 wieczorem – **Grafana 11.4 i Uptime Kuma 2 w Dockerze na `monitoring`** (właściciel; `.env` 600,
+  baza Kumy SQLite, monitor hello-lab). Grafana bez dashboardów. Monitor TCP 6443 czerwony – rola `common` otwiera
+  6443 tylko dla `admin_cidr`; na masterze ręcznie `ufw allow from 192.168.180.54 to any port 6443` (drift!).
+  Potem zawiesił się host (RCU stall na masterze, twarde wyłączenie PC), worker-3 nie startował przez stare
+  blokady `*.lck` – przeniesione do `stare-lck-2026-11-05`. **Start maszyn po awarii niepotwierdzony.**
+- ⏭️ Następny (06.11): sprawdź, czy maszyny wstały (`kubectl get nodes`, `docker ps` na `monitoring`, reguła 6443);
+  **właściciel sam** dopisuje 6443 dla `monitoring` w `ansible/roles/common/tasks/main.yml` (`loop` z `admin_cidr`
+  i `192.168.180.54`) + `--syntax-check`, `ansible-lint`, `--check --diff`; reszta monitorów Kumy (tabela w
+  `05-przebieg-wdrozenia.md`), dashboard 1860 w Grafanie, pingi healthchecks.io, test awarii, zamknięcie Etapu 4.
+  Przyczyna zawieszenia hosta: miejsce na C:, dziennik zdarzeń. Prowadź krok po kroku: podajesz polecenie,
+  właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
   Kyverno, Wazuh, ataki z Kali tylko na maszyny labu .51–.58).

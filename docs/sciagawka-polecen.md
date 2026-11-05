@@ -25,7 +25,8 @@ Oznaczenia: 🪟 Windows (PowerShell / Git Bash), 🐧 maszyna Linux przez SSH.
 15. [Docker i rejestr](#docker-i-rejestr)
 16. [DNS, certyfikaty i HTTPS](#dns-certyfikaty-i-https)
 17. [Ansible (ad-hoc)](#ansible-ad-hoc)
-18. [Git](#git)
+18. [Sieć, firewall i maszyny VMware](#sieć-firewall-i-maszyny-vmware)
+19. [Git](#git)
 
 ## Linux – tekst i pliki
 
@@ -319,6 +320,11 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `kubectl -n NS get secret NAZWA -o jsonpath='{.data.PLIK}' \| base64 -d` | odczytaj plik z Secretu (dla `.gz` dodaj `\| gunzip`) |
 | `kubectl -n NS get pods -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,IMAGE:.status.containerStatuses[0].imageID` | który obraz (digest) naprawdę działa w każdym podzie |
 | `-v ~/katalog/plik.crt:/certs/plik.crt:ro` | podpięcie **pojedynczego pliku** tylko do odczytu – kontener nie widzi reszty katalogu |
+| `docker compose up -d` | uruchamia wszystkie usługi z `docker-compose.yml` w tle (zmienne bierze z `.env` obok) |
+| `docker compose ps` / `docker compose logs -f USŁUGA` | stan kontenerów z tego pliku / logi jednej usługi na żywo |
+| `docker compose rm -sf USŁUGA` | zatrzymuje (`-s`) i bez pytania (`-f`) usuwa kontener jednej usługi; wolumen zostaje |
+| `docker volume rm monitoring-vm_uptime-kuma-data` | usuwa wolumen z danymi (nieodwracalne – np. pusta baza przed zmianą wersji) |
+| `cut -d= -f1 .env` | same nazwy zmiennych z pliku, bez wartości (sprawdzenie pliku z hasłem bez wypisywania hasła) |
 
 Kolejność przy własnym obrazie: **build → push → `k apply`** (raz na każdą wersję obrazu).
 Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
@@ -354,8 +360,24 @@ Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
 | `ansible k3s_server -b -m systemd -a "name=k3s state=restarted"` | restart k3s na masterze |
 | `ansible k3s_agents -b -f 1 -m systemd -a "name=k3s-agent state=restarted"` | restart agentów po jednym węźle (`-f 1`) |
 | `ansible k3s-worker-1 -b -m shell -a "polecenie"` | dowolne polecenie na jednej maszynie |
+| `ansible-playbook site.yml --syntax-check` | tylko składnia YAML i playbooka, nic nie łączy się z maszynami |
+| `ansible-lint roles/common` | dobre praktyki w roli (instalacja: `pipx install ansible-lint`) |
+| `ansible-playbook playbooks/prepare.yml --limit k3s-master --check --diff` | „na sucho”: co by się zmieniło na jednej maszynie, bez zmieniania |
 
 Teoria: [Ansible](etap-2-k3s-ansible/01-teoria-ansible.md).
+
+## Sieć, firewall i maszyny VMware
+
+| Polecenie | Co robi |
+|---|---|
+| 🐧 `nc -zv -w 3 192.168.180.51 6443` | czy port TCP jest otwarty; timeout zwykle = firewall po drodze |
+| 🐧 `sudo ufw status numbered` | reguły ufw z numerami (do `sudo ufw delete NUMER`) |
+| 🐧 `sudo ufw allow from 192.168.180.54 to any port 6443 proto tcp` | wpuść jeden adres na jeden port (ręcznie – potem to samo w Ansible) |
+| 🪟 `Get-Process vmware-vmx` | działające maszyny VMware (jeden proces na maszynę) |
+| 🪟 `Get-ChildItem "FOLDER_MASZYNY" -Filter *.lck` | blokady plików maszyny; po awarii hosta mogą zostać |
+| 🪟 `resmon` | Monitor zasobów → Procesor → Skojarzone dojścia: który proces trzyma plik |
+
+Opis awarii: [blokady .lck](etap-4-monitoring-zewnetrzny/problemy.md#vmware-cannot-open-the-disk--pozostałe-blokady-lck).
 
 ## Git
 

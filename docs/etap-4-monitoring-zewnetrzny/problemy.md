@@ -112,3 +112,35 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   `source lab.env`. Zmienne z `source` żyją tylko w tym oknie terminala.
 - **Wniosek:** przed edycją pliku konfiguracyjnego sprawdź prompt – na której maszynie jesteś. Sama zmiana
   `lab.env` niczego w klastrze nie zmienia; wartości trafiają tam dopiero przy `helm upgrade`.
+
+## Uptime Kuma: API Kubernetesa (6443) czerwone – firewall na masterze
+
+- **Objaw:** w Uptime Kumie na `monitoring` monitory HTTP (NodePorty) są zielone, a monitor TCP
+  `192.168.180.51:6443` czerwony. Z `monitoring`: `nc -zv -w 3 192.168.180.51 6443` → timeout.
+- **Przyczyna:** rola Ansible `common` (`ansible/roles/common/tasks/main.yml`) otwiera port 6443 tylko dla
+  `admin_cidr`. Dla NodePortów (30000–32767) dopisuje też adres maszyny `monitoring`, dla API – nie.
+  ufw domyślnie blokuje przychodzące, a odrzucone pakiety po cichu wyrzuca – stąd timeout, a nie odmowa.
+- **Diagnoza:** `nc -zv` z `monitoring` (timeout = firewall), `sudo ufw status | grep 6443` na masterze
+  (brak reguły dla `.54`).
+- **Rozwiązanie:** na masterze `sudo ufw allow from 192.168.180.54 to any port 6443 proto tcp`, a na stałe – ta sama
+  reguła w roli Ansible (pętla `loop` z `admin_cidr` i adresem `monitoring`). Otwarty port nie daje dostępu do
+  klastra – API i tak wymaga certyfikatu albo tokenu.
+- **Wniosek:** reguła dodana ręcznie na serwerze, a nie w kodzie, zniknie przy przebudowie (configuration drift).
+  Szybka łatka – tak, ale zaraz potem to samo w Ansible.
+
+## VMware: Cannot open the disk – pozostałe blokady .lck
+
+- **Objaw:** po zawieszeniu hosta k3s-worker-3 nie startuje: *„Proces nie może uzyskać dostępu do pliku, ponieważ
+  inny proces zablokował jego część. Cannot open the disk '…\k3s-worker-3\disk-000005.vmdk' or one of the snapshot
+  disks it depends on. Module 'Disk' power on failed.”* (05.11.2026)
+- **Przyczyna:** przy starcie maszyny VMware tworzy obok jej plików katalogi `*.lck` („w użyciu”) i usuwa je przy
+  normalnym wyłączeniu. Po nagłym końcu (zawieszony host, twarde wyłączenie) zostają, a VMware myśli, że dysk ma
+  ktoś inny. `disk-00000N.vmdk` to dyski różnicowe snapshotów – blokada każdego z nich też przeszkadza.
+- **Diagnoza:** 🪟 `Get-Process vmware-vmx` – brak procesu tej maszyny (każda działająca maszyna to jeden
+  `vmware-vmx.exe`); `Get-ChildItem "…\k3s-worker-3" -Filter *.lck` – 8 katalogów blokad z godzinami awarii.
+  Kto naprawdę trzyma plik: `resmon` → Procesor → Skojarzone dojścia → szukaj nazwy maszyny.
+- **Rozwiązanie:** przy zamkniętym VMware i braku procesu maszyny – przenieść blokady do osobnego folderu (nie usuwać):
+  `Get-ChildItem "…\k3s-worker-3" -Filter *.lck | Move-Item -Destination "…\k3s-worker-3\stare-lck-2026-11-05" -Force`.
+  Okno *„This virtual machine appears to be in use”* z przyciskiem **Take Ownership** robi to samo. Gdy dysk jest
+  uszkodzony, a nie tylko zablokowany – powrót do snapshotu (na workerze bez trwałych danych nic nie ginie).
+- **Wniosek:** restart Windowsa nie usuwa blokad – to pliki na dysku. Blokad działającej maszyny nie ruszaj.
