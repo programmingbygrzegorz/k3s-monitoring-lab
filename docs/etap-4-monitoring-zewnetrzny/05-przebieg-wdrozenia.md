@@ -106,4 +106,25 @@ ls -lh ~/kopia-app-1.0.0.tar
 🪟 VMware: snapshot `przed-etapem-4` pięciu maszyn – `monitoring`, `k3s-master`, `k3s-worker-1..3`
 (reset zmienia pliki na węzłach k3s i je restartuje).
 
-*Wyniki – dopisywane w trakcie.*
+Wynik z labu:
+
+```text
+grzegorz@monitoring:~/k3s-monitoring-lab$ ls -lh ~/kopia-app-1.0.0.tar
+-rw------- 1 grzegorz grzegorz 48M Nov  5 13:46 /home/grzegorz/kopia-app-1.0.0.tar
+```
+
+**Dlaczego 48 MB, a nie 199 MB?** `docker images` w Dockerze 29 pokazuje dwie liczby:
+`199MB` to miejsce na dysku po **rozpakowaniu** warstw, a `49.6MB` to rozmiar **skompresowanych**
+warstw – tak, jak przechowuje je rejestr. `docker save` zapisuje warstwy skompresowane, więc plik
+ma ok. 48 MB i to jest poprawna, pełna kopia. Zawartość archiwum można podejrzeć bez rozpakowywania:
+
+```bash
+tar -tf ~/kopia-app-1.0.0.tar | head
+```
+
+(`tar -t` – wypisz zawartość, `-f` – z tego pliku). Widać `index.json`, `manifest.json` i katalog
+`blobs/sha256/…` z warstwami – format OCI, ten sam, którego używa rejestr.
+
+`-rw-------` – plik czyta tylko właściciel; `docker save` tworzy go z ostrożnymi uprawnieniami.
+
+*Dalsze wyniki – dopisywane w trakcie.*
