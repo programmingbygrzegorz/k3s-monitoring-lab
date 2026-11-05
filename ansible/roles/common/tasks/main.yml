@@ -107,15 +107,12 @@
             - "{{ k3s_pod_cidr }}"
             - "{{ k3s_service_cidr }}"
 
-        # monitoring: Uptime Kuma sprawdza, czy port API odpowiada (Etap 4). Otwarty port nie daje
-        # dostępu do klastra – API i tak wymaga certyfikatu albo tokenu.
-        - name: API Kubernetesa dla administratora i maszyny monitoring
+        - name: API Kubernetesa z sieci administratora
           community.general.ufw:
             rule: allow
-            from_ip: "{{ item }}"
+            from_ip: "{{ admin_cidr }}"
             port: "6443"
             proto: tcp
-          loop: "{{ [admin_cidr] + (groups['monitoring_vm'] | map('extract', hostvars, 'ansible_host') | list) }}"
 
         - name: Ingress (HTTP i HTTPS)
           community.general.ufw:
