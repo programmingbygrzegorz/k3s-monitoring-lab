@@ -94,5 +94,7 @@ Stan na 03.11.2026:
 5. Po zmianach w dokumentacji uruchom `node tools/check-links.mjs` (martwe odnośniki i kotwice).
    Zrzuty do ćwiczeń: `tools/cdpshot.mjs` (strony) i `tools/terminal-shot.sh` (terminal) – opis
    w `tools/README.md`.
-6. Powtarzalne procedury są w skillach (`.claude/skills/`): `/nowy-etap` – folder etapu
+6. **Autorem commitów jest tylko właściciel.** Nie dopisuj `Co-Authored-By` ani innych oznaczeń
+   Claude/AI w commitach i opisach PR (decyzja 05.11.2026).
+7. Powtarzalne procedury są w skillach (`.claude/skills/`): `/nowy-etap` – folder etapu
    i wpisy w mapach, `/zamknij-etap` – dokumentacja, „Stan labu”, odnośniki, commit i push.
