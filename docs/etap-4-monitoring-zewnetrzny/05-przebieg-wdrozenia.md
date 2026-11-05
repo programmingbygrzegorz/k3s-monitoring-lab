@@ -17,8 +17,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 1 | Przywrócenie snapshotu `monitoring` i sprawdzenie | ✅ |
 | 2 | Aktualne repozytorium, kopia obrazu `app`, snapshoty | ✅ |
 | 3 | Pełny reset rejestru, Dockera i CA | ✅ |
-| 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ⏳ |
-| 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | |
+| 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ✅ |
+| 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ⏳ |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | |
 | 7 | Grafana, Uptime Kuma, healthchecks.io | |
 
@@ -343,5 +343,62 @@ których certyfikat jest ważny, `notBefore`/`notAfter` – ważność (825 dni)
 to 15:22 czasu polskiego – zgadza się z `ls -l`, więc zegar maszyny jest dobry. Klucze prywatne mają
 `-rw-------` (tylko właściciel), certyfikaty mogą być czytane przez wszystkich – są publiczne z założenia.
 `ca.srl` – numer seryjny ostatnio wystawionego certyfikatu; `registry.csr` i `san.ext` są już niepotrzebne.
+
+### 6.3. Rejestr z TLS – tylko dwa pliki w kontenerze
+
+Pierwsza wersja podpinała cały katalog: `-v ~/rejestr-certs:/certs:ro`. Wtedy `docker exec rejestr ls -l /certs`
+pokazuje **7 plików**, w tym `ca.key` – pieczątkę CA. Rejestr nie ma logowania; gdyby ktoś go przejął, mógłby
+przeczytać `ca.key` i wystawić „ważny” certyfikat dla dowolnego adresu, a Docker i k3s by mu uwierzyły.
+Poprawka – zasada najmniejszych uprawnień: podpinamy **pojedyncze pliki**, nie katalog.
+
+```bash
+docker rm -f rejestr          # usuwa kontener; wolumen rejestr-dane (obrazy) zostaje
+docker run -d --name rejestr --restart always -p 5000:5000 \
+  -v rejestr-dane:/var/lib/registry \
+  -v ~/rejestr-certs/registry.crt:/certs/registry.crt:ro \
+  -v ~/rejestr-certs/registry.key:/certs/registry.key:ro \
+  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/registry.crt \
+  -e REGISTRY_HTTP_TLS_KEY=/certs/registry.key \
+  registry:3
+```
+
+Wynik z labu:
+
+```text
+$ docker exec rejestr ls -l /certs
+total 8
+-rw-rw-r--    1 1000     1000          1484 Nov  5 14:22 registry.crt
+-rw-------    1 1000     1000          1704 Nov  5 14:21 registry.key
+
+$ curl https://192.168.180.54:5000/v2/
+curl: (60) SSL certificate OpenSSL verify result: unable to get local issuer certificate (20)
+
+$ curl --cacert ~/rejestr-certs/ca.crt https://192.168.180.54:5000/v2/
+{}
+```
+
+Jak czytać:
+
+- W kontenerze właściciel plików to `1000` – numer, nie nazwa. W Alpine w kontenerze nie ma użytkownika
+  `grzegorz`, a jądro i tak zna tylko uid (zob. poziom 5).
+- Kod 60 bez `--cacert` to **dobry** wynik: TLS działa, a curl nie zna naszego CA (nie ma go w systemowych CA Ubuntu).
+- `{}` z `--cacert` – rejestr odpowiada na API `/v2/`, certyfikat pasuje do adresu `192.168.180.54` (SAN).
+
+Co jest w kontenerze `rejestr`:
+
+| Skąd | Co |
+|---|---|
+| obraz `registry:3` | `/bin/registry` (program), `/etc/distribution/config.yml` (domyślna konfiguracja), mały Alpine pod spodem |
+| `-v` plik | `/certs/registry.crt`, `/certs/registry.key` (tylko do odczytu) |
+| `-v` wolumen | `/var/lib/registry` – warstwy i manifesty obrazów, przetrwa `docker rm` |
+| `-e` | `REGISTRY_HTTP_TLS_*` – nadpisują `config.yml` i włączają HTTPS |
+
+Sprawdzenie: `docker exec rejestr env`, `docker exec rejestr cat /etc/distribution/config.yml`,
+`docker inspect rejestr --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'`.
+
+> **Pytanie rekrutacyjne:** *Kontener potrzebuje certyfikatu TLS. Podpinasz cały katalog z certyfikatami czy
+> pojedyncze pliki? Dlaczego?* – Pojedyncze pliki (albo Secret w Kubernetesie z samym certyfikatem i kluczem).
+> Kontener dostaje tylko to, czego potrzebuje; klucz CA w kontenerze oznacza, że przejęcie jednej usługi
+> pozwala podrobić certyfikat dowolnej innej.
 
 *Dalsze wyniki – dopisywane w trakcie.*

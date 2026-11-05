@@ -173,7 +173,8 @@ W labie rejestr to kontener `registry:3` (oficjalny obraz projektu CNCF Distribu
 ```bash
 docker run -d --name rejestr --restart always -p 5000:5000 \
   -v rejestr-dane:/var/lib/registry \
-  -v ~/rejestr-certs:/certs:ro \
+  -v ~/rejestr-certs/registry.crt:/certs/registry.crt:ro \
+  -v ~/rejestr-certs/registry.key:/certs/registry.key:ro \
   -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/registry.crt \
   -e REGISTRY_HTTP_TLS_KEY=/certs/registry.key \
   registry:3
@@ -183,7 +184,7 @@ docker run -d --name rejestr --restart always -p 5000:5000 \
 |---|---|
 | `--restart always` | kontener wstaje sam po restarcie maszyny i Dockera |
 | `-v rejestr-dane:/var/lib/registry` | **wolumen**: obrazy przetrwają usunięcie kontenera |
-| `-v ~/rejestr-certs:/certs:ro` | katalog z certyfikatem, tylko do odczytu (`ro`) |
+| `-v ~/rejestr-certs/registry.crt:…:ro` (i `.key`) | **tylko** certyfikat i klucz rejestru, do odczytu (`ro`). Nie cały katalog – w nim leży też `ca.key`, pieczątka CA, której kontener nie potrzebuje ([dlaczego](05-przebieg-wdrozenia.md#63-rejestr-z-tls--tylko-dwa-pliki-w-kontenerze)) |
 | `REGISTRY_HTTP_TLS_*` | rejestr mówi po **HTTPS**, przedstawiając się tym certyfikatem |
 
 ### Dlaczego HTTPS i własny urząd certyfikacji (CA)
