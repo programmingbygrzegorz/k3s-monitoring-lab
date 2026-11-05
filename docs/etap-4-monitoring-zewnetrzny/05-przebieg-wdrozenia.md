@@ -268,4 +268,80 @@ i zapisuje wynik jako obraz `hello-lab:1.0`. `docker run hello-lab:1.0` bierze *
 (a gdy go nie ma lokalnie – pobiera z rejestru); Dockerfile nie jest mu potrzebny. Dlatego obraz da się
 zbudować na `monitoring`, a uruchomić na workerze k3s.
 
+### Poziom 5 – obraz bez roota, z HEALTHCHECK
+
+```bash
+cd ~/hello-lab
+cp ~/k3s-monitoring-lab/apps/hello-lab/Dockerfile .   # wersja końcowa: useradd, USER 10001, HEALTHCHECK
+docker rm -f hello
+docker build --build-arg APP_VERSION=1.0 -t hello-lab:1.0 .
+docker run -d --name hello -p 8080:8080 hello-lab:1.0
+docker ps                                            # (health: starting) → (healthy)
+docker exec hello id                                 # uid=10001(app) gid=10001(app)
+```
+
+Porównanie pobierania `python:3.14` (ok. 1,6 GB) z `-slim` i `-alpine` pominięte – wniosek znany
+z teorii, a pobieranie zjadłoby czas. Jak oglądać obraz: `docker images`, `docker history`,
+`docker inspect --format '{{.Config.User}}'` (puste = root, po poziomie 5 – `10001`),
+`docker run --rm hello-lab:1.0 ls -la /app`.
+
+**uid, gid, groups** (wynik `id`): uid – numer użytkownika, gid – numer grupy głównej, groups – wszystkie
+grupy. Jądro rozpoznaje użytkowników **po numerach**; kontener dzieli jądro z maszyną, więc root w kontenerze
+(`uid=0`) to dla jądra root. Dlatego aplikacja działa jako `uid=10001` – numer, którego nie ma nikt na `monitoring`.
+
+## Krok 5 – rejestr z TLS (poziom 6)
+
+### 6.1. Rejestr bez TLS – błąd celowo
+
+```bash
+docker run -d --name rejestr -p 5000:5000 registry:3          # oficjalny obraz CNCF Distribution, wersja 3
+docker tag hello-lab:1.0 192.168.180.54:5000/hello-lab:1.0     # druga nazwa obrazu = adres rejestru
+docker push 192.168.180.54:5000/hello-lab:1.0                  # http: server gave HTTP response to HTTPS client
+docker rm -f rejestr                                           # usuń pokazowy rejestr (bez wolumenu – nic nie tracimy)
+```
+
+`registry:3` nie ma GUI – tylko API (`/v2/_catalog`, `/v2/NAZWA/tags/list`). GUI daje np. Joxit Registry UI,
+Harbor albo rejestr GitLaba (Etap 7).
+
+### 6.2. CA labu i certyfikat rejestru
+
+```bash
+mkdir -p ~/rejestr-certs && cd ~/rejestr-certs
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -keyout ca.key -out ca.crt -subj "/CN=k3s-lab CA"
+openssl req -newkey rsa:2048 -nodes -keyout registry.key -out registry.csr -subj "/CN=192.168.180.54"
+printf "subjectAltName=IP:192.168.180.54,DNS:monitoring\n" > san.ext
+openssl x509 -req -in registry.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out registry.crt -days 825 -sha256 -extfile san.ext
+chmod 600 ca.key registry.key
+```
+
+Wynik z labu:
+
+```text
+Certificate request self-signature ok
+subject=CN=192.168.180.54
+
+$ openssl x509 -in registry.crt -noout -subject -issuer -ext subjectAltName -dates
+subject=CN=192.168.180.54
+issuer=CN=k3s-lab CA
+X509v3 Subject Alternative Name:
+    IP Address:192.168.180.54, DNS:monitoring
+notBefore=Nov  5 14:22:29 2026 GMT
+notAfter=Feb  7 14:22:29 2029 GMT
+
+$ ls -l
+-rw-rw-r-- 1 grzegorz grzegorz 1809 Nov  5 15:19 ca.crt
+-rw------- 1 grzegorz grzegorz 3272 Nov  5 15:19 ca.key
+-rw-rw-r-- 1 grzegorz grzegorz   41 Nov  5 15:22 ca.srl
+-rw-rw-r-- 1 grzegorz grzegorz 1484 Nov  5 15:22 registry.crt
+-rw-rw-r-- 1 grzegorz grzegorz  899 Nov  5 15:21 registry.csr
+-rw------- 1 grzegorz grzegorz 1704 Nov  5 15:22 registry.key
+-rw-rw-r-- 1 grzegorz grzegorz   48 Nov  5 15:22 san.ext
+```
+
+Jak czytać: `subject` – dla kogo (adres rejestru), `issuer` – kto podpisał (nasze CA), SAN – adresy, dla
+których certyfikat jest ważny, `notBefore`/`notAfter` – ważność (825 dni). Daty są w **GMT**: 14:22 GMT
+to 15:22 czasu polskiego – zgadza się z `ls -l`, więc zegar maszyny jest dobry. Klucze prywatne mają
+`-rw-------` (tylko właściciel), certyfikaty mogą być czytane przez wszystkich – są publiczne z założenia.
+`ca.srl` – numer seryjny ostatnio wystawionego certyfikatu; `registry.csr` i `san.ext` są już niepotrzebne.
+
 *Dalsze wyniki – dopisywane w trakcie.*
