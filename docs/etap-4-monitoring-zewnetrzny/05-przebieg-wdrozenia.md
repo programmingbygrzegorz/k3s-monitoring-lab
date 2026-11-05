@@ -18,8 +18,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 2 | Aktualne repozytorium, kopia obrazu `app`, snapshoty | ✅ |
 | 3 | Pełny reset rejestru, Dockera i CA | ✅ |
 | 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ✅ |
-| 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ⏳ |
-| 6 | k3s ufa rejestrowi, pody działają (poziom 7) | |
+| 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
+| 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ⏳ |
 | 7 | Grafana, Uptime Kuma, healthchecks.io | |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
@@ -402,5 +402,65 @@ Sprawdzenie: `docker exec rejestr env`, `docker exec rejestr cat /etc/distributi
 > pojedyncze pliki? Dlaczego?* – Pojedyncze pliki (albo Secret w Kubernetesie z samym certyfikatem i kluczem).
 > Kontener dostaje tylko to, czego potrzebuje; klucz CA w kontenerze oznacza, że przejęcie jednej usługi
 > pozwala podrobić certyfikat dowolnej innej.
+
+### 6.4. Docker ufa rejestrowi, obrazy wracają
+
+```bash
+sudo mkdir -p /etc/docker/certs.d/192.168.180.54:5000                       # katalog = adres:port rejestru
+sudo cp ~/rejestr-certs/ca.crt /etc/docker/certs.d/192.168.180.54:5000/ca.crt  # tylko wzór pieczątki
+docker push 192.168.180.54:5000/hello-lab:1.0
+docker load -i ~/kopia-app-1.0.0.tar                                         # obraz app z kopii z kroku 2
+docker push 192.168.180.54:5000/app:1.0.0
+curl --cacert ~/rejestr-certs/ca.crt https://192.168.180.54:5000/v2/_catalog
+```
+
+Restart Dockera nie jest potrzebny – Docker czyta `certs.d` przy każdym połączeniu.
+
+Wynik z labu:
+
+```text
+$ sudo ls -l /etc/docker/certs.d/192.168.180.54:5000/
+-rw-r--r-- 1 root root 1809 Nov  5 15:32 ca.crt
+
+$ docker push 192.168.180.54:5000/hello-lab:1.0       # drugi raz
+fea618ac8a9a: Layer already exists
+...
+1.0: digest: sha256:f0d8d9721afcece15164a4490c3638b35a1fd99b89832f471b1620c56dca6ae1 size: 856
+
+$ docker images
+IMAGE                                ID             DISK USAGE   CONTENT SIZE   EXTRA
+192.168.180.54:5000/hello-lab:1.0    f0d8d9721afc        178MB         43.6MB    U
+hello-lab:1.0                        f0d8d9721afc        178MB         43.6MB    U
+registry:3                           d4032d4cc323       86.9MB         20.7MB    U
+
+$ docker push 192.168.180.54:5000/app:1.0.0
+824416e23423: Pushed
+5ed3089f43a6: Pushed
+44136fa355b3: Mounted from hello-lab
+78fcc2df4797: Pushed
+...
+1.0.0: digest: sha256:159255640ed6dda8a696f215b3e648d43035ef3e73bbaac7a091ae716eb1138a size: 856
+
+$ curl --cacert ~/rejestr-certs/ca.crt https://192.168.180.54:5000/v2/_catalog
+{"repositories":["app","hello-lab"]}
+```
+
+Jak czytać:
+
+- `ca.crt` w `certs.d` ma 1809 bajtów – tyle samo co w `~/rejestr-certs`. Klucza `ca.key` tam nie ma i być nie może.
+- **`Layer already exists`** – Docker pyta rejestr o każdą warstwę po skrócie `sha256`; rejestr ją ma, więc nic
+  nie leci przez sieć. Ten sam digest = ten sam obraz. Drugi push tej samej wersji trwa ułamek sekundy.
+- **`Pushed`** – warstwy `app` trafiły do nowego rejestru pierwszy raz.
+- **`Mounted from hello-lab`** – tę warstwę rejestr już miał w repozytorium `hello-lab` (wspólna warstwa
+  bazowa obu obrazów). Rejestr tylko ją podlinkował, bez wysyłania drugi raz. Warstwy są przechowywane według
+  skrótu, a nie według obrazu.
+- **Ten sam ID** `f0d8d9721afc` dla dwóch nazw `hello-lab` – jeden obraz, dwie etykiety (`docker tag`).
+- **DISK USAGE** to obraz rozpakowany na dysku, **CONTENT SIZE** to skompresowane warstwy (tyle leci przez sieć).
+  Stąd kopia `app` miała 48M, a obraz 199MB. `U` w kolumnie EXTRA – obrazu używa kontener.
+
+> **Pytanie rekrutacyjne:** *Dlaczego drugi `docker push` tego samego obrazu trwa sekundę, a przy pushu
+> drugiego obrazu część warstw ma „Mounted from”?* – Rejestr przechowuje warstwy według skrótu treści
+> (content-addressable). Klient najpierw pyta, czy warstwa o danym `sha256` istnieje; jeśli tak, nie wysyła jej.
+> Wspólne warstwy (np. obraz bazowy) są w rejestrze tylko raz, niezależnie od liczby obrazów.
 
 *Dalsze wyniki – dopisywane w trakcie.*
