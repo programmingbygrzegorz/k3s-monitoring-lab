@@ -509,4 +509,49 @@ Dlaczego tak:
 > (x509, brak dostępu do rejestru, brak `imagePullSecrets`, zła nazwa). Działający pod nie dowodzi, że
 > rejestr jest osiągalny.
 
+### 7.2. Zaufanie na węzłach przez Ansible (🐧 monitoring)
+
+```bash
+cd ~/k3s-monitoring-lab/ansible
+ansible k3s_cluster -b -m file -a "path=/etc/rancher/k3s state=directory mode=0755"
+ansible k3s_cluster -b -m copy -a "src=$HOME/rejestr-certs/ca.crt dest=/etc/rancher/k3s/lab-ca.crt mode=0644"
+ansible k3s_cluster -b -m copy -a "src=$HOME/k3s-monitoring-lab/apps/hello-lab/k3s-registries.yaml dest=/etc/rancher/k3s/registries.yaml mode=0644"
+ansible k3s_server -b -m systemd -a "name=k3s state=restarted"
+ansible k3s_agents -b -f 1 -m systemd -a "name=k3s-agent state=restarted"
+```
+
+Potem na masterze `kubectl -n hello-lab rollout restart deploy/hello-lab` – i **trzy pody**:
+
+```text
+NAME                         READY   STATUS             NODE
+hello-lab-55b8fb57c9-fqs7f   0/1     ImagePullBackOff   k3s-worker-2    ← nowy ReplicaSet
+hello-lab-57dd97cd57-jhckb   1/1     Running            k3s-worker-3    ← stary, zostaje
+hello-lab-57dd97cd57-rwzzd   0/1     ImagePullBackOff   k3s-worker-2    ← stary
+```
+
+`rollout restart` tworzy nowy ReplicaSet (inny hash w nazwie). Przy 2 replikach `maxSurge` = 1, a
+`maxUnavailable` = 0 (25% z 2 zaokrąglone w dół), więc Deployment dodaje jeden nowy pod i **czeka, aż będzie
+Ready**, zanim usunie stary. Nowy nie wstaje, więc wymiana stoi, a działający pod dalej obsługuje ruch –
+RollingUpdate chroni przed złym wdrożeniem.
+
+Nowy błąd w `describe pod`:
+
+```text
+failed to resolve reference "192.168.180.54:5000/hello-lab:1.0": unable to read CA cert
+"/etc/rancher/k3s/lab-ca.crt": open /etc/rancher/k3s/lab-ca.crt: no such file or directory
+
+$ ansible k3s_cluster -a "ls -l /etc/rancher/k3s/"
+k3s-master | CHANGED | rc=0 >>
+-rw-r--r-- 1 root root 2937 Nov  5 16:23 k3s.yaml
+-rw-r--r-- 1 root root  402 Nov  5 16:16 registries.yaml
+k3s-worker-3 | CHANGED | rc=0 >>
+-rw-r--r-- 1 root root 402 Nov  5 16:16 registries.yaml
+(worker-1 i worker-2 tak samo)
+```
+
+`registries.yaml` dotarł i został wczytany (containerd szuka `lab-ca.crt` – to on mu kazał), ale polecenie
+kopiujące CA się nie wykonało. `k3s.yaml` z 16:23 – k3s przepisuje kubeconfig przy każdym starcie, więc to
+dowód restartu mastera. Naprawa: ponowny `copy` z `ca.crt` – opis w
+[problemach](problemy.md#unable-to-read-ca-cert-etcrancherk3slab-cacrt-no-such-file-or-directory).
+
 *Dalsze wyniki – dopisywane w trakcie.*

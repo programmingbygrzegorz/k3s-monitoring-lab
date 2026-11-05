@@ -79,3 +79,20 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   (Dockerfile przeniesiony z `~` przez `mv ~/Dockerfile ~/hello-lab/`). Potem ponowny `docker build`.
 - **Wniosek:** przed `docker build … .` sprawdź prompt albo `ls`. `CANCELED` przy innych krokach to skutek,
   nie przyczyna – szukaj linii `ERROR` i fragmentu Dockerfile oznaczonego `>>>`.
+
+## unable to read CA cert "/etc/rancher/k3s/lab-ca.crt": no such file or directory
+
+- **Objaw:** po rozesłaniu `registries.yaml` i restarcie k3s pod dalej ma `ImagePullBackOff`, ale błąd
+  w `kubectl -n hello-lab describe pod …` jest **inny** niż x509:
+  `failed to resolve reference "192.168.180.54:5000/hello-lab:1.0": unable to read CA cert "/etc/rancher/k3s/lab-ca.crt": open /etc/rancher/k3s/lab-ca.crt: no such file or directory`.
+- **Przyczyna:** z trzech poleceń Ansible z poziomu 7 (katalog, `ca.crt`, `registries.yaml`) wykonały się
+  tylko katalog i `registries.yaml` (05.11.2026). `registries.yaml` wskazuje plik CA, którego nie ma.
+- **Diagnoza:** treść błędu mówi wprost, który plik i gdzie. Z `monitoring` na wszystkich węzłach naraz:
+  `ansible k3s_cluster -a "ls -l /etc/rancher/k3s/"` – był tylko `registries.yaml` (402 B), bez `lab-ca.crt`.
+  Ten błąd jest **postępem**: skoro containerd szuka `lab-ca.crt`, to `registries.yaml` został już wczytany.
+- **Rozwiązanie:** `ansible k3s_cluster -b -m copy -a "src=$HOME/rejestr-certs/ca.crt dest=/etc/rancher/k3s/lab-ca.crt mode=0644"`.
+  Restart k3s nie jest potrzebny – containerd czyta plik CA przy każdej próbie pobrania; przyspieszenie:
+  `kubectl -n hello-lab delete pod <pod>`.
+- **Wniosek:** przy kilku poleceniach Ansible po kolei sprawdzaj wynik każdego (`CHANGED`/`SUCCESS`, nie `FAILED`)
+  i na końcu stan: `ansible GRUPA -a "ls -l KATALOG"`. Zmiana komunikatu błędu to wskazówka, że jedna przyczyna
+  została usunięta, a druga wyszła na wierzch.
