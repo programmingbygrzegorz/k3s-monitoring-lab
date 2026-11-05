@@ -16,8 +16,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 |---|---|---|
 | 1 | Przywrócenie snapshotu `monitoring` i sprawdzenie | ✅ |
 | 2 | Aktualne repozytorium, kopia obrazu `app`, snapshoty | ✅ |
-| 3 | Pełny reset rejestru, Dockera i CA | ⏳ |
-| 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | |
+| 3 | Pełny reset rejestru, Dockera i CA | ✅ |
+| 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ⏳ |
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | |
 | 7 | Grafana, Uptime Kuma, healthchecks.io | |
@@ -190,5 +190,40 @@ idempotencja: to samo polecenie można powtarzać bez szkody, a wynik mówi, czy
 **Jak czytać wynik modułu `systemd`.** Pole `status` to stan usługi **sprzed** restartu (dlatego na
 workerach widać daty z 03.11 – wtedy ostatnio startowały). Najważniejsze: `"changed": true` i brak
 `FAILED`. Gdyby trzeba było sprawdzić usługę po restarcie: `ansible k3s_agents -b -a "systemctl is-active k3s-agent"`.
+
+### 3.1. hello-lab znika z klastra (🐧 k3s-master)
+
+```bash
+kubectl delete namespace hello-lab
+kubectl get pods -n default        # pod app przeżył restart k3s – nadal Running
+```
+
+### 3.3. Rejestr, certyfikaty i obrazy (🐧 monitoring)
+
+```bash
+docker rm -f hello rejestr                          # kontenery (-f zatrzymuje działający)
+docker volume rm rejestr-dane                       # obrazy z rejestru – od teraz app jest tylko w kopii .tar
+sudo rm -rf /etc/docker/certs.d/192.168.180.54:5000 # zaufanie Dockera do starego CA
+rm -rf ~/rejestr-certs ~/hello-lab ~/strona         # CA labu, certyfikaty, pliki z ćwiczeń
+docker image prune -a -f                            # wszystkie nieużywane obrazy
+docker ps -a; docker images; docker volume ls       # trzy puste listy
+```
+
+### 3.4. Sam Docker (🐧 monitoring)
+
+```bash
+sudo apt purge -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras docker-model-plugin
+sudo rm -rf /var/lib/docker /var/lib/containerd     # purge NIE usuwa danych – celowo
+sudo rm /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.asc   # repozytorium apt i klucz
+sudo groupdel docker                                # grupa = uprawnienia roota; dodam się świadomie w poziomie 0
+exit                                                # grupy wczytują się przy logowaniu
+```
+
+Po ponownym `ssh monitoring`: `docker --version` → `command not found`, w `id` brak grupy `docker`,
+kopia `~/kopia-app-1.0.0.tar` na miejscu. **Reset zakończony.**
+
+`apt purge` a `apt remove`: `remove` usuwa program i zostawia pliki konfiguracyjne, `purge` usuwa też
+konfigurację. Żaden nie rusza danych w `/var/lib/docker` – obrazy i wolumeny trzeba skasować ręcznie,
+jeśli naprawdę chcemy zacząć od zera.
 
 *Dalsze wyniki – dopisywane w trakcie.*
