@@ -312,6 +312,11 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `docker exec KONTENER POLECENIE` | uruchamia jedno polecenie w działającym kontenerze, np. `docker exec rejestr ls -l /certs` |
 | `docker inspect KONTENER --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'` | co jest podpięte do kontenera z zewnątrz (`-v`) i skąd |
 | 🐧 węzeł k3s: `sudo k3s crictl images` / `sudo k3s crictl rmi OBRAZ:TAG` | obrazy w containerd na węźle / usunięcie obrazu z cache węzła (na węzłach k3s nie ma Dockera) |
+| `set -a && source lab.env && set +a` | wczytaj zmienne z pliku do bieżącej powłoki i eksportuj je (widzi je np. `envsubst`) |
+| `umask 077` | nowe pliki w tej powłoce od razu z uprawnieniami `600` (różnica z `chmod`: działa przed utworzeniem pliku) |
+| `envsubst '${A} ${B}' < wzor.yaml > /tmp/gotowy.yaml` | wstaw wartości tylko tych zmiennych w luki `${…}`; wzór zostaje bez zmian |
+| `helm -n NS get values RELEASE` | ustawienia, które podałeś przy ostatnim wdrożeniu (bez domyślnych chartu) |
+| `kubectl -n NS get secret NAZWA -o jsonpath='{.data.PLIK}' \| base64 -d` | odczytaj plik z Secretu (dla `.gz` dodaj `\| gunzip`) |
 | `kubectl -n NS get pods -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,IMAGE:.status.containerStatuses[0].imageID` | który obraz (digest) naprawdę działa w każdym podzie |
 | `-v ~/katalog/plik.crt:/certs/plik.crt:ro` | podpięcie **pojedynczego pliku** tylko do odczytu – kontener nie widzi reszty katalogu |
 

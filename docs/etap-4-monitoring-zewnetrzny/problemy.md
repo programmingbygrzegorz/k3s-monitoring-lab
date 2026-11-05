@@ -96,3 +96,19 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Wniosek:** przy kilku poleceniach Ansible po kolei sprawdzaj wynik każdego (`CHANGED`/`SUCCESS`, nie `FAILED`)
   i na końcu stan: `ansible GRUPA -a "ls -l KATALOG"`. Zmiana komunikatu błędu to wskazówka, że jedna przyczyna
   została usunięta, a druga wyszła na wierzch.
+
+## lab.env zmieniony, a wczytują się stare wartości
+
+- **Objaw:** po wpisaniu nowego `HEALTHCHECKS_URL` do `lab.env` polecenie
+  `set -a && source lab.env && set +a && echo "$HEALTHCHECKS_URL"` na `k3s-master` dalej pokazuje
+  `https://hc-ping.com/00000000-0000-0000-0000-000000000000`.
+- **Przyczyna:** każda maszyna ma **własną kopię** `lab.env` – plik jest poza gitem (`.gitignore`), więc
+  `git pull` go nie przenosi. Adres został wpisany na `monitoring` (05.11.2026), a `helm upgrade` działa na
+  masterze i czyta jego kopię.
+- **Diagnoza:** `grep -n HEALTHCHECKS lab.env lab.env.example` – oba pliki z zerami; prompt
+  (`grzegorz@k3s-master` czy `grzegorz@monitoring`) mówi, na której maszynie jesteś.
+- **Rozwiązanie:** na masterze
+  `sed -i 's|^HEALTHCHECKS_URL=.*|HEALTHCHECKS_URL=https://hc-ping.com/<uuid>|' lab.env`, potem ponownie
+  `source lab.env`. Zmienne z `source` żyją tylko w tym oknie terminala.
+- **Wniosek:** przed edycją pliku konfiguracyjnego sprawdź prompt – na której maszynie jesteś. Sama zmiana
+  `lab.env` niczego w klastrze nie zmienia; wartości trafiają tam dopiero przy `helm upgrade`.

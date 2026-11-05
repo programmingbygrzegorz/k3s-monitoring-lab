@@ -20,7 +20,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 4 | Docker od zera (poziomy 0, 1, 3, 5 ćwiczeń) | ✅ |
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
-| 7 | Grafana, Uptime Kuma, healthchecks.io | |
+| 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
+| 7b | Grafana, Uptime Kuma, test awarii | następna sesja |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -633,8 +634,84 @@ jest teraz postawione od zera przez właściciela, a obraz `app` wrócił do rej
 > `port` 80: adres Service w klastrze (`hello-lab.hello-lab.svc:80`); `nodePort` 30880: port na każdym węźle,
 > dostęp z zewnątrz; `targetPort` 8080: port kontenera, na który kube-proxy przekazuje ruch.
 
+## Krok 7 – healthchecks.io (dead man's switch)
+
+### Jak to działa
+
+```
+Prometheus: alert Watchdog (expr: vector(1) – zawsze aktywny)
+  → Alertmanager: trasa alertname="Watchdog" → odbiorca deadmans-switch, co 1 min
+     → POST https://hc-ping.com/<uuid>   – healthchecks.io: „żyje” ✅
+Klaster / Prometheus / Alertmanager / internet padł → pingi ustają
+  → po Period + Grace healthchecks.io wysyła e-mail „DOWN” ❌
+```
+
+Prometheus nie zgłosi własnej śmierci – dlatego „strażnik” stoi poza labem i alarmuje o **ciszy**.
+
+Pod Alertmanagera wychodzi do internetu bez żadnej konfiguracji: ruch wychodzący z podów jest domyślnie
+dozwolony (brak NetworkPolicy). Węzeł podmienia adres poda `10.42.x.x` na swój (MASQUERADE, flannel),
+VMware NAT na adres Windowsa, router na publiczny – healthchecks.io widzi domowy adres IP.
+
+### 7.1. Konto i check (🪟 przeglądarka – właściciel)
+
+Konto na healthchecks.io, check `k3s-lab Watchdog`: **Period 2 min, Grace 5 min** (zamiast domyślnych 1 dzień /
+1 h – wtedy o awarii wiedziałbyś po dobie). Period 2 min, a nie 1, daje zapas na drobne opóźnienia Alertmanagera.
+Powiadomienie: e-mail (domyślna integracja).
+
+**Ping URL to sekret** – kto go zna, może „meldować się” za klaster i maskować awarię. Trafia tylko do `lab.env`
+(poza gitem); w dokumentacji zapisany jako `hc-ping.com/<uuid>`. Po wycieku: *Regenerate* w ustawieniach checka.
+
+Test ręczny z mastera: `curl -fsS -m 10 --retry 3 https://hc-ping.com/<uuid>` → `OK` (bez nowej linii,
+więc dokleja się do promptu: `OKgrzegorz@k3s-master:~$`).
+
+### 7.2. Adres do klastra (🐧 k3s-master)
+
+```bash
+cd ~/k3s-monitoring-lab
+sed -i 's|^HEALTHCHECKS_URL=.*|HEALTHCHECKS_URL=https://hc-ping.com/<uuid>|' lab.env      # albo nano +33 lab.env
+set -a && source lab.env && set +a && echo "$HEALTHCHECKS_URL"
+umask 077 && envsubst '${GRAFANA_ADMIN_PASSWORD} ${HEALTHCHECKS_URL}' < monitoring/kube-prometheus-stack-values.yaml > /tmp/kps-values.yaml && grep -n "hc-ping" /tmp/kps-values.yaml
+helm upgrade monitoring prometheus-community/kube-prometheus-stack --version 92.16.1 -n monitoring -f /tmp/kps-values.yaml --wait --timeout 15m
+rm /tmp/kps-values.yaml
+```
+
+| Polecenie | Po co |
+|---|---|
+| `set -a` / `source lab.env` / `set +a` | wczytaj zmienne z pliku do **tej** powłoki i eksportuj je, żeby widział je `envsubst` |
+| `umask 077` | nowe pliki od razu `600` – w `/tmp/kps-values.yaml` jest hasło Grafany (`chmod` po fakcie zostawiłby chwilowe okno) |
+| `envsubst '${A} ${B}'` | wstaw wartości **tylko** tych dwóch zmiennych w luki pliku values; plik w repo zostaje z lukami |
+| `helm upgrade … -f` | pełny plik values = wszystkie ustawienia (dyski, NodePorty, hasło); zmienia się tylko adres |
+
+Niespodzianka: pierwsze `echo "$HEALTHCHECKS_URL"` pokazało zera – adres został wpisany do `lab.env` na
+`monitoring`, a `helm` działa na masterze z **jego** kopią
+([problem](problemy.md#labenv-zmieniony-a-wczytują-się-stare-wartości)).
+
+Wynik: `Release "monitoring" has been upgraded` – **REVISION 3**.
+
+### 7.3. Sprawdzenie – co ma Alertmanager
+
+```bash
+kubectl -n monitoring get secret alertmanager-monitoring-kube-prometheus-alertmanager-generated \
+  -o jsonpath='{.data.alertmanager\.yaml\.gz}' | base64 -d | gunzip | grep hc-ping
+```
+
+Konfiguracja przechodzi: values → Secret od Helma → operator skleja go w Secret `…-generated` (gzip + base64)
+→ kontener `config-reloader` w podzie przeładowuje Alertmanagera bez restartu poda.
+
+`grep -A1 webhook_configs` pokazało tylko `- send_resolved: false` – Alertmanager zapisuje klucze **alfabetycznie**,
+więc `url` jest linię niżej. Lepiej szukać samej wartości (`grep hc-ping`).
+
+> **Pytanie rekrutacyjne:** *Co to jest dead man's switch w monitoringu i po co, skoro jest Prometheus?* –
+> Alert, który jest zawsze aktywny i stale wysyła sygnał do zewnętrznej usługi. Alarm przychodzi, gdy sygnał
+> **ustaje** – czyli gdy padł Prometheus, Alertmanager, cały klaster albo łączność. Monitoring nie może
+> zgłosić własnej awarii, więc musi go pilnować coś poza nim.
+
+> **Pytanie rekrutacyjne:** *Czym grozi `helm upgrade` bez `-f`, tylko z `--set`?* – Helm nie łączy z poprzednimi
+> ustawieniami: wszystko spoza `--set` wraca do domyślnych chartu (np. znikają trwałe dyski, NodePorty).
+> Zawsze pełny plik values z repo jako jedyne źródło prawdy; `--reuse-values` ukrywa stan w klastrze.
+
 ## Co dalej (następna sesja)
 
-- konto healthchecks.io (zakłada właściciel) i prawdziwy `HEALTHCHECKS_URL` – zgaśnie `AlertmanagerFailedToSendAlerts`;
+- potwierdzić na healthchecks.io pingi co minutę (POST) i zgaśnięcie `AlertmanagerFailedToSendAlerts`;
 - Grafana i Uptime Kuma w Dockerze na `monitoring` (`scripts/06-setup-monitoring-vm.sh`);
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).

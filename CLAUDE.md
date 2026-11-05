@@ -64,9 +64,14 @@ Stan na 05.11.2026:
 - 🔦 03.11 – **Headlamp 0.46.0 zainstalowany przez właściciela** (Etap 6 rozpoczęty wcześniej): namespace
   `headlamp`, NodePort `:30400`, logowanie tokenem `kubectl create token headlamp -n headlamp --duration=…`
   (konto z `cluster-admin`). Ustawienia przez `--set`, bez pliku values. Opis: `docs/etap-6-gui/01-headlamp.md`.
-- ⏭️ Następny: **Etap 4 właściwy** – konto healthchecks.io (zakłada właściciel) i prawdziwy
-  `HEALTHCHECKS_URL` (do tego czasu świeci `AlertmanagerFailedToSendAlerts`), Grafana i Uptime Kuma
-  w Dockerze na `monitoring`. Prowadź krok po kroku: podajesz polecenie, właściciel wykonuje i wkleja wynik.
+- 💓 05.11 – **healthchecks.io podpięte**: konto właściciela, check `k3s-lab Watchdog` (Period 2 min, Grace
+  5 min, e-mail), prawdziwy `HEALTHCHECKS_URL` w `lab.env` na masterze i na `monitoring`, `helm upgrade` →
+  rewizja 3. Pingi z Alertmanagera i zgaśnięcie `AlertmanagerFailedToSendAlerts` **niepotwierdzone** zrzutem.
+  Snapshoty wszystkich 5 maszyn: „2026-11-05 Etap4 rejestr+healthchecks”.
+- ⏭️ Następny: **dokończenie Etapu 4** – sprawdź pingi na healthchecks.io (zdejmij pauzę, jeśli była),
+  potem Grafana i Uptime Kuma w Dockerze na `monitoring` (`monitoring/monitoring-vm/docker-compose.yml`),
+  test awarii (wyłączenie węzłów → alarm z Uptime Kuma i e-mail z healthchecks.io), zamknięcie etapu.
+  Prowadź krok po kroku: podajesz polecenie, właściciel wykonuje i wkleja wynik.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
   Kyverno, Wazuh, ataki z Kali tylko na maszyny labu .51–.58).

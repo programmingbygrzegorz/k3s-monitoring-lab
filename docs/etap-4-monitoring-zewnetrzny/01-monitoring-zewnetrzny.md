@@ -12,9 +12,12 @@ gdy jest najbardziej potrzebny. Dlatego laboratorium ma trzy niezależne warstwy
 ## Dead man's switch (healthchecks.io)
 
 1. Załóż darmowe konto na https://healthchecks.io.
-2. Utwórz nowy check: *Period* 1 minuta, *Grace* 5 minut.
-3. Skopiuj adres pingu (`https://hc-ping.com/...`) do `HEALTHCHECKS_URL` w `lab.env`.
-4. Uruchom ponownie `sudo ./scripts/04-install-monitoring.sh`.
+2. Utwórz nowy check: *Period* 2 minuty, *Grace* 5 minut (Alertmanager pinguje co około minutę –
+   2 minuty dają zapas).
+3. Skopiuj adres pingu (`https://hc-ping.com/...`) do `HEALTHCHECKS_URL` w `lab.env` **na k3s-master**
+   (każda maszyna ma swoją kopię `lab.env`). Adres to sekret – nie wpisuj go do repozytorium.
+4. Uruchom ponownie `sudo ./scripts/04-install-monitoring.sh` albo ręcznie: `source lab.env`, `envsubst`
+   i `helm upgrade` – polecenia z wyjaśnieniem w [przebiegu wdrożenia](05-przebieg-wdrozenia.md#72-adres-do-klastra--k3s-master).
 5. Ustaw w healthchecks.io powiadomienia (e-mail, Telegram, Discord itp.).
 
 Alertmanager co minutę wysyła alert `Watchdog`. Gdy przestanie przychodzić, healthchecks.io uzna,
