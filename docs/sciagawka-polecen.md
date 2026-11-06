@@ -379,6 +379,23 @@ Teoria: [Ansible](etap-2-k3s-ansible/01-teoria-ansible.md).
 
 Opis awarii: [blokady .lck](etap-4-monitoring-zewnetrzny/problemy.md#vmware-cannot-open-the-disk--pozostałe-blokady-lck).
 
+**Diagnoza zawieszenia hosta** (🪟 PowerShell, sam odczyt):
+
+| Polecenie | Co robi |
+|---|---|
+| `Get-WinEvent -FilterHashtable @{LogName='System'; Id=41,6008; StartTime=(Get-Date).AddDays(-30)}` | nieczyste wyłączenia z 30 dni (41 – start po awarii, 6008 – „poprzednie zamknięcie było nieoczekiwane”) |
+| `Get-WinEvent -FilterHashtable @{LogName='System'; Level=1,2,3; StartTime=(Get-Date '2026-11-05 19:30'); EndTime=(Get-Date '2026-11-05 20:30')}` | błędy i ostrzeżenia z okna czasu wokół awarii |
+| `Get-ChildItem C:WindowsMinidump` | zrzuty po niebieskim ekranie; pusto = zawieszenie, nie BSOD |
+| `Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-WHEA-Logger'}` | błędy sprzętu zgłoszone przez procesor/pamięć/PCIe |
+| `Get-CimInstance Win32_OperatingSystem | Select TotalVisibleMemorySize, FreePhysicalMemory` | RAM całkowity i wolny (w KB) |
+| `Select-String -Path "…k3s-masterk3s-master.vmx" -Pattern '^memsize|^numvcpus'` | ile RAM i procesorów dostała maszyna VMware |
+| `Select-String -Path "…k3s-mastermware-2.log" -Pattern '^2026-11-05T19:'` | wpisy z logu VMware z danej godziny (**czas w UTC**, w Polsce zimą +1 h) |
+| `(Get-CimInstance Win32_ComputerSystem).HypervisorPresent` | `True` = działa Hyper-V, VMware pracuje na nim (tryb ULM) |
+| `(Get-ItemProperty 'HKLM:HARDWAREDESCRIPTIONSystemCentralProcessor ').'Update Revision'` | wersja mikrokodu procesora (bajty od tyłu: `41 1 0 0` = 0x129) |
+| `Get-CimInstance Win32_BIOS | Select SMBIOSBIOSVersion, ReleaseDate` | wersja i data BIOS-u |
+
+Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.md#host-zawiesza-się-razem-z-maszynami).
+
 ## Git
 
 | Polecenie | Co robi |
