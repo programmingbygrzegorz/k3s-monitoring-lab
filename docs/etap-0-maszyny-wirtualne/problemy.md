@@ -114,5 +114,6 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Rozwiązanie (robi właściciel):** aktualizacja BIOS-u płyty MSI B760M GAMING PLUS WIFI do najnowszego ze strony MSI,
   potem w BIOS-ie profil **Intel Default Settings**; sprawdzenie mikrokodu po restarcie. Jeśli zawieszenia wrócą –
   test stabilności i ewentualnie reklamacja procesora (Intel wydłużył gwarancję tych modeli).
+- **Pełna diagnoza ze zrzutami:** [03-diagnoza-zawieszenia-hosta.md](03-diagnoza-zawieszenia-hosta.md).
 - **Wniosek:** RCU stall w maszynie = maszyna nie dostała procesora od hosta. Przyczyny szukaj na hoście: dziennik
   zdarzeń (41, 6008, WHEA), zrzuty, logi wirtualizatora – i wcześniejsze awarie, bo jedna to przypadek, osiem to wzorzec.
