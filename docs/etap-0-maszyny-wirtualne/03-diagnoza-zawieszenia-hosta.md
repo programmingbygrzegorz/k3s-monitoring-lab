@@ -355,8 +355,28 @@ awarii (braku pamięci, błędu dysku, paniki jądra). Wszystkie po prostu przes
 
 Krok 12 bez `grep -v` pokazałby dziesiątki linii `[UFW BLOCK] IN=ens33 OUT=flannel.1 … SRC=192.168.180.54
 DST=10.42.1.36`. To Uptime Kuma (`monitoring`, .54) pyta o NodePort na masterze, a kube-proxy przekazuje ruch do
-poda na innym węźle (10.42.x.x) przez `flannel.1` – i ten **przekazywany** ruch blokuje ufw. Nie ma związku
-z zawieszeniem, ale może psuć monitory w Kumie – do sprawdzenia przy kończeniu Etapu 4.
+poda na innym węźle (10.42.x.x) przez `flannel.1` – i ten **przekazywany** ruch blokuje ufw.
+
+Sprawdzone 06.11 (Claude, sam odczyt) – zliczenie blokad IPv4 z ostatnich trzech uruchomień każdego węzła:
+
+```bash
+for b in -2 -1 0; do journalctl -k -b $b --no-pager -o short-iso; done | grep 'UFW BLOCK' | grep -v 'PROTO=ICMPv6'
+```
+
+| Węzeł | Blokady `192.168.180.54 → 10.42.x.x` | Kiedy |
+|---|---|---|
+| k3s-master | 14 (porty 8080, 9898) | 20:05 (awaria) i 20:14–20:15 (pierwsza minuta po starcie) |
+| k3s-worker-2 | 12 (port 8000) | 20:08–20:15 (awaria i start) |
+| k3s-worker-1, -3 | 0 | – |
+
+Blokady są **tylko** w czasie awarii i tuż po starcie maszyn. Po starcie ufw wczytuje swoje reguły (domyślnie:
+blokuj przekazywany ruch) **przed** k3s, a dopiero kube-proxy w k3s dodaje reguły przepuszczające ruch do podów.
+Przez tę chwilę pakiety z Kumy odbijają się od ufw – i Kuma może pokazać krótki czerwony pasek. Od 20:30 blokad
+nie ma, a z `monitoring` wszystkie adresy z tabeli monitorów odpowiadają `200` (NodePorty 30880, 30898, 30090,
+Ingress `podinfo.lab.local`) i port 6443 jest otwarty. **Nie psuje to monitorów na stałe.**
+
+Dzisiejsze `UFW BLOCK` to wyłącznie `PROTO=ICMPv6 TYPE=133` na `cni0` – pody pytają o routery IPv6 (*router
+solicitation*), a w labie IPv6 nie jest używane. Niegroźny szum w logu.
 
 ---
 
