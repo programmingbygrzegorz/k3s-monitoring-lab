@@ -7,6 +7,8 @@ zmieniają i nie wymagają uprawnień administratora.
 
 🪟 Wszystko wpisujesz w **PowerShell na Windowsie** (Start → „PowerShell” → Enter).
 
+Jak działa `Get-WinEvent` i jak go używać: [instrukcja](04-get-winevent.md).
+
 **Metoda:** najpierw ustal, **kiedy** i **jak** padło, potem wyklucz typowe przyczyny (pamięć, dysk), na końcu
 szukaj wzorca. Ta sama kolejność obowiązuje na Linuksie – tam zamiast `Get-WinEvent` jest `journalctl`
 ([metoda diagnozowania](../problemy-ogolne.md)).

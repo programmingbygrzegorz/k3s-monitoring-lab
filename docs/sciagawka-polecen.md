@@ -394,7 +394,7 @@ Opis awarii: [blokady .lck](etap-4-monitoring-zewnetrzny/problemy.md#vmware-cann
 | `(Get-ItemProperty 'HKLM:HARDWAREDESCRIPTIONSystemCentralProcessor ').'Update Revision'` | wersja mikrokodu procesora (bajty od tyłu: `41 1 0 0` = 0x129) |
 | `Get-CimInstance Win32_BIOS | Select SMBIOSBIOSVersion, ReleaseDate` | wersja i data BIOS-u |
 
-Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.md#host-zawiesza-się-razem-z-maszynami).
+Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.md#host-zawiesza-się-razem-z-maszynami). Instrukcja `Get-WinEvent`: [dziennik zdarzeń z PowerShell](etap-0-maszyny-wirtualne/04-get-winevent.md).
 
 ## Git
 
