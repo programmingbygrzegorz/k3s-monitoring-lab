@@ -77,7 +77,7 @@ Stan na 05.11.2026:
   **właściciel sam** dopisuje 6443 dla `monitoring` w `ansible/roles/common/tasks/main.yml` (`loop` z `admin_cidr`
   i `192.168.180.54`) + `--syntax-check`, `ansible-lint`, `--check --diff`; reszta monitorów Kumy (tabela w
   `05-przebieg-wdrozenia.md`), dashboard 1860 w Grafanie, pingi healthchecks.io, test awarii, zamknięcie Etapu 4.
-  Przyczyna zawieszenia hosta: miejsce na C:, dziennik zdarzeń. Prowadź krok po kroku: podajesz polecenie,
+  Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,

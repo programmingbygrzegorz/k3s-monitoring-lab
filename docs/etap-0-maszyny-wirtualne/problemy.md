@@ -87,3 +87,32 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Przyczyna:** Packer (`vmware-iso`) przechodzi pełną instalację systemu i aktualizacje.
 - **Wniosek:** to cena powtarzalności – maszyna powstaje zawsze tak samo, z kodu. W praktyce
   Packerem buduje się raz *obraz* (szablon), a z niego szybko klonuje.
+
+## Host zawiesza się razem z maszynami
+
+- **Objaw:** 05.11.2026 około 20:00 konsola k3s-master pokazała `rcu: INFO: rcu_preempt detected stalls on CPUs/tasks`,
+  SSH przestało odpowiadać, a po chwili zawiesił się cały Windows – pomogło tylko twarde wyłączenie (ok. 20:12).
+- **Diagnoza (🪟 PowerShell, sam odczyt):**
+
+  | Co sprawdzone | Polecenie | Wynik |
+  |---|---|---|
+  | awarie w 30 dni | `Get-WinEvent -FilterHashtable @{LogName='System'; Id=41,6008; StartTime=(Get-Date).AddDays(-30)}` | **8 nieczystych wyłączeń** (7.10–5.11), zawsze `BugcheckCode=0` |
+  | niebieski ekran | `Get-ChildItem C:\Windows\Minidump` | brak zrzutów – to zawieszenie, nie BSOD |
+  | błędy sprzętu | zdarzenia `Microsoft-Windows-WHEA-Logger` | brak |
+  | pamięć | `memsize` w plikach `.vmx`, `Win32_PageFileUsage` | maszynom przydzielone 26 z 64 GB, plik stronicowania prawie nieużywany |
+  | dysk | `Get-PSDrive C` | 1,2 TB wolne |
+  | Hyper-V | `(Get-CimInstance Win32_ComputerSystem).HypervisorPresent` | `True`; w `vmware.log`: `Monitor Mode: ULM` |
+  | mikrokod i BIOS | `HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor\0` → `Update Revision`, `Get-CimInstance Win32_BIOS` | mikrokod **0x129**, BIOS MSI H.50 z 12.08.2024 |
+
+  Logi VMware (`vmware-N.log` w folderze maszyny, czas w UTC) pokazują tylko skutek: o 20:12 workery zgłaszają
+  `Tools heartbeat timeout` – systemy w maszynach przestały dostawać procesor.
+- **Przyczyna (najbardziej prawdopodobna, niepotwierdzona):** procesor i7-14700KF należy do serii 13./14. generacji
+  Intela ze znanym problemem niestabilności (Vmin shift): zawieszenia pod obciążeniem bez śladu w logach. Intel
+  wydał poprawki mikrokodu po 0x129 (0x12B, 0x12F) – dostarcza je aktualizacja BIOS-u. Lab obciąża wszystkie rdzenie
+  godzinami, więc ujawnia problem częściej. Brak pamięci i miejsca na dysku wykluczone.
+  Dodatkowo VMware działa na Hyper-V (tryb ULM, przez Windows Hypervisor Platform) – wolniej niż bezpośrednio.
+- **Rozwiązanie (robi właściciel):** aktualizacja BIOS-u płyty MSI B760M GAMING PLUS WIFI do najnowszego ze strony MSI,
+  potem w BIOS-ie profil **Intel Default Settings**; sprawdzenie mikrokodu po restarcie. Jeśli zawieszenia wrócą –
+  test stabilności i ewentualnie reklamacja procesora (Intel wydłużył gwarancję tych modeli).
+- **Wniosek:** RCU stall w maszynie = maszyna nie dostała procesora od hosta. Przyczyny szukaj na hoście: dziennik
+  zdarzeń (41, 6008, WHEA), zrzuty, logi wirtualizatora – i wcześniejsze awarie, bo jedna to przypadek, osiem to wzorzec.

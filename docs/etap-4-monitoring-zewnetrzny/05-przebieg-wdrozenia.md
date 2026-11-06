@@ -794,7 +794,8 @@ Unless rcu_preempt kthread gets sufficient CPU time, OOM is now expected behavio
 ```
 
 Maszyna przez ~56 s nie dostała procesora od VMware – problem po stronie **hosta**, nie k3s. Chwilę później
-zawiesił się cały Windows i trzeba było go wyłączyć twardo. Potem k3s-worker-3 nie startował:
+zawiesił się cały Windows i trzeba było go wyłączyć twardo (diagnoza następnego dnia: [8 takich zawieszeń w miesiącu,
+stary mikrokod procesora](../etap-0-maszyny-wirtualne/problemy.md#host-zawiesza-się-razem-z-maszynami)). Potem k3s-worker-3 nie startował:
 *„Cannot open the disk …\k3s-worker-3\disk-000005.vmdk or one of the snapshot disks it depends on”* – zostały
 **pliki blokad `*.lck`** po nagłym zakończeniu
 ([problem](problemy.md#vmware-cannot-open-the-disk--pozostałe-blokady-lck)).
