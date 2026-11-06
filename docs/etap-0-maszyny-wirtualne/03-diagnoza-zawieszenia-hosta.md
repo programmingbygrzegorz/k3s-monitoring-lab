@@ -23,6 +23,7 @@ szukaj wzorca. Ta sama kolejność obowiązuje na Linuksie – tam zamiast `Get-
 | 6 | Czy maszyny zabrały za dużo RAM? | nie – 26 z 64 GB |
 | 7 | Co mówi VMware? | maszyny przestały dostawać procesor – to skutek |
 | 8 | Procesor i BIOS? | i7-14700KF, stary mikrokod 0x129 – najbardziej prawdopodobna przyczyna |
+| 9 | Co widział master od środka? | każda awaria hosta urywa uruchomienie mastera – maszyna ginie razem z hostem |
 
 ---
 
@@ -209,6 +210,53 @@ pamięć” odpada.
 - Mikrokod **0x129** i BIOS **H.50 z 12.08.2024** – to wczesna poprawka. Intel wydał później kolejne (0x12B,
   0x12F), które przychodzą razem z aktualizacją BIOS-u płyty.
 - Lab trzyma 5 maszyn włączonych godzinami – procesor jest stale obciążony, więc problem wychodzi częściej.
+
+---
+
+## Krok 9 – Uruchomienia mastera od środka (🐧 k3s-master)
+
+Kroki 1–8 patrzyły z Windowsa. Teraz ten sam okres widziany z wnętrza maszyny – wykonał właściciel.
+
+![journalctl --list-boots na k3s-master](img/host-9-master-list-boots.png)
+
+**Co robi polecenie:**
+
+- `journalctl` – czyta dziennik systemd, linuksowy odpowiednik `Get-WinEvent` ([porównanie](04-get-winevent.md#8-ściąga-windows--linux)).
+- `--list-boots` – lista **uruchomień** systemu z dziennika:
+  - `IDX` – numer względny: `0` = bieżące, `-1` = poprzednie, `-2` = jeszcze wcześniejsze… Tego numeru używasz
+    potem w `journalctl -b -2`;
+  - `BOOT ID` – unikalny identyfikator uruchomienia (losowy, nadawany przy starcie);
+  - `FIRST ENTRY` / `LAST ENTRY` – pierwszy i **ostatni** wpis w tym uruchomieniu. `LAST ENTRY` to ostatni
+    moment, w którym system zdążył coś zapisać – przy awarii to w przybliżeniu chwila śmierci.
+- Lista sięga 28.10, więc dziennik jest zapisywany **na dysk** (`/var/log/journal`) i przetrwał restarty –
+  bez tego byłoby tylko bieżące uruchomienie.
+
+**Co zdiagnozowano – zestawienie z awariami Windowsa z kroku 1:**
+
+| Awaria Windowsa (zdarzenie 41) | Uruchomienie mastera | Ostatni wpis mastera | Co to znaczy |
+|---|---|---|---|
+| 28.10 18:13 | `-6` (18:00 → 18:10) | 18:10:26 | master ginie ~3 min przed restartem Windowsa |
+| 03.11 18:19 | `-4` (30.10 → 03.11) | 18:17:01 | master ginie ~2 min przed restartem Windowsa |
+| 05.11 20:12 | `-2` (13:56 → 20:05) | **20:05:45** | master pisał jeszcze o 20:05, 7 min przed restartem |
+
+- **Każda** awaria hosta urywa uruchomienie mastera. Maszyna nie pada sama – ginie razem z hostem, a ostatni
+  wpis to chwila, w której host przestał jej dawać procesor. Tak się zachowuje maszyna, gdy winny jest **host**.
+- 5.11: Windows zapisał ostatni znak życia o 19:39:47 (krok 2), a master pisał do 20:05:45. Host więc nie stanął
+  od razu – przez ~25 minut działał coraz gorzej (to wtedy był RCU stall na konsoli mastera), aż zamarł całkiem.
+- `-1` (20:14 → 20:21) – pierwsze uruchomienie po restarcie hosta; po 7 minutach maszyna wyłączona przy walce
+  z blokadami `.lck`. `0` (od 20:30) – bieżące uruchomienie.
+- `0` trwa od 5.11 20:30, choć Windows wyłączał się dziś o 08:02 (zdarzenie 1074). VMware przy wyłączaniu
+  Windowsa **wstrzymuje** maszyny (*suspend* – zapis pamięci na dysk) i wznawia je po starcie, więc dla Linuksa
+  to jedno, nieprzerwane uruchomienie (`vmware-0.log` z 08:02, `vmware.log` z 08:21 – krok 7).
+- 28.10 to aż 7 krótkich uruchomień (`-11` … `-5`) – dzień z dwiema awariami Windowsa (08:09 i 18:13) i dużą
+  liczbą restartów przy budowie klastra.
+
+**Następne polecenia** (to samo uruchomienie `-2`, czyli awaria 5.11):
+
+```bash
+journalctl -b -2 -n 40 --no-pager                                                # ostatnie 40 wpisów przed śmiercią
+journalctl -b -2 -k --no-pager | grep -iE 'rcu|stall|lockup|hung|oom|clocksource' # ślady głodu procesora w jądrze
+```
 
 ---
 
