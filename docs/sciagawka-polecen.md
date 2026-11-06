@@ -365,6 +365,7 @@ Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
 | `ansible-playbook site.yml --syntax-check` | tylko składnia YAML i playbooka, nic nie łączy się z maszynami |
 | `ansible-lint roles/common` | dobre praktyki w roli (instalacja: `pipx install ansible-lint`) |
 | `ansible-playbook playbooks/prepare.yml --limit k3s-master --check --diff` | „na sucho”: co by się zmieniło na jednej maszynie, bez zmieniania |
+| `ansible-playbook playbooks/prepare.yml --limit k3s-master --start-at-task "Nazwa zadania"` | zaczyna od wskazanego zadania (pomija wcześniejsze, np. `apt upgrade`); nazwa dokładnie jak w pliku |
 
 Teoria: [Ansible](etap-2-k3s-ansible/01-teoria-ansible.md).
 

@@ -73,9 +73,10 @@ Stan na 05.11.2026:
   6443 tylko dla `admin_cidr`; na masterze ręcznie `ufw allow from 192.168.180.54 to any port 6443` (drift!).
   Potem zawiesił się host (RCU stall na masterze, twarde wyłączenie PC), worker-3 nie startował przez stare
   blokady `*.lck` – przeniesione do `stare-lck-2026-11-05`. 06.11: wszystkie 5 maszyn działa, reguła 6443 przetrwała, wszystkie adresy monitorów Kumy odpowiadają z `monitoring`. Check healthchecks.io ma nadal domyślne Period 1 dzień / Grace 1 h – do zmiany (właściciel).
-- ⏭️ Następny (06.11): sprawdź, czy maszyny wstały (`kubectl get nodes`, `docker ps` na `monitoring`, reguła 6443);
-  **właściciel sam** dopisuje 6443 dla `monitoring` w `ansible/roles/common/tasks/main.yml` (`loop` z `admin_cidr`
-  i `192.168.180.54`) + `--syntax-check`, `ansible-lint`, `--check --diff`; reszta monitorów Kumy (tabela w
+- 🔥 06.11 – **reguła 6443 dla `monitoring` w roli `common`** (właściciel, commit `c903998`, `loop` z `admin_cidr`
+  i `192.168.180.54` na sztywno; wariant z inwentarza opisany w kroku 9 przebiegu). Przebieg na masterze
+  (`--start-at-task`) `--check` i naprawdę: `changed=0` – drift usunięty.
+- ⏭️ Następny: healthchecks.io Period 2 min / Grace 5 min (właściciel), reszta monitorów Kumy (tabela w
   `05-przebieg-wdrozenia.md`), dashboard 1860 w Grafanie, pingi healthchecks.io, test awarii, zamknięcie Etapu 4.
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.

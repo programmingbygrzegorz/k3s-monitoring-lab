@@ -126,7 +126,8 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   reguła w roli Ansible (pętla `loop` z `admin_cidr` i adresem `monitoring`). Otwarty port nie daje dostępu do
   klastra – API i tak wymaga certyfikatu albo tokenu.
 - **Wniosek:** reguła dodana ręcznie na serwerze, a nie w kodzie, zniknie przy przebudowie (configuration drift).
-  Szybka łatka – tak, ale zaraz potem to samo w Ansible.
+  Szybka łatka – tak, ale zaraz potem to samo w Ansible. 06.11 reguła trafiła do roli (commit `c903998`),
+  przebieg na masterze dał `changed=0` – [krok 9 przebiegu](05-przebieg-wdrozenia.md#krok-9--reguła-6443-w-kodzie-nie-tylko-na-serwerze-06112026).
 
 ## VMware: Cannot open the disk – pozostałe blokady .lck
 

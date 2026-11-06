@@ -22,7 +22,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
 | 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
 | 7b | Grafana, Uptime Kuma | 🟡 postawione; przerwane awarią hosta |
-| 7c | Reguła 6443 w roli Ansible, test awarii | następna sesja |
+| 7c | Reguła 6443 w roli Ansible (krok 9) | ✅ 06.11, `changed=0` |
+| 7d | Reszta monitorów, dashboard, test awarii | następna sesja |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -800,12 +801,97 @@ stary mikrokod procesora](../etap-0-maszyny-wirtualne/problemy.md#host-zawiesza-
 **pliki blokad `*.lck`** po nagłym zakończeniu
 ([problem](problemy.md#vmware-cannot-open-the-disk--pozostałe-blokady-lck)).
 
+## Krok 9 – reguła 6443 w kodzie, nie tylko na serwerze (06.11.2026)
+
+Ręczna reguła z kroku 8 przetrwała restart, ale istniała tylko na masterze. Przy przebudowie maszyny z Ansible
+by zniknęła i monitor API w Kumie znowu by się zaczerwienił. Właściciel przeniósł ją do roli `common`.
+
+### 9.1. Zmiana w roli (🪟 Windows – właściciel, commit `c903998`)
+
+`ansible/roles/common/tasks/main.yml` – zadanie dostało pętlę, tak jak sąsiednia reguła NodePortów:
+
+```diff
+-        - name: API Kubernetesa z sieci administratora
++        - name: API Kubernetesa z sieci administratora i z monitoring
+           community.general.ufw:
+             rule: allow
+-            from_ip: "{{ admin_cidr }}"
++            from_ip: "{{ item }}"
+             port: "6443"
+             proto: tcp
++          loop:
++            - "{{ admin_cidr }}"
++            - 192.168.180.54
+```
+
+- `loop` – Ansible wykonuje zadanie raz dla każdej pozycji listy; `item` to bieżąca pozycja.
+- Adres `monitoring` jest tu wpisany na sztywno (wybór „na razie prostszy”). Przy pełnej automatyzacji lepiej brać
+  go z inwentarza, żeby zmiana adresu maszyny była w jednym miejscu:
+  `loop: "{{ [admin_cidr] + (groups['monitoring_vm'] | map('extract', hostvars, 'ansible_host') | list) }}"`.
+
+### 9.2. Sprawdzenie i uruchomienie (🐧 monitoring, w `~/k3s-monitoring-lab/ansible`)
+
+```bash
+git pull                                    # zmiana z GitHuba na maszynę sterującą
+ansible-playbook site.yml --syntax-check    # składnia YAML i struktura, bez łączenia z maszynami
+ansible-lint roles/common                   # dobre praktyki
+ansible-playbook playbooks/prepare.yml --limit k3s-master --check --diff \
+  --start-at-task "API Kubernetesa z sieci administratora i z monitoring"   # na sucho
+ansible-playbook playbooks/prepare.yml --limit k3s-master --diff \
+  --start-at-task "API Kubernetesa z sieci administratora i z monitoring"   # naprawdę
+```
+
+`--start-at-task` zaczyna od wskazanego zadania (nazwa musi być dokładnie jak w pliku) – pomija m.in. `apt upgrade`
+z początku roli. Na końcu wyniku `ansible-lint` była informacja o nowszej wersji (26.10.1 → 26.11.0) – to tylko
+podpowiedź, nie błąd; aktualizacja: `pip install --upgrade ansible-lint`.
+
+Wynik z labu – próba na sucho i prawdziwe uruchomienie dały **to samo**:
+
+```text
+TASK [common : API Kubernetesa z sieci administratora i z monitoring] **********
+ok: [k3s-master] => (item=192.168.180.0/24)
+ok: [k3s-master] => (item=192.168.180.54)
+
+TASK [common : Ingress (HTTP i HTTPS)] *****************************************
+ok: [k3s-master] => (item=80)
+ok: [k3s-master] => (item=443)
+
+TASK [common : NodePorty dla administratora i maszyny monitoring] **************
+ok: [k3s-master] => (item=192.168.180.0/24)
+ok: [k3s-master] => (item=192.168.180.54)
+
+TASK [common : Włącz firewall] *************************************************
+ok: [k3s-master]
+
+PLAY RECAP *********************************************************************
+k3s-master                 : ok=5    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+```
+
+**Dlaczego `changed=0`:** reguła dla `.54` już była (ręczna łatka z kroku 8). Moduł `ufw` najpierw sprawdza, czy taka
+reguła istnieje, i dodaje ją tylko wtedy, gdy jej brak. Serwer był już w stanie opisanym w kodzie, więc nic się nie
+zmieniło – to **idempotentność**. Teraz kod i serwer mówią to samo: drift usunięty. `--start-at-task` uruchamia też
+zadania **po** wskazanym (Ingress, NodePorty, włączenie firewalla) – wszystkie `ok`, czyli i one zgadzają się z kodem.
+
+Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się przy następnym pełnym przebiegu
+`prepare.yml` – tam API nie działa, więc nic to nie zmienia.
+
+### Pytania rekrutacyjne
+
+- **Co to jest configuration drift i jak go wykryć?** Różnica między stanem opisanym w kodzie (Ansible, Terraform)
+  a rzeczywistym stanem serwera – zwykle po ręcznej „szybkiej łatce”. Wykrywa się ją uruchomieniem w trybie
+  `--check --diff` (Ansible) albo `terraform plan`: każde `changed` to miejsce, gdzie serwer różni się od kodu.
+- **Co znaczy, że playbook jest idempotentny? Jak to sprawdzisz?** Kolejne uruchomienie na tym samym serwerze nic nie
+  zmienia ani nie dubluje – drugi przebieg kończy się `changed=0`. Moduły (`ufw`, `apt`, `copy`) same sprawdzają
+  stan przed zmianą; ryzykowne są `command` i `shell`, które bez `creates:` / `changed_when:` wykonują się zawsze.
+- **Po co `--check --diff` przed prawdziwym uruchomieniem?** Pokazuje, co *zmieniłoby się*, bez dotykania serwera
+  – jak przegląd zmian przed wdrożeniem. Na produkcji to standard przed każdą zmianą.
+
 ## Co dalej (następna sesja)
 
-- sprawdzić, czy wszystkie maszyny wstały (blokady `.lck`, ewentualnie snapshot worker-3), `kubectl get nodes`,
-  `docker ps` na `monitoring`, monitory w Kumie i dashboard w Grafanie;
-- reguła 6443 dla `monitoring` w roli Ansible (`ansible/roles/common/tasks/main.yml`) – właściciel, potem
-  `--syntax-check`, `ansible-lint roles/common`, `--check --diff`;
-- przyczyna zawieszenia hosta: wolne miejsce na C:, dziennik zdarzeń Windows z ok. 20:10;
+- ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
+- ~~reguła 6443 dla `monitoring` w roli Ansible~~ ✅ 06.11 ([krok 9](#krok-9--reguła-6443-w-kodzie-nie-tylko-na-serwerze-06112026));
+- ~~przyczyna zawieszenia hosta~~ ✅ 06.11 ([diagnoza](../etap-0-maszyny-wirtualne/03-diagnoza-zawieszenia-hosta.md)) – właściciel aktualizuje BIOS;
+- healthchecks.io: Period 2 min, Grace 5 min (teraz domyślne 1 dzień / 1 h);
+- reszta monitorów w Kumie, dashboard 1860 w Grafanie;
 - powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
