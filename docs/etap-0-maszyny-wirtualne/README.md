@@ -42,6 +42,7 @@ sam machine-id (konflikty adresów DHCP) i te same klucze hosta SSH.
 | 2 | [02-packer.md](02-packer.md) | nowa maszyna z ISO, zbudowana z kodu |
 | 3 | [03-diagnoza-zawieszenia-hosta.md](03-diagnoza-zawieszenia-hosta.md) | komputer zawiesza się z maszynami: 8 kroków diagnozy w PowerShell ze zrzutami |
 | 4 | [04-get-winevent.md](04-get-winevent.md) | jak czytać dziennik zdarzeń Windows z PowerShell: filtry, numery zdarzeń, porównanie z `journalctl`, ćwiczenia |
+| 5 | [05-journalctl.md](05-journalctl.md) | dziennik systemu Linux: filtry (`-u`, `-p`, `-b`, `-k`, `--since`), wygląd wyniku, kilka maszyn naraz, ćwiczenia |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: sieć, klonowanie, Packer |
 
 Następny etap: [Etap 0b – klucze SSH](../etap-0b-klucze-ssh/README.md).

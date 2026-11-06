@@ -85,7 +85,9 @@ Problem z tym związany: `permission denied … docker.sock` – sesja otwarta p
 | `journalctl --list-boots`, `journalctl -b -1` | lista uruchomień, logi poprzedniego uruchomienia |
 | `journalctl --disk-usage`, `sudo journalctl --vacuum-size=200M` | ile zajmuje dziennik, przycięcie go |
 | `sudo dmesg -T \| tail`, `journalctl -k` | komunikaty jądra (dyski, sieć, OOM) |
-| `sudo sshd -T \| grep passwordauthentication` | ostateczna konfiguracja SSH po złożeniu wszystkich plików |
+| `sudo sshd -T 
+
+Instrukcja `journalctl` krok po kroku: [dziennik systemu Linux](etap-0-maszyny-wirtualne/05-journalctl.md).\| grep passwordauthentication` | ostateczna konfiguracja SSH po złożeniu wszystkich plików |
 
 ## Linux – dyski i miejsce
 

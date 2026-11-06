@@ -24,6 +24,10 @@ szukaj wzorca. Ta sama kolejność obowiązuje na Linuksie – tam zamiast `Get-
 | 7 | Co mówi VMware? | maszyny przestały dostawać procesor – to skutek |
 | 8 | Procesor i BIOS? | i7-14700KF, stary mikrokod 0x129 – najbardziej prawdopodobna przyczyna |
 | 9 | Co widział master od środka? | każda awaria hosta urywa uruchomienie mastera – maszyna ginie razem z hostem |
+| 10 | Kiedy padły pozostałe maszyny? | wszystkie 5 w ciągu 7 minut (20:05–20:12) – wspólna przyczyna |
+| 11 | Czy jądro zgłosiło głód procesora? | jeden RCU stall – o 17:40, od snapshotu (niegroźny); brak braku pamięci |
+| 12 | Ostatnie minuty mastera? | SSH nie zdążył się zalogować, ostatni wpis 20:05:45 |
+| 13 | Ostatnie wpisy reszty? | kubelet czeka 17 s zamiast 1 s – głód procesora na wszystkich maszynach |
 
 ---
 
@@ -251,12 +255,108 @@ Kroki 1–8 patrzyły z Windowsa. Teraz ten sam okres widziany z wnętrza maszyn
 - 28.10 to aż 7 krótkich uruchomień (`-11` … `-5`) – dzień z dwiema awariami Windowsa (08:09 i 18:13) i dużą
   liczbą restartów przy budowie klastra.
 
-**Następne polecenia** (to samo uruchomienie `-2`, czyli awaria 5.11):
+---
 
-```bash
-journalctl -b -2 -n 40 --no-pager                                                # ostatnie 40 wpisów przed śmiercią
-journalctl -b -2 -k --no-pager | grep -iE 'rcu|stall|lockup|hung|oom|clocksource' # ślady głodu procesora w jądrze
-```
+Kroki 10–13 wykonał Claude przez SSH z Windowsa (`ssh k3s-master "…"`, klucze z Etapu 0b), na prośbę
+właściciela. Wszystkie polecenia tylko czytają dziennik. Jak działa `journalctl`:
+[instrukcja](05-journalctl.md).
+
+## Krok 10 – Uruchomienia wszystkich maszyn
+
+![journalctl --list-boots na pięciu maszynach](img/host-10-uruchomienia-wszystkich.png)
+
+**Co robi polecenie:** to samo co w kroku 9, na każdej maszynie; `| tail -3` – tylko 3 ostatnie wiersze listy
+(`tail` = koniec, odwrotność `head`).
+
+**Co zdiagnozowano:** szukamy uruchomienia, które kończy się 5.11 około 20:00–20:12 – to to, które przerwała
+awaria. Na workerach 1–2 i `monitoring` ma numer `-2`, na worker-3 `-1` (ma o jedno uruchomienie mniej).
+Uszeregowane według **ostatniego wpisu**, czyli chwili śmierci:
+
+| Maszyna | Uruchomienie | Ostatni wpis |
+|---|---|---|
+| k3s-master | `-2` | **20:05:45** – pierwszy, 6 minut przed resztą |
+| monitoring | `-2` | 20:10:59 |
+| k3s-worker-2 | `-2` | 20:11:39 |
+| k3s-worker-1 | `-2` | 20:11:52 |
+| k3s-worker-3 | `-1` | 20:12:02 – ostatni, ok. 30 s przed twardym wyłączeniem Windowsa |
+
+Wszystkie pięć maszyn zginęło **w ciągu kilku minut**, w tym samym czasie co Windows. Gdyby winna była jedna
+maszyna (jej system, k3s, aplikacja), padłaby tylko ona. Wszystkie naraz = wspólna przyczyna, czyli **host**.
+Następne uruchomienia (`-1` / `0`) zaczynają się ok. 20:14 i 20:30 – po restarcie Windowsa.
+
+## Krok 11 – Czy jądro zgłosiło głód procesora
+
+![Komunikaty RCU stall na masterze i ich brak na pozostałych maszynach](img/host-11-rcu-stall.png)
+
+**Co robi polecenie:**
+
+- `-b -2` – tylko uruchomienie z awarią (numer z kroku 10); `-k` – tylko komunikaty **jądra** (jak `dmesg`).
+- `-o short-iso` – czas w formacie `2026-11-05T17:40:24+01:00` (pełna data, strefa czasowa).
+- `grep -iE '…|…'` – linie z którymkolwiek z napisów: `detected stall` i `timer wakeup` (RCU stall – jądro nie
+  dostało procesora), `soft lockup` / `hard LOCKUP` (rdzeń zablokowany), `blocked for more than` (proces czeka
+  ponad 2 min), `Out of memory` (brak pamięci).
+- `grep -c` – zamiast linii pokaż ich **liczbę**.
+
+**Co zdiagnozowano:**
+
+- Na masterze jest **jeden** RCU stall – o **17:40:24**, z `59995 jiffies` (ok. 60 s bez procesora; *jiffy* to
+  tyknięcie zegara jądra, tu 1 ms). To nie jest chwila awarii: o 17:37–17:43 robiony był **snapshot** maszyn
+  (krok 7: `vmware-2.log` mastera – `Tools heartbeat timeout` o 16:37Z i `Done with snapshot` o 16:43Z). Przy
+  snapshocie z pamięcią VMware **zatrzymuje** maszynę na czas zapisu RAM, a jądro po wznowieniu widzi, że minęła
+  minuta bez procesora. Taki stall po snapshocie jest **niegroźny**.
+- RCU stall widziany na konsoli mastera około 20:00 (w opisie Etapu 4: `55995 jiffies`) **nie trafił do
+  dziennika** – system był już zbyt zagłodzony, żeby zapisać go na dysk. Konsola pokazuje komunikaty jądra od
+  razu, dziennik zapisuje je z opóźnieniem.
+- Na workerach i `monitoring`: **0** takich komunikatów. Nie było też braku pamięci (`Out of memory`) na żadnej
+  maszynie – kolejne potwierdzenie kroku 6.
+
+## Krok 12 – Ostatnie minuty mastera
+
+![Wpisy mastera od 19:50 do końca](img/host-12-master-ostatnie-minuty.png)
+
+**Co robi polecenie:**
+
+- `--since '2026-11-05 19:50'` – wpisy od tej chwili (do końca uruchomienia).
+- `grep -v 'UFW BLOCK'` – **bez** linii z tym napisem (`-v` = odwróć). Firewall zapisuje każdy zablokowany pakiet
+  i te linie zasłaniałyby resztę ([osobny temat](#przy-okazji--ufw-block-w-logach-mastera)).
+- Linie są obcięte do 175 znaków, żeby zmieściły się na zrzucie.
+
+**Co zdiagnozowano – oś czasu:**
+
+| Czas | Wpis | Znaczenie |
+|---|---|---|
+| 19:56:45 | `sudo … COMMAND=/usr/sbin/ufw allow from 192.168.180…` | właściciel dodaje regułę 6443 – master jeszcze działa |
+| 20:04:44 | `sshd: Timeout before authentication for connection from 192.168.180.1` | SSH z Windowsa nie zdążył się zalogować – „nie mogę dostać się po ssh” |
+| 20:05:45 | `workqueue: e1000_watchdog [e1000] hogged CPU for >10000us` | ostatni wpis: zadanie sterownika karty sieciowej trzymało procesor >10 ms – system ledwo dostaje czas procesora |
+
+Potem cisza – master przestał zapisywać cokolwiek 7 minut przed twardym wyłączeniem Windowsa.
+
+## Krok 13 – Ostatnie wpisy pozostałych maszyn
+
+![Trzy ostatnie wpisy z workerów i monitoring](img/host-13-pozostale-ostatnie-wpisy.png)
+
+**Co robi polecenie:** `-n 3` – trzy **ostatnie** wpisy uruchomienia (jak `tail -3`); `| cut -c1-175` – obetnij
+każdą linię do 175 znaków.
+
+**Co zdiagnozowano:**
+
+- **worker-1:** `Housekeeping took longer than expected … expected="1s" actual="16.93…"` – kubelet co sekundę
+  sprząta po kontenerach, a tym razem trwało to **17 s**. Proces dostawał procesor co kilkanaście sekund.
+- **worker-1, worker-3:** `Failed to ensure lease exists`, `Error updating node status` – kubelet nie może
+  połączyć się z API Kubernetesa. API działa na **masterze**, a master od 20:05 milczy (krok 12).
+- **monitoring:** ten sam `e1000_watchdog … hogged CPU` co ostatni wpis mastera.
+- **worker-2:** zwykłe sprzątanie po zakończonym kontenerze – urwane w pół słowa.
+
+Na wszystkich maszynach w ostatnich minutach pojawiają się oznaki **głodu procesora** (`hogged CPU`,
+`Housekeeping took longer`) – od 20:04 na worker-3, od 20:08 na pozostałych. Żadna maszyna nie miała własnej
+awarii (braku pamięci, błędu dysku, paniki jądra). Wszystkie po prostu przestały dostawać procesor od hosta.
+
+### Przy okazji – UFW BLOCK w logach mastera
+
+Krok 12 bez `grep -v` pokazałby dziesiątki linii `[UFW BLOCK] IN=ens33 OUT=flannel.1 … SRC=192.168.180.54
+DST=10.42.1.36`. To Uptime Kuma (`monitoring`, .54) pyta o NodePort na masterze, a kube-proxy przekazuje ruch do
+poda na innym węźle (10.42.x.x) przez `flannel.1` – i ten **przekazywany** ruch blokuje ufw. Nie ma związku
+z zawieszeniem, ale może psuć monitory w Kumie – do sprawdzenia przy kończeniu Etapu 4.
 
 ---
 
@@ -268,7 +368,8 @@ journalctl -b -2 -k --no-pager | grep -iE 'rcu|stall|lockup|hung|oom|clocksource
 | brak pamięci RAM | ❌ wykluczona | 5, 6 |
 | maszyny zabrały za dużo zasobów | ❌ wykluczona | 6 |
 | uszkodzony sprzęt zgłaszający błędy (np. RAM) | ❌ mało prawdopodobna | 4 |
-| niestabilny procesor ze starym mikrokodem | ✅ **najbardziej prawdopodobna** | 1, 3, 8 |
+| awaria w jednej maszynie (k3s, brak pamięci, dysk) | ❌ wykluczona – padły wszystkie naraz, bez własnych błędów | 10–13 |
+| niestabilny procesor ze starym mikrokodem | ✅ **najbardziej prawdopodobna** | 1, 3, 8, 9–13 |
 
 To **hipoteza, nie pewność**. Potwierdzi ją dopiero to, że po aktualizacji awarie znikną.
 
