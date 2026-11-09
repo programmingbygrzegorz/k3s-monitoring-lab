@@ -21,7 +21,7 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
 | 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
-| 7b | Grafana, Uptime Kuma | ✅ Kuma: 6 monitorów zielonych (09.11); Grafana bez dashboardu |
+| 7b | Grafana, Uptime Kuma | ✅ Kuma: 6 monitorów zielonych, Grafana: dashboard 1860 (09.11) |
 | 7c | Reguła 6443 w roli Ansible (krok 9) | ✅ 06.11, `changed=0` |
 | 7d | Powiadomienia Kumy, dashboard, test awarii | następna sesja |
 
@@ -757,6 +757,20 @@ Pusta po starcie – to poprawne: z `grafana/provisioning/` dostaje tylko **źr�
 Grafana w klastrze – przy awarii klastra pokaże „No data”. Własne dane dostałaby dopiero z magazynem metryk
 poza klastrem (np. VictoriaMetrics + `remote_write`) – pomysł na później.
 
+**09.11 – dashboard zaimportowany** (właściciel). Nowa wersja 1860 (z 31.10.2026) **nie pyta o źródło danych
+przy imporcie** – ekran ma tylko Name, Folder i UID. Źródło jest zmienną dashboardu: lista **Datasource** na
+górze, obok **Job** (`node-exporter`) i węzła. **UID** to stały identyfikator dashboardu w adresie strony –
+zmiana nazwy nie psuje zakładek.
+
+Skąd dane: **node-exporter** na każdym węźle k3s (z kube-prometheus-stack) czyta liczby z jądra (`/proc`, `/sys`)
+i wystawia je na `:9100/metrics` → Prometheus pobiera je co kilkadziesiąt sekund → dashboard pyta Prometheusa
+zapytaniami PromQL. Np. „CPU Busy”:
+`100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle", instance="$node"}[5m])))`.
+
+> **Pytanie rekrutacyjne:** *Skąd Grafana bierze dane o CPU i RAM serwera?* – Sama nie zbiera niczego: pyta
+> źródło danych (Prometheus), a ten pobiera metryki z eksporterów, np. node-exportera na każdym serwerze.
+> Dashboard to tylko JSON z panelami i zapytaniami – można go wersjonować w gicie i importować.
+
 ### Uptime Kuma – wersja 1 nieutrzymywana
 
 Strona `:3001` pokazała: *„This Uptime Kuma version is outdated! Current Version: 1.23.17”*. Plik compose miał
@@ -916,6 +930,6 @@ Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się p
 - ~~monitory w Kumie~~ ✅ wszystkie 6 zielone (09.11);
 - ⏸️ powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google) – **odłożone 09.11 na później**
   (decyzja właściciela); do tego czasu Kuma tylko pokazuje kolory, a alarm e-mail daje healthchecks.io;
-- dashboard 1860 w Grafanie;
+- ~~dashboard 1860 w Grafanie~~ ✅ 09.11;
 - powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).

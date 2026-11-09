@@ -76,7 +76,8 @@ Stan na 05.11.2026:
 - 🔥 06.11 – **reguła 6443 dla `monitoring` w roli `common`** (właściciel, commit `c903998`, `loop` z `admin_cidr`
   i `192.168.180.54` na sztywno; wariant z inwentarza opisany w kroku 9 przebiegu). Przebieg na masterze
   (`--start-at-task`) `--check` i naprawdę: `changed=0` – drift usunięty.
-- ⏭️ Następny: dashboard 1860 w Grafanie, test awarii (wyłączenie worker-1,
+- 📈 09.11 – dashboard 1860 (Node Exporter Full) zaimportowany w Grafanie na `monitoring` (właściciel).
+- ⏭️ Następny: test awarii (wyłączenie worker-1,
   potem całego klastra → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4.
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
