@@ -21,9 +21,9 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 5 | Rejestr z TLS i `app` z powrotem (poziom 6) | ✅ |
 | 6 | k3s ufa rejestrowi, pody działają (poziom 7) | ✅ |
 | 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
-| 7b | Grafana, Uptime Kuma | 🟡 postawione; przerwane awarią hosta |
+| 7b | Grafana, Uptime Kuma | ✅ Kuma: 6 monitorów zielonych (09.11); Grafana bez dashboardu |
 | 7c | Reguła 6443 w roli Ansible (krok 9) | ✅ 06.11, `changed=0` |
-| 7d | Reszta monitorów, dashboard, test awarii | następna sesja |
+| 7d | Powiadomienia Kumy, dashboard, test awarii | następna sesja |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -656,9 +656,19 @@ VMware NAT na adres Windowsa, router na publiczny – healthchecks.io widzi domo
 
 ### 7.1. Konto i check (🪟 przeglądarka – właściciel)
 
-Konto na healthchecks.io, check `k3s-lab Watchdog`: **Period 2 min, Grace 5 min** (zamiast domyślnych 1 dzień /
-1 h – wtedy o awarii wiedziałbyś po dobie). Period 2 min, a nie 1, daje zapas na drobne opóźnienia Alertmanagera.
-Powiadomienie: e-mail (domyślna integracja).
+Konto na healthchecks.io, check `My First Check`, powiadomienie: e-mail (domyślna integracja).
+
+| Ustawienie | Co znaczy | U nas |
+|---|---|---|
+| **Period** | co ile **spodziewasz się** pingu. Minął Period bez pingu → check żółty, **Late** (spóźniony) | **2 min** |
+| **Grace Time** | ile **jeszcze czekać** po spóźnieniu, zanim ogłosić awarię. Minął Grace → czerwony, **Down** + e-mail | **5 min** |
+
+Alertmanager pinguje co ~1 min, więc Period 2 min daje zapas na drobne opóźnienie, a e-mail przychodzi najpóźniej
+po Period + Grace ≈ **7 min** ciszy.
+
+**Pomyłka z 05.11:** ustawienia nie zostały wtedy zapisane – check miał domyślne **1 dzień / 1 h**, potem przez
+chwilę 1 h / 15 min. Dlatego po wyłączeniu klastra nie przyszedł żaden e-mail: na alarm trzeba by czekać ponad dobę.
+Poprawione **09.11** (2 min / 5 min), „Last Ping 41 seconds ago” – pingi z Alertmanagera dochodzą.
 
 **Ping URL to sekret** – kto go zna, może „meldować się” za klaster i maskować awarię. Trafia tylko do `lab.env`
 (poza gitem); w dokumentacji zapisany jako `hc-ping.com/<uuid>`. Po wycieku: *Regenerate* w ustawieniach checka.
@@ -782,7 +792,18 @@ napisany w `app.py`; ten sam adres pytają `HEALTHCHECK` w Dockerze i sondy read
 otwiera 6443 tylko dla `admin_cidr`, a NodePorty – dla `admin_cidr` **i** maszyny `monitoring`
 ([problem](problemy.md#uptime-kuma-api-kubernetesa-6443-czerwone--firewall-na-masterze)). Szybka łatka na masterze:
 `sudo ufw allow from 192.168.180.54 to any port 6443 proto tcp` → `Rule added`. Do zrobienia: ta sama reguła
-w roli Ansible (właściciel), żeby nie było **configuration drift** – różnicy między kodem a serwerem.
+w roli Ansible (właściciel), żeby nie było **configuration drift** – różnicy między kodem a serwerem
+(zrobione 06.11, [krok 9](#krok-9--reguła-6443-w-kodzie-nie-tylko-na-serwerze-06112026)).
+
+Stan 09.11 – wszystkie 6 monitorów zielone, 100%:
+
+![Uptime Kuma: 6 monitorów online, historia zdarzeń z 05.11](img/uptime-kuma-6-monitorow.png)
+
+Historia zdarzeń (od dołu) opowiada wieczór 05.11: o 19:27–19:32 monitory startują jeden po drugim;
+19:31 **API Kubernetesa – Offline, „Connection failed”** (firewall), 20:14 **Online** – po ręcznej regule ufw;
+20:15 **podinfo (Ingress) – Offline, `ECONNREFUSED 192.168.180.53:80`** – nazwa wskazuje na worker-2, a tam nikt
+nie słuchał na porcie 80 (w czasie kłopotów z hostem), 20:30 znowu Online. `ECONNREFUSED` to inna sytuacja niż
+timeout: maszyna odpowiada, ale port jest zamknięty – firewall daje timeout, brak usługi daje odmowę.
 
 ### Awaria hosta (ok. 20:10)
 
@@ -891,7 +912,8 @@ Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się p
 - ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
 - ~~reguła 6443 dla `monitoring` w roli Ansible~~ ✅ 06.11 ([krok 9](#krok-9--reguła-6443-w-kodzie-nie-tylko-na-serwerze-06112026));
 - ~~przyczyna zawieszenia hosta~~ ✅ 06.11 ([diagnoza](../etap-0-maszyny-wirtualne/03-diagnoza-zawieszenia-hosta.md)) – właściciel aktualizuje BIOS;
-- healthchecks.io: Period 2 min, Grace 5 min (teraz domyślne 1 dzień / 1 h);
-- reszta monitorów w Kumie, dashboard 1860 w Grafanie;
+- ~~healthchecks.io: Period 2 min, Grace 5 min~~ ✅ 09.11, pingi dochodzą;
+- ~~monitory w Kumie~~ ✅ wszystkie 6 zielone (09.11);
+- powiadomienia w Kumie (e-mail), dashboard 1860 w Grafanie;
 - powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).

@@ -64,20 +64,20 @@ Stan na 05.11.2026:
 - 🔦 03.11 – **Headlamp 0.46.0 zainstalowany przez właściciela** (Etap 6 rozpoczęty wcześniej): namespace
   `headlamp`, NodePort `:30400`, logowanie tokenem `kubectl create token headlamp -n headlamp --duration=…`
   (konto z `cluster-admin`). Ustawienia przez `--set`, bez pliku values. Opis: `docs/etap-6-gui/01-headlamp.md`.
-- 💓 05.11 – **healthchecks.io podpięte**: konto właściciela, check `k3s-lab Watchdog` (Period 2 min, Grace
-  5 min, e-mail), prawdziwy `HEALTHCHECKS_URL` w `lab.env` na masterze i na `monitoring`, `helm upgrade` →
-  rewizja 3. Pingi z Alertmanagera i zgaśnięcie `AlertmanagerFailedToSendAlerts` **niepotwierdzone** zrzutem.
+- 💓 05.11 – **healthchecks.io podpięte**: konto właściciela, check `My First Check` (e-mail), prawdziwy
+  `HEALTHCHECKS_URL` w `lab.env` na masterze i na `monitoring`, `helm upgrade` → rewizja 3. Period 2 min / Grace
+  5 min ustawione dopiero **09.11** (wcześniej domyślne 1 dzień / 1 h); pingi potwierdzone zrzutem 09.11.
   Snapshoty wszystkich 5 maszyn: „2026-11-05 Etap4 rejestr+healthchecks”.
 - 📊 05.11 wieczorem – **Grafana 11.4 i Uptime Kuma 2 w Dockerze na `monitoring`** (właściciel; `.env` 600,
   baza Kumy SQLite, monitor hello-lab). Grafana bez dashboardów. Monitor TCP 6443 czerwony – rola `common` otwiera
   6443 tylko dla `admin_cidr`; na masterze ręcznie `ufw allow from 192.168.180.54 to any port 6443` (drift!).
   Potem zawiesił się host (RCU stall na masterze, twarde wyłączenie PC), worker-3 nie startował przez stare
-  blokady `*.lck` – przeniesione do `stare-lck-2026-11-05`. 06.11: wszystkie 5 maszyn działa, reguła 6443 przetrwała, wszystkie adresy monitorów Kumy odpowiadają z `monitoring`. Check healthchecks.io ma nadal domyślne Period 1 dzień / Grace 1 h – do zmiany (właściciel).
+  blokady `*.lck` – przeniesione do `stare-lck-2026-11-05`. 06.11: wszystkie 5 maszyn działa, reguła 6443 przetrwała, wszystkie adresy monitorów Kumy odpowiadają z `monitoring`. 09.11: w Kumie 6 monitorów, wszystkie zielone (zrzut w przebiegu).
 - 🔥 06.11 – **reguła 6443 dla `monitoring` w roli `common`** (właściciel, commit `c903998`, `loop` z `admin_cidr`
   i `192.168.180.54` na sztywno; wariant z inwentarza opisany w kroku 9 przebiegu). Przebieg na masterze
   (`--start-at-task`) `--check` i naprawdę: `changed=0` – drift usunięty.
-- ⏭️ Następny: healthchecks.io Period 2 min / Grace 5 min (właściciel), reszta monitorów Kumy (tabela w
-  `05-przebieg-wdrozenia.md`), dashboard 1860 w Grafanie, pingi healthchecks.io, test awarii, zamknięcie Etapu 4.
+- ⏭️ Następny: powiadomienia e-mail w Kumie, dashboard 1860 w Grafanie, test awarii (wyłączenie worker-1,
+  potem całego klastra → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4.
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
