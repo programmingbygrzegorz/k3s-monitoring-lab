@@ -914,6 +914,8 @@ Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się p
 - ~~przyczyna zawieszenia hosta~~ ✅ 06.11 ([diagnoza](../etap-0-maszyny-wirtualne/03-diagnoza-zawieszenia-hosta.md)) – właściciel aktualizuje BIOS;
 - ~~healthchecks.io: Period 2 min, Grace 5 min~~ ✅ 09.11, pingi dochodzą;
 - ~~monitory w Kumie~~ ✅ wszystkie 6 zielone (09.11);
-- powiadomienia w Kumie (e-mail), dashboard 1860 w Grafanie;
+- ⏸️ powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google) – **odłożone 09.11 na później**
+  (decyzja właściciela); do tego czasu Kuma tylko pokazuje kolory, a alarm e-mail daje healthchecks.io;
+- dashboard 1860 w Grafanie;
 - powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
