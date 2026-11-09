@@ -315,6 +315,9 @@ Na maszynie `monitoring` (192.168.180.54), rejestr labu: `192.168.180.54:5000`.
 | `docker exec KONTENER POLECENIE` | uruchamia jedno polecenie w działającym kontenerze, np. `docker exec rejestr ls -l /certs` |
 | `docker inspect KONTENER --format '{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}'` | co jest podpięte do kontenera z zewnątrz (`-v`) i skąd |
 | 🐧 węzeł k3s: `sudo k3s crictl images` / `sudo k3s crictl rmi OBRAZ:TAG` | obrazy w containerd na węźle / usunięcie obrazu z cache węzła (na węzłach k3s nie ma Dockera) |
+| 🐧 węzeł k3s: `sudo k3s ctr -n k8s.io images check name==OBRAZ:TAG` | czy warstwy obrazu na węźle są kompletne |
+| 🐧 master: `kubectl -n NS logs POD --previous` | logi **poprzedniego** (padniętego) uruchomienia kontenera – przy CrashLoopBackOff |
+| 🐧 master: `kubectl describe node WĘZEŁ \| grep -A8 Conditions` / `grep -A1 Taints` | stan węzła (`Unknown` = brak raportów kubeleta) / oznaczenia `unreachable:NoSchedule/NoExecute` |
 | `set -a && source lab.env && set +a` | wczytaj zmienne z pliku do bieżącej powłoki i eksportuj je (widzi je np. `envsubst`) |
 | `umask 077` | nowe pliki w tej powłoce od razu z uprawnieniami `600` (różnica z `chmod`: działa przed utworzeniem pliku) |
 | `envsubst '${A} ${B}' < wzor.yaml > /tmp/gotowy.yaml` | wstaw wartości tylko tych zmiennych w luki `${…}`; wzór zostaje bez zmian |

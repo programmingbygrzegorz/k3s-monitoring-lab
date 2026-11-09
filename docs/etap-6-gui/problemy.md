@@ -20,3 +20,25 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   `kubectl -n headlamp get pod` – `1/1 Running`, 0 restartów.
 - **Rozwiązanie:** żadne – samo minęło. Szczegóły: [01-headlamp.md](01-headlamp.md#pierwsze-ostrzeżenie-readiness-probe-failed).
 - **Wniosek:** zdarzenie Warning to nie zawsze awaria – patrz na licznik, „ostatnio widziane” i stan poda.
+
+## Headlamp w CrashLoopBackOff, Exit Code 139, puste logi (po awarii hosta)
+
+- **Objaw (09.11.2026):** pod `headlamp-…` na `k3s-worker-1` – `0/1 CrashLoopBackOff`, **1079 restartów** od 06.11.
+  `kubectl -n headlamp describe pod …` → `Last State: Terminated, Reason: Error, Exit Code: 139`, `Started` i
+  `Finished` w tej samej sekundzie. `kubectl logs` i `kubectl logs --previous` – **puste**. Alerty
+  `KubePodCrashLooping`, `KubePodNotReady`, `KubeDeploymentReplicasMismatch` aktywne od 06.11 – nikt ich nie widział,
+  bo w Alertmanagerze trafiają do odbiorcy `null`.
+- **Przyczyna (najbardziej prawdopodobna):** uszkodzona lokalna kopia obrazu `headlamp:v0.46.0` na worker-1 po twardym
+  wyłączeniu hosta 05.11. Exit Code **139 = 128 + 11 = SIGSEGV** (segmentation fault) – program pada przy starcie,
+  zanim cokolwiek wypisze; błąd konfiguracji dałby komunikat w logach. Kubelet widzi obraz jako „already present on
+  machine”, więc nie pobiera go ponownie i w kółko uruchamia zepsuty plik.
+- **Diagnoza:** `kubectl -n headlamp get pods -o wide` (węzeł, liczba restartów), `describe pod` (Exit Code, czasy),
+  `logs --previous` (puste = program nie zdążył nic wypisać), `get events --sort-by=.lastTimestamp`.
+- **Rozwiązanie:** na worker-1 `sudo k3s crictl rmi ghcr.io/headlamp-k8s/headlamp:v0.46.0`, na masterze
+  `kubectl -n headlamp delete pod -l app.kubernetes.io/name=headlamp`. Nowy pod trafił na **worker-2**, pobrał obraz
+  od nowa (108 MB, 49 s) → `1/1 Running`, 0 restartów. Ten sam obraz z sieci działa, kopia z worker-1 nie – usterka
+  była lokalna dla worker-1, nie w Headlampie ani w konfiguracji.
+- **Pomyłki po drodze:** `crictl rmi` na **masterze** → `no such image` (każdy węzeł ma własny magazyn obrazów);
+  `kubectl` na **workerze** → `localhost:8080 … connection refused` (kubeconfig jest tylko na masterze – i dobrze).
+- **Wniosek:** po twardym wyłączeniu maszyn sprawdź `kubectl get pods -A | grep -v Running` – zepsute pliki obrazów
+  nie naprawią się restartami. A alerty bez odbiorcy są bezużyteczne: awaria trwała 3 dni niezauważona.
