@@ -141,6 +141,64 @@ kubectl -n chaos describe pod -l scenario=oom    # Last State: Terminated, Reaso
 W Grafanie: zużycie pamięci kontenera dochodzi do limitu. Alert: `ContainerOOMKilled`.
 Rozwiązanie w praktyce: zwiększenie limitu albo znalezienie przyczyny dużego zużycia pamięci w aplikacji.
 
+### Przebieg w labie (10.11.2026)
+
+**Zadanie:** w namespace `chaos` pod ciągle się restartuje – znajdź przyczynę i napraw.
+
+**Co psuje awarię:** plik `kubernetes/chaos/oom.yaml` – program `stress` chce **250 MB**
+(`--vm-bytes 250M`), a limit kontenera to **100 MiB**. Jak szklanka 100 ml, do której lejesz 250 ml.
+Skrypt `chaos.sh oom` robi tylko `kubectl apply` namespace'u i tego pliku.
+
+**1. Obserwacja** – `kubectl -n chaos get pods -w` (prawdziwy wynik, skrócony):
+
+```
+NAME                         READY   STATUS             RESTARTS      AGE
+chaos-oom-5f498b4f86-nr2pq   1/1     Running            2 (16s ago)   22s
+chaos-oom-5f498b4f86-nr2pq   0/1     Error              2 (16s ago)   22s
+chaos-oom-5f498b4f86-nr2pq   0/1     CrashLoopBackOff   2 (24s ago)   46s
+chaos-oom-5f498b4f86-nr2pq   1/1     Running            3 (25s ago)   47s
+chaos-oom-5f498b4f86-nr2pq   0/1     OOMKilled          3 (26s ago)   48s
+chaos-oom-5f498b4f86-nr2pq   0/1     CrashLoopBackOff   3 (48s ago)   95s
+```
+
+- Nazwa poda się **nie zmienia** – restartuje się kontener w tym samym podzie.
+- `CrashLoopBackOff` to nie przyczyna, tylko „czekam przed kolejną próbą” (10 s, 20 s, 40 s… do 5 min).
+  Przyczyna jest w linii wcześniej: `OOMKilled`.
+- Raz pojawiło się `Error` zamiast `OOMKilled`: `stress` ma proces-rodzica i proces zjadający pamięć;
+  gdy jądro zabije tylko potomka, rodzic kończy się kodem błędu. Przy `Error` też sprawdź `describe`.
+- Po 18 minutach: `RESTARTS 8 (109s ago)`, a `kubectl top pod -n chaos` → `Metrics not available` –
+  kontener żyje 1–2 s, metrics-server nie zdąży go zmierzyć.
+
+**2. Przyczyna:** `kubectl -n chaos describe pod -l scenario=oom | grep -A5 "Last State"` →
+`Reason: OOMKilled`, `Exit Code: 137` (128 + 9 = SIGKILL od jądra), `Limits: memory: 100Mi`.
+`-l scenario=oom` wybiera pod po **etykiecie** z pliku YAML – nazwa poda się zmienia, etykieta nie.
+
+**3. Naprawa – większy limit:**
+
+```bash
+kubectl -n chaos set resources deployment/chaos-oom --limits=memory=300Mi
+```
+
+Zmiana szablonu Deploymentu = nowy ReplicaSet i **nowy pod** (inna końcówka nazwy):
+
+```
+NAME                         READY   STATUS    RESTARTS   AGE
+chaos-oom-69df9685df-2rh9s   1/1     Running   0          51m
+```
+
+**Wniosek:** `set resources` naprawia tylko obiekt w klastrze – plik `oom.yaml` dalej ma `100Mi`
+(drift). W pracy zmienia się plik w gicie i robi `kubectl apply` (w Etapie 7 – Argo CD).
+Najpierw jednak pytanie: czy aplikacja **naprawdę** potrzebuje więcej (stałe zużycie → większy limit),
+czy pamięć rośnie bez końca (wyciek → błąd do programistów, limit tylko tymczasowo).
+
+| Widzę | To znaczy | Robię |
+|---|---|---|
+| `OOMKilled`, `Exit Code: 137` | zabrakło pamięci – przekroczony limit | sprawdzam zużycie i zwiększam limit (albo zgłaszam wyciek) |
+
+**Pytanie rekrutacyjne:** *Pod ma status OOMKilled. Co robisz?* – `describe`: powód, kod 137 i limit;
+w metrykach sprawdzam, czy zużycie jest stałe, czy rośnie. Stałe – podnoszę limit w manifeście w gicie;
+rośnie – zgłaszam wyciek pamięci, limit podnoszę tylko tymczasowo.
+
 ## CrashLoopBackOff
 
 ```bash

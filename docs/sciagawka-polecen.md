@@ -215,6 +215,7 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k -n NS delete all --all` | czyści typowe obiekty, namespace zostaje |
 | `k -n NS delete pod NAZWA` | usuwa pod (Deployment postawi nowy) |
 | `k -n NS scale deployment web --replicas=4` | zmienia liczbę kopii |
+| `k -n NS set resources deployment/web --limits=memory=300Mi` | zmienia limit pamięci → nowy pod; tylko w klastrze (plik w gicie bez zmian = drift) |
 | `k -n NS expose deployment web --port=80 --type=NodePort` | tworzy Service do Deploymentu: nazwa i selector skopiowane z Deploymentu; bez `--type` = ClusterIP; `--target-port` gdy kontener słucha na innym porcie; `--dry-run=client -o yaml` pokaże YAML |
 
 ⚠️ `delete` nie ma kosza ani pytania „czy na pewno” – najpierw `get`, potem `delete`, i sprawdź `-n`.
@@ -236,6 +237,8 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | Polecenie | Co robi |
 |---|---|
 | `k -n NS describe pod NAZWA` | szczegóły poda; na dole **Events** – przyczyna błędu |
+| `k -n NS describe pod -l scenario=oom \| grep -A5 "Last State"` | pod wybrany po etykiecie (bez przepisywania nazwy); powód ostatniego zakończenia, np. `OOMKilled`, `Exit Code: 137` |
+| `k top pod -n NS` | zużycie CPU i pamięci podów (metrics-server); bez `-n` – namespace `default`. Pod w CrashLoopBackOff: `Metrics not available` |
 | `k -n NS get events --sort-by=.lastTimestamp` | co się działo, od najstarszych |
 | `k -n NS logs NAZWA --tail=20` | ostatnie linie logu |
 | `k -n NS exec NAZWA -- sh -c '…'` | polecenie wewnątrz kontenera |
