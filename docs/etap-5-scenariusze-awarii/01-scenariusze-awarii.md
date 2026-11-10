@@ -263,6 +263,84 @@ kubectl -n chaos logs -l scenario=crashloop --previous
 Logi pokazują przyczynę (brak pliku konfiguracyjnego). Odstępy między restartami rosną (back-off).
 Alerty: `PodRestartingTooOften`, a po dłuższym czasie `KubePodCrashLooping`.
 
+### Przebieg w labie (10.11.2026)
+
+**Zadanie:** pod restartuje się w kółko, ale pamięci mu nie brakuje – znajdź przyczynę i napraw.
+W Zadaniu 1 system zabijał program; tutaj **program sam się wyłącza** – przyczyna jest w **logach**.
+
+**1. Logi** – `kubectl -n chaos logs -l scenario=crashloop` (bez słowa `pod` – przy `logs` podaje się
+albo nazwę poda, albo `-l`):
+
+![Logi poda crashloop – brak pliku konfiguracyjnego](img/crashloop-0-logi.png)
+
+Gdy logi są puste (pod akurat czeka w back-offie), pomaga `--previous` – logi poprzedniego, martwego uruchomienia.
+
+**2. `describe`** – `kubectl -n chaos describe pod -l scenario=crashloop | grep -A5 "Last State"`:
+
+```
+Last State:     Terminated
+  Reason:       Error
+  Exit Code:    1
+  Started:      Tue, 10 Nov 2026 17:44:59 +0100
+  Finished:     Tue, 10 Nov 2026 17:45:04 +0100
+```
+
+| Kod | Kto zakończył | Gdzie szukać przyczyny |
+|---|---|---|
+| `0` | program – wszystko OK | – |
+| `1` | **program sam** – błąd | **logi** |
+| `137` | **system** (128 + 9) – zwykle brak pamięci | `describe` → `OOMKilled` |
+
+**3. Naprawa – dostarczyć plik przez ConfigMap** („teczka” z plikami przypinana do poda):
+
+```bash
+kubectl -n chaos create configmap app-config --from-literal=config.yaml="poziom_logow: info"
+```
+
+Potem przypięcie teczki w katalogu `/etc/app` łatką (`patch`) z pliku. Program w `crashloop.yaml` to
+atrapa – zawsze kończy się błędem – więc łatka podmienia też polecenie na takie, które naprawdę sprawdza plik:
+
+```yaml
+# /tmp/naprawa-crashloop.yaml
+spec:
+  template:
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: app-config
+      containers:
+        - name: broken-app
+          volumeMounts:
+            - name: config
+              mountPath: /etc/app
+          args:
+            - "if [ -f /etc/app/config.yaml ]; then echo 'OK - wczytano config:'; cat /etc/app/config.yaml; echo; while true; do sleep 3600; done; else echo 'BŁĄD - brak pliku konfiguracyjnego /etc/app/config.yaml'; exit 1; fi"
+```
+
+```bash
+kubectl -n chaos patch deployment chaos-crashloop --patch-file /tmp/naprawa-crashloop.yaml
+# deployment.apps/chaos-crashloop patched
+```
+
+`patch` dokleja tylko podane pola (kontenery łączone po nazwie), reszta Deploymentu zostaje.
+
+**4. Monitoring** – restarty starego poda rosną schodkami (7 restartów w 12 minut), po naprawie nowy pod
+(zielona linia na dole) ma 0:
+
+![Prometheus – restarty crashloop przed i po naprawie](img/crashloop-1-prometheus-restarty.png)
+
+Alert `KubePodCrashLooping` był tylko w stanie *pending* – reguła ma `for: 15m`, a naprawa przyszła
+wcześniej, więc do Alertmanagera nic nie dotarło. Krótka awaria naprawiona szybko nie budzi nikogo – i tak ma być.
+
+| Widzę | To znaczy | Robię |
+|---|---|---|
+| restarty, `Error`, `Exit Code: 1` | program sam się wyłącza | `logs` (albo `logs --previous`) i naprawiam to, czego brakuje |
+
+**Pytanie rekrutacyjne:** *Pod jest w CrashLoopBackOff. Od czego zaczynasz?* – `kubectl logs --previous`
+(co program wypisał przed śmiercią) i `describe` (powód i kod wyjścia: `1` – błąd aplikacji, `137` – zabity,
+zwykle OOM). CrashLoopBackOff to nie przyczyna, tylko czekanie między restartami.
+
 ## ImagePullBackOff
 
 ```bash
