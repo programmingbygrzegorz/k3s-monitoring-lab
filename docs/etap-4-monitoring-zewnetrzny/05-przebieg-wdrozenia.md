@@ -24,7 +24,7 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 7b | Grafana, Uptime Kuma | ✅ Kuma: 6 monitorów zielonych, Grafana: dashboard 1860 (09.11) |
 | 7c | Reguła 6443 w roli Ansible (krok 9) | ✅ 06.11, `changed=0` |
 | 7d | Test awarii A – worker-3 (krok 10) | ✅ 09–10.11 |
-| 7e | E-mail z Alertmanagera, test awarii B – worker-1 | następna sesja |
+| 7e | Test awarii B – worker-1, dead man's switch (krok 11) | ✅ 10.11, e-mail `DOWN` 09:28:34 |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -1051,6 +1051,97 @@ nieprzerwanie od 05.11:
 > - *Czym różnią się node-exporter i kube-state-metrics?* – node-exporter (na każdym węźle) mierzy zasoby serwera
 >   z jądra; kube-state-metrics (jeden pod) zamienia stan obiektów z API Kubernetesa na metryki.
 
+## Krok 11 – test awarii B: wyłączony worker-1 (10.11.2026)
+
+Cel: sprawdzić **dead man's switch**. Na worker-1 leżą trwałe dyski (`local-path`) **Alertmanagera i Grafany
+w klastrze** – te pody mogą działać tylko tam. Prometheus ma dysk na worker-2. Przed testem na worker-1 było
+12 podów: aplikacje (nginx ×2, podinfo ×2, hello-lab, whoami, nipio nginx), Alertmanager, Grafana i dwa
+DaemonSety. Check w healthchecks.io **nie** był wstrzymany.
+
+Procedura diagnozy, której właściciel użył krok po kroku, i szkolenie z `journalctl` na prawdziwych wpisach
+z tego testu: [07-diagnoza-wezla-journalctl.md](07-diagnoza-wezla-journalctl.md).
+
+### Oś czasu
+
+| Godzina | Źródło | Co |
+|---|---|---|
+| 09:21:39 | `journalctl -u k3s-agent -b -1` (worker-1) | `Stopped k3s-agent.service` |
+| 09:21:43 | `journalctl -b -1` (worker-1) | `Syncing filesystems…`, `Journal stopped` – czyste wyłączenie |
+| ~09:22 | Alertmanager | przestaje działać – `:30093` nie odpowiada, Watchdog nie jest wysyłany |
+| ~09:23 | `kubectl get nodes` | `k3s-worker-1 NotReady`, tainty `unreachable:NoExecute` i `:NoSchedule` |
+| ~09:27 | `kubectl get pods` | po 300 s tolerancji: pody z worker-1 **Terminating**, nowe kopie aplikacji startują |
+| **09:28:34** | **e-mail healthchecks.io** | **`DOWN \| My First Check`** – „Last Ping 7 minutes ago”, Period 2 min + Grace 5 min |
+| 09:55:52 | `journalctl --list-boots` (worker-1) | start systemu |
+| 09:56:00–01 | `journalctl -u k3s-agent` / `describe node` | `Remotedialer connected` → `Ready True` |
+| ~09:56 | `kubectl -n monitoring get pods` | nowy `alertmanager-…-0` i oczekująca Grafana – `Running` na worker-1 |
+
+### Co działało, a co nie
+
+**Prometheus działał** (worker-2) i widział wszystko: `TargetDown`, `KubeNodeNotReady` i 12 × `KubePodNotReady`
+(najpierw pending), a do tego **`PrometheusNotConnectedToAlertmanagers`** – API Prometheusa pokazywało
+`"activeAlertmanagers":[]`. Tylko że ten alert też musiałby przejść przez Alertmanagera, którego nie było.
+**System nie może wiarygodnie zgłosić własnej śmierci** – dlatego potrzebny jest strażnik z zewnątrz.
+
+**Aplikacje przeżyły.** Deploymenty dostały nowe pody – wszystkie na worker-3 (był najmniej obciążony):
+
+```text
+$ kubectl get pods -A -o wide | grep -E "podinfo|hello-lab|whoami|nginx" | grep -v Terminating
+default       nginx-deployment-6c5f67b5f7-d5pkj   1/1   Running   0   10m   10.42.3.60   k3s-worker-3
+demo          podinfo-c9cdb7df5-4d7cx             1/1   Running   0   10m   10.42.3.66   k3s-worker-3
+hello-lab     hello-lab-55b8fb57c9-sn5n5          1/1   Running   0   10m   10.42.3.62   k3s-worker-3
+ingress-lab   whoami-9f77f49d-tf64k               1/1   Running   0   10m   10.42.3.64   k3s-worker-3
+nipio-demo    nginx-85b9b8c477-bjvk7              1/1   Running   0   10m   10.42.3.65   k3s-worker-3
+…
+```
+
+Po powrocie worker-1 pody **zostały** na worker-3 – Kubernetes nie przenosi działających podów z powrotem
+(wyrównanie: `kubectl rollout restart deployment …` albo *descheduler*).
+
+**Alertmanager (StatefulSet)** – stary pod `Terminating`, **nowego nie było** przez cały czas awarii.
+StatefulSet gwarantuje, że `alertmanager-…-0` istnieje najwyżej raz; dopóki kubelet nie potwierdzi zatrzymania
+starego, nie utworzy drugiego (ochrona przed dwiema kopiami piszącymi do tych samych danych – *split-brain*).
+
+**Grafana w klastrze (Deployment z dyskiem)** – nowy pod powstał, ale został `Pending`:
+
+```text
+$ kubectl -n monitoring get events --field-selector reason=FailedScheduling --sort-by=.lastTimestamp | tail -3
+19m    Warning   FailedScheduling   pod/monitoring-grafana-5b7684c88-5tq8n   0/4 nodes are available: 2 node(s) didn't
+match PersistentVolume's node affinity, 2 node(s) had untolerated taint(s). … Preemption is not helpful for scheduling.
+```
+
+2 węzły (worker-2, worker-3) odpadły, bo dysk `local-path` ma przypisanie „tylko worker-1”; 2 (master
+z `control-plane:NoSchedule`, worker-1 z `unreachable`) – przez tainty. Po powrocie worker-1 **ten sam** pod
+`5tq8n` dostał węzeł i wystartował. Grafana na `monitoring` (Docker) działała cały czas.
+
+**Pozostałe obserwacje:**
+
+- `ping -c 3 192.168.180.52` z mastera → `From 192.168.180.51 … Destination Host Unreachable` – błąd zgłasza
+  sam master (nikt nie odpowiedział na ARP), czyli maszyny nie ma; przy firewallu ping po prostu by milczał.
+- Bez `-A1` w `grep Taints` druga linia (`NoSchedule`) jest niewidoczna.
+- E-mail `DOWN` zawierał w *Last Ping Body* cały JSON z ostatniego webhooka Alertmanagera
+  (`"receiver":"deadmans-switch"`, `"alertname":"Watchdog"`, `"notification_reason":"repeat interval elapsed"`)
+  i publiczny adres IP domowego łącza – dlatego zrzut e-maila nie trafił do repozytorium.
+
+### Wnioski
+
+1. **Dead man's switch zadziałał co do minuty**: ostatni ping ~09:21, `DOWN` o 09:28:34.
+2. Jeden węzeł zabrał ze sobą **cały system powiadomień** – pojedynczy punkt awarii. W firmie: 3 kopie
+   Alertmanagera w trybie klastra na różnych węzłach, dyski sieciowe (Longhorn, Ceph, NFS) zamiast `local-path`
+   – i mimo to zewnętrzny strażnik, bo padnięcie całego klastra lub prądu zabiera wszystkie kopie.
+3. Aplikacje bez danych (Deploymenty) przeżyły awarię węzła same; wszystko z dyskiem `local-path` czekało na
+   powrót węzła.
+
+> **Pytania rekrutacyjne**
+> - *Węzeł padł. Dlaczego część podów przeniosła się po 5 minutach, a część nie przeniosła się wcale?* –
+>   Deploymenty mają domyślną tolerancję `unreachable:NoExecute` 300 s, potem są usuwane i tworzone gdzie indziej.
+>   DaemonSety tolerują ten taint i zostają. StatefulSet nie tworzy nowej kopii, dopóki stara nie jest na pewno
+>   zatrzymana. Pody z dyskiem lokalnym (`local-path`, `hostPath`) mogą wstać tylko na swoim węźle.
+> - *Co to jest dead man's switch w monitoringu?* – alert, który ma działać zawsze (Watchdog), wysyłany co minutę
+>   do zewnętrznej usługi. Gdy sygnał ustanie, zewnętrzna usługa alarmuje – wykrywa awarię samego monitoringu.
+> - *Pod jest `Pending`. Jak sprawdzisz dlaczego?* – zdarzenie `FailedScheduling` (`kubectl describe pod`,
+>   `kubectl get events --field-selector reason=FailedScheduling`): ile węzłów odpadło i z jakiego powodu –
+>   zasoby, tainty, `nodeSelector`/affinity, przypisanie dysku.
+
 ## Co dalej (następna sesja)
 
 - ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
@@ -1068,5 +1159,7 @@ nieprzerwanie od 05.11:
 - **wyłączanie labu, póki nie ma skryptu:** healthchecks.io → check → **⋯ → Pause** (inaczej po ~7 min przyjdzie
   e-mail „DOWN”), potem *Shut Down Guest*: workery → master → `monitoring`. Włączanie odwrotnie – check wznawia się
   sam przy pierwszym pingu. Przy serwisie jednej maszyny: *New Silence* w Alertmanagerze (np. `node="k3s-worker-1"`);
-- test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4;
+- ~~test awarii B (worker-1)~~ ✅ 10.11, e-mail `DOWN` o 09:28:34 ([krok 11](#krok-11--test-awarii-b-wyłączony-worker-1-10112026));
+  e-mail `UP` po powrocie – niepotwierdzony;
+- zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).

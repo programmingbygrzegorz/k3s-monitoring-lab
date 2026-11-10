@@ -38,6 +38,9 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   `kubectl -n headlamp delete pod -l app.kubernetes.io/name=headlamp`. Nowy pod trafił na **worker-2**, pobrał obraz
   od nowa (108 MB, 49 s) → `1/1 Running`, 0 restartów. Ten sam obraz z sieci działa, kopia z worker-1 nie – usterka
   była lokalna dla worker-1, nie w Headlampie ani w konfiguracji.
+- **Potwierdzenie (10.11, dziennik worker-1):** w uruchomieniu z 05.11 pod Headlampa wystartował o 20:21:17 po
+  `1m14s` (świeżo pobrany obraz), a ostatni wpis tego uruchomienia jest z **20:21:33** – bez sekwencji wyłączania.
+  Pliki obrazu były jeszcze w pamięci, nie na dysku. Szczegóły: [śledztwo w Etapie 4](../etap-4-monitoring-zewnetrzny/07-diagnoza-wezla-journalctl.md#8-śledztwo-skąd-zepsuty-obraz-headlampa).
 - **Pomyłki po drodze:** `crictl rmi` na **masterze** → `no such image` (każdy węzeł ma własny magazyn obrazów);
   `kubectl` na **workerze** → `localhost:8080 … connection refused` (kubeconfig jest tylko na masterze – i dobrze).
 - **Wniosek:** po twardym wyłączeniu maszyn sprawdź `kubectl get pods -A | grep -v Running` – zepsute pliki obrazów

@@ -82,7 +82,12 @@ Stan na 05.11.2026:
   poza Watchdogiem idą do odbiorcy `null`** – nikt nie jest powiadamiany. Przy okazji: Headlamp w CrashLoopBackOff
   (Exit 139) od 06.11 – uszkodzony obraz na worker-1 po awarii hosta; naprawiony 09.11 (pod na worker-2;
   stary obraz na worker-1 do usunięcia `crictl rmi` – niepotwierdzone).
-- ⏭️ Następny: test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4.
+- 🧪 10.11 – **test awarii B (worker-1 wyłączony)** – krok 11 przebiegu: Alertmanager i Grafana w klastrze
+  (dyski `local-path` na worker-1) nie działały, Prometheus (worker-2) tak; aplikacje przeszły na worker-3;
+  **e-mail `DOWN` z healthchecks.io o 09:28:34** (dead man's switch zadziałał). E-mail `UP` – niepotwierdzony.
+  Nowy rozdział `07-diagnoza-wezla-journalctl.md` (procedura diagnozy + journalctl na worker-1, dowód na zepsuty
+  obraz Headlampa: twarde wyłączenie 16 s po pobraniu). Właściciel przeszedł diagnozę sam, krok po kroku.
+- ⏭️ Następny: zamknięcie Etapu 4 (`/zamknij-etap`), potem Etap 5.
   Przed wyłączaniem labu właściciel pauzuje check w healthchecks.io (wznawia się sam przy pierwszym pingu).
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
