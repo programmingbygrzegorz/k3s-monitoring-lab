@@ -82,13 +82,14 @@ Stan na 05.11.2026:
   poza Watchdogiem idą do odbiorcy `null`** – nikt nie jest powiadamiany. Przy okazji: Headlamp w CrashLoopBackOff
   (Exit 139) od 06.11 – uszkodzony obraz na worker-1 po awarii hosta; naprawiony 09.11 (pod na worker-2;
   stary obraz na worker-1 do usunięcia `crictl rmi` – niepotwierdzone).
-- ⏭️ Następny: odbiorca e-mail w Alertmanagerze (instrukcja podana: Gmail SMTP 587, `ALERT_EMAIL` +
-  `GMAIL_APP_PASSWORD` w `lab.env`, `envsubst` z 4 zmiennymi, `helm upgrade` → rewizja 4; właściciel edytuje values),
-  test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4.
+- ⏭️ Następny: test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4.
+  Przed wyłączaniem labu właściciel pauzuje check w healthchecks.io (wznawia się sam przy pierwszym pingu).
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
-- ⏸️ Odłożone na później (decyzja 09.11): powiadomienia e-mail w Uptime Kumie (Gmail SMTP 465/TLS, hasło
-  aplikacji Google – wpisuje właściciel). Przypomnij przy zamykaniu Etapu 4.
+- ⏸️ Odłożone na późniejszy etap (decyzje 09–10.11): **wszystkie powiadomienia e-mail** – w Uptime Kumie (Gmail SMTP
+  465/TLS) i w Alertmanagerze (odbiorca `email` zamiast `null`, SMTP 587, `ALERT_EMAIL`/`GMAIL_APP_PASSWORD` w
+  `lab.env`; instrukcja była w rozmowie 09.11) oraz skrypt „wyłącz lab” z pauzą healthchecks.io przez API.
+  Hasła aplikacji Google wpisuje właściciel. Nie naciskaj przed zamknięciem Etapu 4; wspomnij przy planowaniu Etapu 5/6.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
   Kyverno, Wazuh, ataki z Kali tylko na maszyny labu .51–.58).

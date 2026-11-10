@@ -1062,6 +1062,11 @@ nieprzerwanie od 05.11:
   (decyzja właściciela); do tego czasu Kuma tylko pokazuje kolory, a alarm e-mail daje healthchecks.io;
 - ~~dashboard 1860 w Grafanie~~ ✅ 09.11;
 - ~~test awarii A (worker-3)~~ ✅ 09–10.11 ([krok 10](#krok-10--test-awarii-a-wyłączony-worker-3-0910112026));
-- odbiorca e-mail w Alertmanagerze (Gmail SMTP, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`);
+- ⏸️ odbiorca e-mail w Alertmanagerze (Gmail SMTP 587, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`)
+  – **odłożone 10.11 na późniejszy etap** (decyzja właściciela), razem z e-mailem w Kumie i automatyczną pauzą
+  healthchecks.io;
+- **wyłączanie labu, póki nie ma skryptu:** healthchecks.io → check → **⋯ → Pause** (inaczej po ~7 min przyjdzie
+  e-mail „DOWN”), potem *Shut Down Guest*: workery → master → `monitoring`. Włączanie odwrotnie – check wznawia się
+  sam przy pierwszym pingu. Przy serwisie jednej maszyny: *New Silence* w Alertmanagerze (np. `node="k3s-worker-1"`);
 - test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
