@@ -104,6 +104,10 @@ Stan na 05.11.2026:
   465/TLS) i w Alertmanagerze (odbiorca `email` zamiast `null`, SMTP 587, `ALERT_EMAIL`/`GMAIL_APP_PASSWORD` w
   `lab.env`; instrukcja była w rozmowie 09.11) oraz skrypt „wyłącz lab” z pauzą healthchecks.io przez API.
   Hasła aplikacji Google wpisuje właściciel. Nie naciskaj przed zamknięciem Etapu 4; wspomnij przy planowaniu Etapu 5/6.
+- 🎯 10.11 – właściciel celuje też w oferty **Junior AppSec** (CI/CD obowiązkowe, termin jednej 27.11.2026).
+  Dopisany **Etap 7b** w przewodniku: gitleaks, Semgrep, Trivy, OWASP ZAP w pipeline GitLaba na `hello-lab`,
+  Juice Shop, model zagrożeń STRIDE, SAMM/SSDF. Proponowana kolejność: Zadanie 5 i 7 z Etapu 5 → GitLab + Runner →
+  7b; egzamin `zepsute.yaml` i Argo CD mogą poczekać. Decyzja właściciela – jeszcze nie podjęta.
 - Potem: Etap 5 (scenariusze awarii; po nim właściciel zaczyna wysyłać CV), 6 (GUI: Headlamp,
   Portainer, Semaphore), 7 (GitLab, Trivy, Argo CD), 8 (AIOps), 9/9b/9c (kube-bench, Falco,
   Kyverno, Wazuh, ataki z Kali tylko na maszyny labu .51–.58).

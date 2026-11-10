@@ -99,7 +99,7 @@ flowchart LR
     end
     subgraph plan["🗓️ W planie"]
         direction TB
-        e7["Etap 7 · GitLab CI, Trivy, Argo CD"] --> e8["Etap 8 · AIOps"]
+        e7["Etap 7 · GitLab CI, SAST/DAST, Trivy, Argo CD"] --> e8["Etap 8 · AIOps"]
         e8 --> e9["Etap 9 · kube-bench, Falco, Kyverno"]
         e9 --> e9b["Etap 9b/9c · Wazuh, ataki z Kali"]
     end
@@ -267,6 +267,7 @@ Szczegóły: [k3s przez Ansible](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md
 - [ ] **Etap 4** – Grafana i Uptime Kuma na `monitoring`, healthchecks.io
 - [ ] **Etap 6** – Portainer (Docker na `monitoring`), Semaphore UI (Ansible z przeglądarki) – Headlamp ✅
 - [ ] **Etap 7** – CI/CD i GitOps: GitLab CE, GitLab Runner, skan Trivy w pipeline, Argo CD
+- [ ] **Etap 7b** – AppSec w pipeline: gitleaks, Semgrep (SAST), Trivy, OWASP ZAP (DAST), OWASP Juice Shop, model zagrożeń STRIDE
 - [ ] **Etap 8** – AIOps: asystent administratora diagnozujący po alercie (RBAC tylko do odczytu, zmiany po akceptacji)
 - [ ] **Etap 9** – bezpieczeństwo klastra: kube-bench (CIS), Falco (alerty do Alertmanagera), Kyverno
 - [ ] **Etap 9b / 9c** (opcjonalne) – Wazuh SIEM na maszynie `security`, kontrolowane ataki z `kali` (purple teaming)

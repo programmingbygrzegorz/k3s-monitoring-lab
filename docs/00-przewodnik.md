@@ -36,6 +36,7 @@ Szczegóły i wyjaśnienia są w folderach etapów `docs/etap-…` – każdy et
 | ↳ Etap 5 – typowe awarie Kubernetesa | metoda diagnozy, statusy i kody wyjścia, 17 problemów z poleceniami i naprawą, 11 zepsutych obiektów do ćwiczeń | – | [typowe awarie Kubernetesa](etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) |
 | Etap 6 – zarządzanie przez GUI *(w trakcie)* | Headlamp (klaster k3s) ✅, Portainer (tylko Docker na `monitoring`), Semaphore UI (Ansible) | – | [📁 folder](etap-6-gui/README.md), [Headlamp](etap-6-gui/01-headlamp.md) |
 | Etap 7 – CI/CD i GitOps *(planowany)* | GitLab CE na maszynie `gitlab`, GitLab Runner, własny obraz Docker, skan Trivy w pipeline, Argo CD w k3s | – | [plan poniżej](#etapy-6-i-7--plan) |
+| ↳ Etap 7b – AppSec w pipeline *(planowany)* | gitleaks, Semgrep (SAST), Trivy (SCA, obraz), OWASP ZAP (DAST), OWASP Juice Shop, model zagrożeń STRIDE, OWASP SAMM / NIST SSDF | – | [plan poniżej](#etapy-6-i-7--plan) |
 | Etap 8 – AIOps *(planowany)* | Hermes Agent (Nous Research) jako asystent administratora: diagnoza po alercie, bez zmian bez zgody | – | [plan poniżej](#etap-8--plan) |
 | Etap 9 – bezpieczeństwo klastra *(planowany)* | kube-bench (audyt CIS), Falco (wykrywanie w kontenerach, alerty do Alertmanagera), Kyverno (polityki) | – | [plan poniżej](#etap-9--plan) |
 | Etap 9b – Wazuh *(planowany, opcjonalny)* | SIEM na maszynie `security`, agenty na wszystkich maszynach: logi, integralność plików, podatności | – | [plan poniżej](#etap-9--plan) |
@@ -79,6 +80,47 @@ gitlab (GitLab CE) ── repo z kodem + Dockerfile ── CI (.gitlab-ci.yml) �
    sprawdzane przy budowie, a nie na produkcji),
 5. Argo CD przejmuje `kubernetes/demo-app/` (zamiast `05-deploy-demo.sh`) i nowe wersje aplikacji,
 6. GitLab wysyła repozytorium na GitHub (*push mirror*) – portfolio zostaje aktualne.
+
+**Etap 7b – bezpieczeństwo aplikacji w pipeline (AppSec, DevSecOps)** – dopisany 10.11.2026 po analizie
+ofert *Junior Application Security Engineer*: CI/CD jest w nich obowiązkowe, a rdzeniem są SAST, DAST,
+OWASP Top 10 i modelowanie zagrożeń. Kubernetes i kontenery są tam tylko „mile widziane” – lab ma je
+z nadmiarem, brakowało części aplikacyjnej. Wszystko w tym samym pipeline GitLaba, na aplikacji `hello-lab`:
+
+```
+git push → gitleaks → Semgrep → testy → docker build → Trivy → push do rejestru → wdrożenie na k3s → OWASP ZAP
+            sekrety     SAST              (Python)       obraz i                                    DAST
+            w kodzie                                     zależności
+```
+
+| Krok | Narzędzie | Co sprawdza | Co zatrzymuje pipeline |
+|---|---|---|---|
+| sekrety | **gitleaks** | hasła, tokeny i klucze wrzucone do gita (także w historii) | każde znalezisko |
+| SAST | **Semgrep** (reguły `p/python`, `p/owasp-top-ten`, `p/dockerfile`) | błędy bezpieczeństwa w **kodzie**: SQL injection, `eval`, wyłączone TLS, kontener jako root | `ERROR` |
+| SCA i obraz | **Trivy** (`fs` + `image`) | znane podatności (CVE) w bibliotekach i w obrazie; przy okazji SBOM | `CRITICAL` (i `HIGH` z poprawką) |
+| konfiguracja | **Trivy config** / Kyverno (Etap 9) | manifesty YAML: brak limitów, `privileged`, `:latest` | błędy `HIGH` |
+| DAST | **OWASP ZAP** baseline | atak na **działającą** aplikację z zewnątrz: nagłówki, ciasteczka, XSS | `FAIL` z raportu |
+
+Do tego, poza pipeline:
+
+1. **OWASP Juice Shop** w k3s (namespace `juice-shop`, tylko z sieci labu) – celowo dziurawa aplikacja do
+   nauki OWASP Top 10: SQL injection, XSS, złamana autoryzacja. Każda znaleziona podatność: opis, jak ją
+   wykrywa SAST/DAST, jak się ją naprawia w kodzie.
+2. **Celowo dziurawa wersja `hello-lab`** (gałąź `podatna`) – np. zapytanie SQL sklejane z tekstu i hasło
+   w kodzie; pipeline ma ją **zatrzymać**, a poprawka (zapytanie parametryzowane, sekret z Secret) – przepuścić.
+   To dowód, że shift-left działa, a nie tylko że narzędzia są zainstalowane.
+3. **Model zagrożeń labu** (`docs/etap-7…/model-zagrozen.md`): diagram przepływu danych (Windows → GitLab →
+   Runner → rejestr → k3s → użytkownik), granice zaufania, zagrożenia metodą **STRIDE** (podszycie, zmiana
+   danych, wyparcie się, wyciek, odmowa usługi, podniesienie uprawnień) i działania zaradcze – część już
+   jest w labie (TLS rejestru, klucze SSH, Vault, `admin_cidr`). Narzędzie: OWASP Threat Dragon.
+4. **Zalecenia dla programistów** – wynik skanu przełożony na krótką notatkę: co, dlaczego groźne, jak
+   naprawić, priorytet. To umiejętność wprost wymagana w ofertach („przekładanie wyników na zalecenia”).
+5. **Teoria na 1–2 strony:** OWASP Top 10, OWASP SAMM, NIST SSDF, *secure-by-design*, *shift-left*,
+   różnica SAST / DAST / SCA / IAST – z odniesieniem do tego, co jest w labie.
+6. **Poza labem:** certyfikat ISC2 CC (szkolenie i egzamin bezpłatne) i angielski B2 – pytania
+   po angielsku w prywatnym pliku `docs/rozmowa-po-angielsku.md`.
+
+Kolejność: GitLab i Runner (Etap 7, kroki 1–3) → pipeline AppSec (7b) → Juice Shop i model zagrożeń →
+Argo CD (krok 5). Argo CD może poczekać – do ofert AppSec ważniejszy jest pipeline z bramkami bezpieczeństwa.
 
 ### Etap 8 – plan
 
