@@ -27,7 +27,7 @@ i Packer, własny rejestr obrazów – oraz ćwiczenia z ponad 130 zrzutami z pr
 
 | 🖥️ Maszyny | ☸️ Węzły k3s | 📚 Etapy | 🧩 Ćwiczenia | 🐞 Opisane problemy |
 |:---:|:---:|:---:|:---:|:---:|
-| 5 działa, 3 w planie | 1 master + 3 workery | 5 gotowych, 3 w trakcie, 5 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
+| 5 działa, 3 w planie | 1 master + 3 workery | 5 gotowych, 3 w trakcie, 6 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
 
 ## Architektura
 
