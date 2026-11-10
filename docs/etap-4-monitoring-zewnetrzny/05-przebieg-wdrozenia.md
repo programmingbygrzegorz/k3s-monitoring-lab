@@ -23,7 +23,8 @@ Oznaczenia: 🪟 Windows (VMware, terminal), 🐧 maszyna w labie.
 | 7a | healthchecks.io – dead man's switch | ✅ (helm rewizja 3) |
 | 7b | Grafana, Uptime Kuma | ✅ Kuma: 6 monitorów zielonych, Grafana: dashboard 1860 (09.11) |
 | 7c | Reguła 6443 w roli Ansible (krok 9) | ✅ 06.11, `changed=0` |
-| 7d | Powiadomienia Kumy, dashboard, test awarii | następna sesja |
+| 7d | Test awarii A – worker-3 (krok 10) | ✅ 09–10.11 |
+| 7e | E-mail z Alertmanagera, test awarii B – worker-1 | następna sesja |
 
 Poziomy 2, 4 i 8 ćwiczeń (rozgrzewka i wycofanie wersji) celowo pominięte, żeby zmieścić się w czasie –
 do zrobienia osobno.
@@ -921,6 +922,135 @@ Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się p
 - **Po co `--check --diff` przed prawdziwym uruchomieniem?** Pokazuje, co *zmieniłoby się*, bez dotykania serwera
   – jak przegląd zmian przed wdrożeniem. Na produkcji to standard przed każdą zmianą.
 
+## Krok 10 – test awarii A: wyłączony worker-3 (09–10.11.2026)
+
+Cel: sprawdzić, **kto i kiedy zauważa** padnięcie węzła. Worker-3 wybrany celowo: nie ma na nim trwałych dysków
+ani aplikacji, tylko dwa pody z DaemonSetów (`svclb-traefik`, `node-exporter`) – DaemonSet to „jeden pod na
+węzeł”, więc te pody nigdzie się nie przenoszą. Wyłączenie: 🪟 VMware → *Power → Shut Down Guest* ok. 16:10;
+maszyna na chwilę wstała ok. 16:13–16:14 i od ok. 16:15 była wyłączona na stałe (widać to na wykresie `up`).
+Włączenie: 10.11 o 9:02.
+
+### Oś czasu – w tej kolejności zmiany pojawiają się w monitoringu
+
+| Po ilu | Gdzie | Co widać |
+|---|---|---|
+| ~70 s | `kubectl get nodes` | `k3s-worker-3 NotReady` |
+| ~1 min | Prometheus → *Status → Target health* | 4 cele z `.55` **DOWN**, błąd `no route to host` |
+| ~1 min | Grafana, dashboard 1860 | wykresy się urywają, wskaźniki N/A |
+| ~1 min | `/alerts` | `TargetDown` **pending** (czeka na `for: 10m`) |
+| 15 min | `/alerts`, Alertmanager | `KubeNodeNotReady`, `KubeNodeUnreachable`, `KubeletInstanceUnreachable` **firing** |
+| cały czas | Uptime Kuma, healthchecks.io | **zielone** – żadna usługa nie stała na worker-3, Alertmanager (worker-1) pinguje dalej |
+
+### Kubernetes: węzeł bez meldunków (🐧 k3s-master)
+
+```text
+$ kubectl describe node k3s-worker-3 | grep -A8 Conditions
+  Type             Status    LastHeartbeatTime                 LastTransitionTime                Reason              Message
+  MemoryPressure   Unknown   Mon, 09 Nov 2026 16:13:45 +0100   Mon, 09 Nov 2026 16:14:55 +0100   NodeStatusUnknown   Kubelet stopped posting node status.
+  DiskPressure     Unknown   …
+  PIDPressure      Unknown   …
+  Ready            Unknown   …
+$ kubectl describe node k3s-worker-3 | grep Taints
+Taints:             node.kubernetes.io/unreachable:NoExecute
+```
+
+- **`Unknown`, nie `False`** – master nie ma nowych danych, więc nie wie, czy węzeł jest zdrowy, czy chory.
+- **Heartbeat 16:13:45 → zmiana 16:14:55** – ok. 70 s karencji, zanim krótka przerwa w sieci zrobi `NotReady`.
+- **Taint `unreachable:NoExecute`** – dodaje go sam Kubernetes. Nowe pody tu nie trafią, zwykłe pody zostałyby po
+  ~5 min przeniesione; pody DaemonSetów tolerują ten taint i zostają.
+
+### Prometheus: fakt → wykres → reguła
+
+![Target health: 4 cele worker-3 DOWN, no route to host](img/test-a-1-targets-down.png)
+
+Jeden węzeł to **cztery** cele: kubelet (`/metrics`, `/metrics/cadvisor` – zużycie przez kontenery,
+`/metrics/probes` – wyniki sond) i node-exporter (`:9100`). `3 / 4 up` przy każdej grupie, czas pobrania
+~3 s zamiast ~20 ms.
+
+| Błąd połączenia | Znaczy | Przykład z labu |
+|---|---|---|
+| **no route to host** | pod adresem **nie ma maszyny** (nikt nie odpowiada na ARP) | worker-3 wyłączony |
+| **timeout** | maszyna jest, **firewall po cichu wyrzuca** pakiety | 6443 z `monitoring`, 05.11 |
+| **connection refused** | maszyna jest, **nic nie słucha** na porcie | podinfo Ingress `.53:80`, 05.11 |
+
+![Wykres up dla 192.168.180.55: 1 do 15:10 UTC, krótki powrót ok. 15:14, potem 0](img/test-a-2-up-wykres.png)
+
+Metryka **`up`** (1 = pobranie udane, 0 = nie) tworzy sam Prometheus przy każdym pobraniu – na niej stoi
+`TargetDown`. Godziny na osi w UTC (16:10 czasu polskiego).
+
+![Prometheus Alerts: 10 reguł firing](img/test-a-3-alerts-firing.png)
+
+**Jedna awaria → ok. 9 alertów** (`TargetDown` ×2, `KubeNodeNotReady`, `KubeNodeUnreachable`,
+`KubeletInstanceUnreachable`, `KubePodNotReady` ×2, `KubeDaemonSetRolloutStuck` ×2, `KubeDaemonSetMisScheduled`).
+To **burza alertów** – dyżurny dostałby 9 wiadomości zamiast jednej „padł worker-3”. Pozostałe 3 alerty
+(`KubePodCrashLooping`, `KubePodNotReady`, `KubeDeploymentReplicasMismatch` dla Headlampa) nie miały związku
+z testem – Headlamp nie działał od 06.11 ([problem w Etapie 6](../etap-6-gui/problemy.md#headlamp-w-crashloopbackoff-exit-code-139-puste-logi-po-awarii-hosta)).
+Wszystkie reguły przyszły gotowe z kube-prometheus-stack (projekt kube-prometheus) – własna jest tylko reguła podinfo.
+
+### Alertmanager: co dostałby dyżurny
+
+![Alertmanager z filtrem node="k3s-worker-3": 3 grupy, odbiorca null](img/test-a-4-alertmanager-filtr.png)
+
+Każdy wiersz to **grupa** (tu według `alertname` i `namespace`). Po lewej **odbiorca**: wszędzie `null` – poza
+Watchdogiem (`deadmans-switch` → healthchecks.io) alerty **nigdzie nie są wysyłane**. Filtr `node="k3s-worker-3"`
+zostawia tylko alerty, które **mają** etykietę `node` – `TargetDown` jej nie ma (mówi o zadaniu, nie o węźle).
+
+![Rozwinięty alert KubeNodeNotReady: czas startu, Info, Source, Silence, etykiety](img/test-a-5-alertmanager-alert.png)
+
+- `2026-11-09T15:30:33Z` – start alertu: wyłączenie ok. 15:15 UTC + `for: 15m`.
+- **`instance="10.42.1.54:8080"` to nie worker-3**, tylko pod **kube-state-metrics** (sieć podów, worker-2).
+  KSM czyta stan obiektów z API Kubernetesa i robi z nich metryki (`kube_node_status_condition{node=…}`).
+  Wyłączony serwer sam nie powie, że jest wyłączony – mówi za niego ktoś żywy. **Czego dotyczy alert – mówi
+  etykieta `node`**, kto dostarczył metrykę – `instance`, `job`, `pod`.
+
+![Status Alertmanagera: route z odbiorcą null, trasa Watchdog, inhibit_rules](img/test-a-6-alertmanager-status.png)
+
+`route.receiver: "null"` – odbiorca domyślny, stąd brak powiadomień. `group_wait 30s` / `group_interval 5m` /
+`repeat_interval 4h` – jak długo zbierać alerty do jednej wiadomości i jak często przypominać. `inhibit_rules` –
+alert `critical` tłumi `warning/info` o tej samej nazwie i w tym samym namespace; tu nie zadziałało, bo wszystkie
+alerty z worker-3 są `warning`. (Niżej na tej stronie jest sekcja `receivers` z adresem pingu healthchecks.io –
+sekret, dlatego zrzut jest ucięty.)
+
+### Powrót (10.11, 9:02)
+
+```text
+k3s-worker-3   Ready    worker   11d   v1.36.5+k3s1
+Taints:             <none>
+Ready            True    Tue, 10 Nov 2026 09:03:10 +0100   …   KubeletReady   kubelet is posting ready status
+kube-system   svclb-traefik-7ad83f8b-467jp                2/2   Running   10 (31s ago)
+monitoring    monitoring-prometheus-node-exporter-499jd   1/1   Running   4 (31s ago)
+```
+
+Taint zdjęty automatycznie, te same pody DaemonSetów uruchomione ponownie (licznik restartów +1), cele `4 / 4 up`:
+
+![Target health po włączeniu: 4/4 up](img/test-a-7-targets-up.png)
+
+![Wykres up: 0 przez całą noc, powrót do 1 ok. 08:03 UTC](img/test-a-8-up-powrot.png)
+
+Po ok. 2 min wszystkie alerty od worker-3 zgasły (*resolved*) – w Alertmanagerze został tylko Watchdog, aktywny
+nieprzerwanie od 05.11:
+
+![Alertmanager po teście: tylko Watchdog](img/test-a-9-alertmanager-po.png)
+
+### Wnioski
+
+1. Monitoring zauważył awarię w ~1 min, alarm był po 10–15 min – opóźnienie `for:` jest celowe (restart węzła
+   nie budzi nikogo w nocy).
+2. Usługi działały dalej, Kuma słusznie milczała: **„czy serwery są zdrowe”** (Prometheus) i **„czy użytkownik coś
+   odczuwa”** (Kuma) to dwa różne pytania.
+3. **Nikt nie został powiadomiony** – odbiorca `null`. Przez to samo awaria Headlampa trwała 3 dni niezauważona.
+   Następny krok: odbiorca e-mail w Alertmanagerze.
+
+> **Pytania rekrutacyjne**
+> - *Węzeł jest `NotReady` – co sprawdzisz?* – `kubectl describe node` (Conditions: `Unknown` = brak meldunków
+>   kubeleta, `False` = kubelet zgłasza problem; Taints), potem sam węzeł: czy żyje, `systemctl status k3s-agent`
+>   / `kubelet`, `journalctl -u …`, sieć do mastera.
+> - *Co to jest burza alertów i jak z nią walczyć?* – jedna przyczyna wywołuje wiele alertów. Grupowanie
+>   w Alertmanagerze (`group_by`), tłumienie (`inhibit_rules`), sensowne `severity`, alerty na objawy zamiast na
+>   każdą metrykę.
+> - *Czym różnią się node-exporter i kube-state-metrics?* – node-exporter (na każdym węźle) mierzy zasoby serwera
+>   z jądra; kube-state-metrics (jeden pod) zamienia stan obiektów z API Kubernetesa na metryki.
+
 ## Co dalej (następna sesja)
 
 - ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
@@ -931,5 +1061,7 @@ Na pozostałych węzłach (`--limit` tylko na master) nowa reguła pojawi się p
 - ⏸️ powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google) – **odłożone 09.11 na później**
   (decyzja właściciela); do tego czasu Kuma tylko pokazuje kolory, a alarm e-mail daje healthchecks.io;
 - ~~dashboard 1860 w Grafanie~~ ✅ 09.11;
-- powiadomienia w Kumie, potwierdzenie pingów healthchecks.io, test awarii, zamknięcie Etapu 4;
+- ~~test awarii A (worker-3)~~ ✅ 09–10.11 ([krok 10](#krok-10--test-awarii-a-wyłączony-worker-3-0910112026));
+- odbiorca e-mail w Alertmanagerze (Gmail SMTP, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`);
+- test awarii B (worker-1: pada Alertmanager → e-mail z healthchecks.io po ~7 min), zamknięcie Etapu 4;
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
