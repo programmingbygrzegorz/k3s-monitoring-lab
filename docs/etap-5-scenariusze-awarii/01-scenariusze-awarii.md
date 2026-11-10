@@ -417,6 +417,81 @@ kubectl top pods -n chaos
 W Grafanie (*Kubernetes / Compute Resources / Pod*) widać, że kontener jest ograniczany do limitu 500m
 (CPU throttling), a nie zabijany – inaczej niż przy pamięci.
 
+### Przebieg w labie (10.11.2026)
+
+**Zadanie:** pod działa (`Running`, 0 restartów), ale jest wolny. Czy dostaje tyle procesora, ile chce?
+
+| | Pamięć (Zadanie 1) | Procesor (Zadanie 4) |
+|---|---|---|
+| przekroczenie limitu | program **zabity** (`OOMKilled`) | program **spowolniony** (throttling) |
+| porównanie | szklanka się przelewa | samochód z ogranicznikiem prędkości |
+
+W `cpu.yaml`: `args: ["--cpu", "2"]` – dwa procesy liczące bez przerwy, razem 2 rdzenie (2000m);
+limit `500m` = pół rdzenia (`m` – tysięczna część rdzenia). Ile program **chce**, monitoring nie pokaże –
+widać tylko, ile **dostał** i jak często był przyhamowany.
+
+**1. Grafana** (*Kubernetes / Compute Resources / Namespace (Pods)*, namespace `chaos`): tabela *CPU Quota* –
+`chaos-cpu`: Usage 0.313 (rośnie), Requests 0.100 (313%), Limits 0.500 (62.6%). `requests` to gwarantowane
+minimum, nie maksimum – zużycie może je przekraczać aż do `limits`.
+
+**2. `kubectl top pod -n chaos`** po kilku minutach: `chaos-cpu-… 501m` – dokładnie limit.
+
+**3. Prometheus – throttling** (procent okresów 100 ms, w których kontener wyczerpał przydział i czekał):
+
+```
+100 * sum by (pod) (rate(container_cpu_cfs_throttled_periods_total{namespace="chaos",container="cpu-hog"}[2m]))
+    / sum by (pod) (rate(container_cpu_cfs_periods_total{namespace="chaos",container="cpu-hog"}[2m]))
+```
+
+Wynik: **100%** przy limicie 500m (zielona linia), po podniesieniu limitu – ok. 0 (nowy pod na dole):
+
+![Prometheus – throttling 100% przy limicie 500m](img/cpu-2-prometheus-throttling.png)
+
+**4. Alert `CPUThrottlingHigh`** (z kube-prometheus-stack): throttling > 25% przez `for: 15m`, `severity: info`.
+W Prometheusie: zakładka **Alerts** (nie *Status → Rule health*), wyszukaj nazwę – najpierw *PENDING*:
+
+![Prometheus – CPUThrottlingHigh pending](img/cpu-3-prometheus-alert.png)
+
+W Alertmanagerze po 15 minutach jest, ale **niewidoczny** na liście – trzeba zaznaczyć **☑ Inhibited**
+(adres: `http://192.168.180.51:30093/#/alerts?inhibited=true&filter=%7Bnamespace%3D%22chaos%22%7D`):
+
+![Alertmanager – CPUThrottlingHigh i InfoInhibitor stłumione](img/cpu-4-alertmanager-inhibited.png)
+
+`InfoInhibitor` (z kube-prometheus-stack, `severity: none`) to alert pomocniczy – „nie przeszkadzać
+drobiazgami”. Włącza się, gdy w namespace są alerty `info` i nie ma `warning`/`critical`; Alertmanager tłumi
+wtedy wszystkie alerty `info` z tego namespace'u. Gdy pojawi się prawdziwy problem (`warning`), wyciszacz gaśnie
+i `info` przychodzi jako kontekst.
+
+| Pole w Alertmanagerze | Kto ukrywa | Kiedy |
+|---|---|---|
+| **Silenced** | człowiek, ręcznie (*New Silence*) | planowane prace, ćwiczenia |
+| **Inhibited** | reguła (`inhibit_rules`) | jest ważniejszy alert albo `InfoInhibitor` |
+| **Muted** | harmonogram (`time_intervals`) | np. weekendy – w labie nieużywane |
+
+**5. Naprawa – podniesienie limitu:**
+
+```bash
+kubectl -n chaos set resources deployment/chaos-cpu --limits=cpu=3
+kubectl top pod -n chaos      # chaos-cpu-8dfcffb8b-d6t69   1905m
+```
+
+Program naprawdę chciał ok. **1,9 rdzenia**. Linia zużycia: 0.5 płasko (ogranicznik), potem nowy pod rośnie:
+
+![Prometheus – zużycie CPU 0,5 rdzenia, potem nowy pod bez ogranicznika](img/cpu-1-prometheus-zuzycie.png)
+
+⚠️ Workery mają po **2 rdzenie** (`count by (instance)(node_cpu_seconds_total{mode="idle"})`) – pod bez
+ogranicznika zajmuje prawie cały węzeł i spowalnia sąsiadów. Dlatego limity CPU ustawia się świadomie,
+a scenariusz po ćwiczeniu się usuwa.
+
+| Widzę | To znaczy | Robię |
+|---|---|---|
+| zużycie płasko na limicie, throttling wysoki, aplikacja wolna | program chce więcej, niż pozwala limit | sprawdzam, ile potrzebuje; podnoszę limit albo optymalizuję aplikację |
+
+**Pytanie rekrutacyjne:** *Czym różni się przekroczenie limitu pamięci od limitu CPU?* – Pamięci nie da się
+„oddać” na chwilę, więc kontener jest zabijany (`OOMKilled`, 137). Procesor dzieli się w czasie, więc kontener
+jest tylko przyhamowywany (throttling) – działa, ale wolniej. Widać to w metryce `container_cpu_cfs_throttled_periods_total`
+i w alercie `CPUThrottlingHigh` (domyślnie `info`, tłumiony przez `InfoInhibitor`).
+
 ## Błędne wdrożenie i wycofanie
 
 ```bash
