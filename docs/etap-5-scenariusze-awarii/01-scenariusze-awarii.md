@@ -195,6 +195,60 @@ czy pamięć rośnie bez końca (wyciek → błąd do programistów, limit tylko
 |---|---|---|
 | `OOMKilled`, `Exit Code: 137` | zabrakło pamięci – przekroczony limit | sprawdzam zużycie i zwiększam limit (albo zgłaszam wyciek) |
 
+**Ile pamięci potrzebuje program?** Póki pada, nie da się go zmierzyć. Sposoby: przeczytać, co robi
+(`grep args kubernetes/chaos/oom.yaml` → `--vm-bytes 250M`), dać tymczasowo dużo i zmierzyć
+(`kubectl top pod -n chaos`), a w pracy – najwyższe zużycie z kilku dni w Grafanie.
+Zasada: **limit = najwyższe zmierzone zużycie + 20–30% zapasu.**
+
+### Ta sama awaria w monitoringu (powtórka 10.11, ze zrzutami)
+
+Drugie przejście (pod `…-99x6g`, 47 minut obserwacji): przerwy między restartami rosły (ok. 20 s, 1 min,
+1,5 min, 3 min) i od 7. restartu stały na **5 minutach** – to maksimum back-offu. W `describe`
+w zdarzeniach `Pulling image "polinux/stress"` przy każdym restarcie – obraz bez wersji to `:latest`,
+a przy `:latest` kubelet za każdym razem sprawdza rejestr. Dlatego w pracy podaje się wersję (`nginx:1.27`).
+
+**1. Alertmanager** (`http://192.168.180.51:30093`, filtr `namespace="chaos"`) – 4 alerty: własny
+`ContainerOOMKilled` (z `prometheusrule-lab.yaml`), `KubePodCrashLooping`, `KubeDeploymentReplicasMismatch`,
+`KubePodNotReady`. Etykiety `pod=…` i `reason="OOMKilled"` mówią od razu co i gdzie. Odbiorca `null` –
+nikt nie jest powiadamiany (e-maile odłożone). Czas w UTC (`15:22:56Z` = 16:22 u nas).
+
+![Alertmanager – alerty OOM w namespace chaos](img/oom-1-alertmanager.png)
+
+**2. Prometheus – powód zakończenia** – ta sama informacja co `Last State` w `describe`, jako metryka
+(na niej opiera się alert `ContainerOOMKilled`):
+
+```
+kube_pod_container_status_last_terminated_reason{namespace="chaos"} == 1
+```
+
+![Prometheus – reason OOMKilled](img/oom-2-prometheus-powod.png)
+
+**3. Prometheus – restarty** – schody: na początku gęsto, potem równo co 5 minut (back-off doszedł do maksimum):
+
+```
+kube_pod_container_status_restarts_total{namespace="chaos"}
+```
+
+![Prometheus – liczba restartów rośnie schodkami](img/oom-3-prometheus-restarty.png)
+
+**4. Prometheus – pamięć przed naprawą: pusto.** Kontener żyje ok. 1 s, a pomiar jest co 30 s – nie
+trafia. Limit widać (`104857600` B = 100 MiB). Przy OOM przyczynę pokazuje `describe` i metryka powodu,
+nie wykres pamięci.
+
+![Prometheus – brak danych o pamięci, limit 100 MiB](img/oom-4-prometheus-pamiec-pusta.png)
+
+**5. Grafana po naprawie** (*Kubernetes / Compute Resources / Pod*, namespace `chaos`, panel
+*Memory Usage (WSS)*): `memory-hog` **251 MiB**, `requests` 50 MiB, `limits` **300 MiB** – zużycie pod
+limitem, 0 restartów. Spadki na wykresie to `--vm-hang 1` (program co sekundę zwalnia i zajmuje pamięć).
+
+![Grafana – pamięć 251 MiB pod limitem 300 MiB](img/oom-5-grafana-pamiec-po-naprawie.jpg)
+
+**Jak to opowiedzieć na rozmowie:** *„Dostałem alert `KubePodCrashLooping` i mój własny `ContainerOOMKilled`.
+Etykiety w Alertmanagerze wskazały pod i powód. W `kubectl describe`: `OOMKilled`, kod 137, limit 100 MiB.
+Wykres pamięci był pusty, bo kontener żył krócej niż odstęp pomiaru – oparłem się na `describe` i metryce
+powodu zakończenia. Podniosłem limit do 300 MiB, a w Grafanie sprawdziłem, że zużycie, ok. 250 MiB, jest
+poniżej limitu.”*
+
 **Pytanie rekrutacyjne:** *Pod ma status OOMKilled. Co robisz?* – `describe`: powód, kod 137 i limit;
 w metrykach sprawdzam, czy zużycie jest stałe, czy rośnie. Stałe – podnoszę limit w manifeście w gicie;
 rośnie – zgłaszam wyciek pamięci, limit podnoszę tylko tymczasowo.
