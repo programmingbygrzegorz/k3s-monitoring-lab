@@ -351,6 +351,62 @@ kubectl -n chaos describe pod -l scenario=imagepull   # sekcja Events
 Typowe przyczyny w praktyce: literówka w nazwie lub tagu, prywatny rejestr bez danych logowania,
 limit pobrań z Docker Hub.
 
+### Przebieg w labie (10.11.2026)
+
+**Zadanie:** pod w ogóle nie startuje – bez restartów i bez logów. Kubernetes nie może pobrać programu
+(jak przesyłka zamówiona pod adres sklepu, którego nie ma). Narzędzie: sekcja **Events** w `describe`.
+
+**Dowód w trzech poleceniach:**
+
+| Dowód | Polecenie | Co mówi |
+|---|---|---|
+| 1. stan | `kubectl -n chaos get pods -l scenario=imagepull` | `ImagePullBackOff`, `RESTARTS 0` – kontener nigdy nie ruszył |
+| 2. przyczyna | `kubectl -n chaos describe pod -l scenario=imagepull \| grep -A10 Events` | `Failed to pull image … not found` |
+| 3. wpis | `kubectl -n chaos get deployment chaos-imagepull -o jsonpath='{.spec.template.spec.containers[*].image}'` | tag, którego nie ma w rejestrze |
+
+![Events – NotFound przy pobieraniu nginx:0.0.0-ten-tag-nie-istnieje](img/imagepull-1-events.png)
+
+Kolejno: `Scheduled` (worker-3) → `Pulling` → `Failed … NotFound` → `ErrImagePull` → `ImagePullBackOff` →
+`BackOff` (21 prób w 7 minut). W pliku jest samo `nginx`, a kubelet szuka `docker.io/library/nginx` – bez
+nazwy rejestru domyślny jest Docker Hub.
+
+| Komunikat w Events | Przyczyna |
+|---|---|
+| `not found` | zła nazwa albo tag (ten przypadek) |
+| `unauthorized` / `access denied` | prywatny rejestr bez danych logowania |
+| `toomanyrequests` | limit pobrań Docker Hub |
+| `x509: certificate signed by unknown authority` | węzeł nie ufa certyfikatowi rejestru ([Etap 4](../etap-4-monitoring-zewnetrzny/problemy.md#x509-certificate-signed-by-unknown-authority)) |
+| `no such host` / `timeout` | sieć albo DNS na węźle |
+
+**Naprawa.** Skąd części polecenia: `deployment/chaos-imagepull` – `kind` i `metadata.name` z pliku
+(albo `kubectl -n chaos get deployments`), `missing-image` – nazwa kontenera (`containers[].name`, w Events
+`spec.containers{missing-image}`):
+
+```bash
+kubectl -n chaos set image deployment/chaos-imagepull missing-image=nginx:1.27   # szybko, tylko w klastrze
+```
+
+**Właściwie** zmienia się manifest, a nie sam klaster – inaczej przy następnym `kubectl apply` zły obraz wraca
+(drift). Plik w `kubernetes/chaos/` jest celowo zepsuty, więc ćwiczy się na kopii:
+
+```bash
+cp kubernetes/chaos/imagepull.yaml /tmp/imagepull-naprawa.yaml
+nano /tmp/imagepull-naprawa.yaml                 # image: nginx:1.27
+kubectl diff -f /tmp/imagepull-naprawa.yaml      # co się zmieni – bez zmiany
+kubectl apply -f /tmp/imagepull-naprawa.yaml
+```
+
+W pracy: zmiana w repozytorium, commit, `kubectl apply` (w Etapie 7 – Argo CD). Naprawy nie wykonano w labie
+10.11 – właściciel przeszedł do kolejnego zadania po diagnozie.
+
+| Widzę | To znaczy | Robię |
+|---|---|---|
+| `ErrImagePull` / `ImagePullBackOff`, 0 restartów | obraz się nie pobiera | Events → komunikat → poprawiam nazwę/tag w manifeście |
+
+**Pytanie rekrutacyjne:** *Pod wisi w ImagePullBackOff. Co sprawdzasz?* – Events w `describe`: `not found`
+(literówka w nazwie lub tagu), `unauthorized` (brak `imagePullSecrets`), `toomanyrequests` (limit Docker Hub),
+`x509` (zaufanie do rejestru), `timeout` (sieć). Naprawiam w manifeście w gicie, nie tylko w klastrze.
+
 ## Obciążenie CPU
 
 ```bash
