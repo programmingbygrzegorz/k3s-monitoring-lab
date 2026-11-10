@@ -87,7 +87,16 @@ Stan na 05.11.2026:
   **e-mail `DOWN` z healthchecks.io o 09:28:34** (dead man's switch zadziałał). E-mail `UP` – niepotwierdzony.
   Nowy rozdział `07-diagnoza-wezla-journalctl.md` (procedura diagnozy + journalctl na worker-1, dowód na zepsuty
   obraz Headlampa: twarde wyłączenie 16 s po pobraniu). Właściciel przeszedł diagnozę sam, krok po kroku.
-- ⏭️ Następny: zamknięcie Etapu 4 (`/zamknij-etap`), potem Etap 5.
+- 💥 10.11 – **Etap 5 rozpoczęty** (Etap 4 formalnie niezamknięty – `/zamknij-etap` do zrobienia). Właściciel
+  przeszedł sam, w układzie „Zadanie → Rozwiązanie”, jeden krok na raz (długie odpowiedzi go gubią): **1 OOMKilled**
+  (dwa razy, naprawa `set resources` 300Mi), **2 CrashLoopBackOff** (logi, Exit 1, ConfigMap `app-config` + patch),
+  **3 ImagePullBackOff** (Events; naprawiony – pod `chaos-imagepull` działa na `nginx:1.27`), **4 CPU** (501m = limit,
+  throttling 100%, `CPUThrottlingHigh` stłumiony przez `InfoInhibitor`, po limicie 3 → 1905m; `chaos-cpu` usunięty).
+  Opisy i zrzuty w `01-scenariusze-awarii.md` („Przebieg w labie”), nowy `problemy.md` etapu.
+  W namespace `chaos` zostały pody oom/crashloop/imagepull (naprawione) – sprzątanie `sudo ./scripts/chaos.sh cleanup`.
+- ⏭️ Następny (11 lub 12.11): **Zadanie 5 – złe wdrożenie podinfo i `rollout undo`, ręcznie krok po kroku**
+  (podinfo w `demo`: 3 repliki, obraz `6.7.1`); potem 6 wyłączenie całego klastra, 7 reguła `NodeDiskAlmostFull`,
+  8 egzamin `zepsute.yaml`. W `default` wisi `nginx-deployment` (5 replik) z ćwiczeń kubectl – posprzątać na końcu.
   Przed wyłączaniem labu właściciel pauzuje check w healthchecks.io (wznawia się sam przy pierwszym pingu).
   Zawieszenie hosta: 8 razy w 30 dni, mikrokod 0x129 – właściciel aktualizuje BIOS MSI (problemy Etapu 0). Prowadź krok po kroku: podajesz polecenie,
   właściciel wykonuje i wkleja wynik; plików konfiguracyjnych w repo nie edytujesz.
