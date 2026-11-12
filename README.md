@@ -274,8 +274,8 @@ Szczegóły: [k3s przez Ansible](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md
 - [ ] Logi w Grafana Loki, kopie zasobów klastra w Velero, klaster HA (3 węzły sterujące)
 - [ ] Infrastruktura labu w chmurze (Terraform, Azure)
 
-> ℹ️ Workflow GitHub Actions (ShellCheck, yamllint, ansible-lint) jest w `.github/workflows/lint.yml`,
-> ale od 28.10.2026 nie uruchamia się z powodu blokady konta po stronie GitHub (billing) – sprawa w toku.
+> ℹ️ CI: przy każdym pushu GitHub Actions (`.github/workflows/lint.yml`) sprawdza skrypty Bash (ShellCheck),
+> pliki YAML (yamllint), manifesty Kubernetesa (kubeconform) i kod Ansible (ansible-lint).
 
 <div align="center">
 
