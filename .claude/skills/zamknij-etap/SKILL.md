@@ -32,6 +32,7 @@ Wszystko trafia do `docs/etap-N-…/` – nigdy do osobnych plików na końcu `d
 
 Zaktualizuj sekcję „Stan labu (aktualizuj!)”: datę, ✅ zakończone etapy (z wersjami),
 ⚠️ rzeczy do zrobienia przez właściciela, ⏭️ następny krok. Krótko – to ma czytać nowa sesja.
+`CLAUDE.md` jest **poza gitem** (lokalny, w `.git/info/exclude`) – nie dodawaj go do commita.
 
 ## 4. Sprawdzenie
 
@@ -41,8 +42,8 @@ git status --short
 ```
 
 - Odnośniki: musi być `błędów: 0`.
-- W `git status` **nie może** być `docs/dziennik-wdrozenia.md` ani `docs/rozmowa-po-angielsku.md`.
-  Jeśli są – dopisz obie ścieżki do `.git/info/exclude` (nie do `.gitignore`).
+- W `git status` **nie może** być `docs/dziennik-wdrozenia.md`, `docs/rozmowa-po-angielsku.md` ani `CLAUDE.md`.
+  Jeśli są – dopisz te ścieżki do `.git/info/exclude` (nie do `.gitignore`).
 - Żadnych haseł, tokenów ani `lab.env` w zmianach (`git diff` przed commitem).
 
 ## 5. Commit i push
@@ -50,7 +51,7 @@ git status --short
 Pliki dodawaj **po nazwie** – nigdy `git add -A`, `git add .` ani `git add docs/`.
 
 ```bash
-git add docs/etap-N-…/plik.md CLAUDE.md
+git add docs/etap-N-…/plik.md
 git commit -m "Etap N: co się zmieniło – krótko, po polsku"
 git push
 ```
