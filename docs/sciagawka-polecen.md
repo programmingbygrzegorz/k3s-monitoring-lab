@@ -197,6 +197,11 @@ Instrukcja `journalctl` krok po kroku: [dziennik systemu Linux](etap-0-maszyny-w
 | `k get pods --show-labels`, `-l app=web` | etykiety / filtrowanie po etykiecie |
 | `k get deploy`, `po`, `svc`, `rs`, `ns`, `no`, `cm`, `pvc`, `ing` | skróty nazw: deployment, pod, service, replicaset, namespace, node, configmap, persistentvolumeclaim, ingress |
 | `k api-resources` | wszystkie rodzaje obiektów; kolumna `SHORTNAMES` – dozwolone skróty |
+| `k api-resources \| grep -i class` | rodzaje klas: Ingress, Storage, Priority, Gateway, Runtime… |
+| `k get storageclass` | klasy dysków; `(default)`, polityka `Delete`/`Retain`, `WaitForFirstConsumer` |
+| `k get pv -o custom-columns=PVC:.spec.claimRef.name,PATH:.spec.hostPath.path,NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]` | dysk PVC → folder i węzeł, na którym leży |
+| 🐧 `sudo ls /var/lib/rancher/k3s/{server,agent,data}` | pliki k3s na węźle: baza i tokeny (master), containerd, programy – [opis](etap-2-k3s-ansible/10-k3s-od-srodka.md) |
+| 🐧 `ls -l PLIK.sock` | `s` na początku = socket (gniazdo uniksowe) |
 
 Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-helm.md).
 

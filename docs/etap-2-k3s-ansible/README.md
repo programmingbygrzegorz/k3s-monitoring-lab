@@ -48,6 +48,7 @@ a w Etapie 3 instalujesz na nim monitoring.
 | 6 | [07-ansible-plik-po-pliku.md](07-ansible-plik-po-pliku.md) | **powtórka przed rozmową**: każdy plik Ansible, decyzje i pytania z odpowiedziami |
 | 7 | [08-cwiczenie-ansible-pakiet.md](08-cwiczenie-ansible-pakiet.md) | **ćwiczenie** z Ansible: pakiet na wszystkich maszynach i jego usunięcie – zrób sam |
 | 8 | [09-cwiczenie-ansible-pakiet-rozwiazanie.md](09-cwiczenie-ansible-pakiet-rozwiazanie.md) | **rozwiązanie** ćwiczenia z pakietem |
+| 9 | [10-k3s-od-srodka.md](10-k3s-od-srodka.md) | **k3s od środka**: klasy (Ingress, Storage…), `local-path`, pliki k3s na węźle, `/var/lib`, sockety |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: sudo-rs, ansible-lint, zmienne |
 
 Następny etap: [Etap 3 – monitoring w klastrze](../etap-3-monitoring/README.md).
