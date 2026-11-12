@@ -41,11 +41,9 @@ Stan na 05.11.2026:
   2 (k3s przez Ansible + Vault), 3 (kube-prometheus-stack 92.16.1 przez Helm, podinfo, reguły).
 - ⚠️ Ćwiczenia z kubectl (Etap 2) i z monitoringu (Etap 3) wykonał Claude ze zrzutami. Właściciel
   ma je przejść sam – kubectl był w trakcie 31.10.
-- ⚠️ GitHub Actions (`.github/workflows/lint.yml`) **nie uruchamia się od 28.10** – „account is
-  locked due to a billing issue”. Wszystkie przebiegi czerwone bez wykonania kroku. Właściciel
-  musi to wyjaśnić w GitHub → Settings → Billing. 2.11 wyłączenie limitu budżetu Actions NIE pomogło
-  (przebieg b304583 nadal zablokowany) – następny krok: zgłoszenie na support.github.com. Do tego czasu ShellCheck, yamllint
-  i ansible-lint nie są sprawdzane automatycznie.
+- ✅ GitHub Actions (`.github/workflows/lint.yml`) – blokada „account is locked due to a billing issue”
+  trwała 28.10–02.11; **od 03.11 wszystkie przebiegi zielone** (sprawdzone 12.11 przez API, ostatni
+  `1d3a180` – success, 8 kroków). Repo publiczne = minuty Actions bez limitu (2000 min dotyczy prywatnych).
 - 🧱 03.11 – rozdziały „własny obraz” (Etap 4: `02-wlasny-obraz.md`, ćwiczenia 03/04) i „typowe
   awarie Kubernetesa” (Etap 5: `02-…`, manifest `kubernetes/awarie/zepsute.yaml`).
   `insecure-registries` jest zablokowane przez tryb auto (osłabienie TLS) – stąd własne CA.
