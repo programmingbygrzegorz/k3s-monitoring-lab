@@ -1,0 +1,32 @@
+# Ingress (Traefik) dla podinfo i httpbin z deployments.yaml – wejście z przeglądarki po nazwie.
+# nip.io zamienia nazwę na adres IP z jej środka: podinfo.192.168.180.51.nip.io → 192.168.180.51.
+# Wdrożenie (najpierw deployments.yaml): kubectl apply -f ingress.yaml
+# Test: http://podinfo.192.168.180.51.nip.io i http://httpbin.192.168.180.51.nip.io
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-ingress
+  namespace: kurs-kubernetes
+spec:
+  rules:
+    - host: podinfo.192.168.180.51.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: podinfo
+                port:
+                  number: 8080
+    - host: httpbin.192.168.180.51.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: httpbin
+                port:
+                  number: 8080
