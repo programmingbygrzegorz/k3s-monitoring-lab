@@ -1,0 +1,120 @@
+# Przykład do nauki Ingressa: dwie aplikacje (podinfo, httpbin) za Service ClusterIP.
+# Własna wersja ćwiczenia z kursu Kubernetesa (Udemy, lekcja o zaawansowanym Ingressie),
+# zmieniona w labie: wszystkie obiekty w osobnym namespace kurs-kubernetes.
+# Wdrożenie: kubectl apply -f deployments.yaml
+# Sprzątanie: kubectl delete namespace kurs-kubernetes
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kurs-kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: kurs-kubernetes
+spec:
+  type: ClusterIP
+  selector:
+    app: podinfo
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: kurs-kubernetes
+  labels:
+    app: podinfo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      labels:
+        app: podinfo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: podinfo
+          image: stefanprodan/podinfo:6.4.0
+          readinessProbe:
+            httpGet:
+              port: http
+              path: "/readyz"
+          livenessProbe:
+            httpGet:
+              port: http
+              path: "/healthz"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+          ports:
+            - containerPort: 9898
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: kurs-kubernetes
+spec:
+  type: ClusterIP
+  selector:
+    app: httpbin
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: kurs-kubernetes
+  labels:
+    app: httpbin
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: httpbin
+          image: kennethreitz/httpbin:latest
+          readinessProbe:
+            httpGet:
+              port: http
+              path: "/get"
+          livenessProbe:
+            httpGet:
+              port: http
+              path: "/get"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+          ports:
+            - containerPort: 80
+              name: http
