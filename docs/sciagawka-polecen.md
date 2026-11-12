@@ -418,3 +418,19 @@ Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.m
 | `git pull` | dociąga zmiany |
 | `git diff` | co zmieniłeś w plikach |
 | `git checkout .` | cofa niezapisane zmiany we wszystkich plikach |
+| `git status`, `git status --short` | co zmienione (`M`), dodane do commita (`A`), usunięte (`D`), nieśledzone (`??`) |
+| `git log --oneline`, `git log --oneline -10` | historia commitów, jedna linia na commit / ostatnie 10 |
+| `git log --oneline --graph --all` | historia jako drzewko, ze wszystkimi gałęziami |
+| `git log --stat -3` | ostatnie 3 commity z listą zmienionych plików |
+| `git log --oneline -- ŚCIEŻKA` | historia jednego pliku (też usuniętego) |
+| `git log -p -- ŚCIEŻKA` | historia pliku z treścią każdej zmiany |
+| `git log --since="2 days ago" --author="Grzegorz"` | filtr po dacie i autorze |
+| `git log -S "secretName" --oneline` | commity, które dodały albo usunęły dany tekst |
+| `git show COMMIT` | co zmienił jeden commit (`-` usunięte, `+` dodane) |
+| `git show COMMIT:ŚCIEŻKA` | treść pliku w tamtej wersji |
+| `git diff --staged` | co pójdzie do commita (po `git add`) |
+| `git diff COMMIT1 COMMIT2 -- ŚCIEŻKA` | różnica w pliku między dwiema wersjami |
+| `git blame ŚCIEŻKA` | kto i w którym commicie zmienił każdą linię |
+| `git restore --staged ŚCIEŻKA` | wyjmuje plik z poczekalni (cofa `git add`) |
+| `git rm --cached ŚCIEŻKA` | przestaje śledzić plik, ale zostawia go na dysku |
+| `git log origin/main..main --oneline` | commity lokalne, jeszcze niewypchnięte |
