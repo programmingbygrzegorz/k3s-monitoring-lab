@@ -46,6 +46,7 @@ W Etapie 2 to samo robi rola Ansible `common` – skrypt pokazuje, co dzieje si�
 | 4 | [04-cwiczenia-nginx-bazy.md](04-cwiczenia-nginx-bazy.md) | **ćwiczenia**, 40 typowych problemów: nginx (wirtualne hosty, 403/404/502/504, logi, reverse proxy, HTTPS), PostgreSQL, MariaDB, kopie baz |
 | 5 | [05-cwiczenia-nginx-bazy-rozwiazania.md](05-cwiczenia-nginx-bazy-rozwiazania.md) | rozwiązania 40 problemów – zrzuty z labu i odpowiedzi |
 | 6 | [06-jak-czytac-polecenia.md](06-jak-czytac-polecenia.md) | **słowniczek składni**: `\|`, `&&`, `2>&1`, `$(…)`, cudzysłowy, `grep`, `awk`, `sed`, `find`, `curl`, `psql` – jak czytać polecenia ze zrzutów |
+| 7 | [07-proces-demon-usluga.md](07-proces-demon-usluga.md) | **teoria od podstaw**: proces, demon i usługa systemd, `start` a `enable`, diagnoza usługi krok po kroku, test |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: sshd, uprawnienia, duplikaty, dysk VMware, systemd, logrotate, nginx i IPv6, PostgreSQL |
 
 Następny etap: [Etap 2 – klaster k3s przez Ansible](../etap-2-k3s-ansible/README.md).

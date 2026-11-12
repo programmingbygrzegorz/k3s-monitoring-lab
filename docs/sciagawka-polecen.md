@@ -111,6 +111,14 @@ Instrukcja `journalctl` krok po kroku: [dziennik systemu Linux](etap-0-maszyny-w
 |---|---|
 | `systemctl status usługa`, `systemctl is-active / is-enabled` | stan usługi |
 | `sudo systemctl daemon-reload` | wczytuje zmienione pliki `.service` |
+| `sudo systemctl start / stop / restart / reload usługa` | teraz: uruchom / zatrzymaj / od nowa / wczytaj konfigurację bez przerwy |
+| `sudo systemctl enable / disable usługa` | autostart przy uruchomieniu systemu – włącz / wyłącz (`start` ≠ `enable`) |
+| `systemctl list-units --type=service`, `systemctl --failed` | załadowane usługi / usługi z błędem |
+| `systemctl cat usługa` | plik `.service` (`ExecStart`, `Restart`, `After`) – [proces, demon, usługa](etap-1-przygotowanie-systemu/07-proces-demon-usluga.md) |
+| `journalctl -u usługa -n 50`, `journalctl -u usługa -f` | ostatnie 50 linii logów usługi / logi na żywo |
+| `pgrep -a nazwa` | PID i pełne polecenie procesów o tej nazwie |
+| `sudo sshd -t` | test konfiguracji SSH przed restartem (brak wyniku = OK) |
+| `systemctl status ssh.socket ssh.service` | SSH w Ubuntu 24.04+: port trzyma `ssh.socket`, demon startuje przy połączeniu |
 | `sudo systemctl enable --now usługa` | start teraz i przy każdym uruchomieniu systemu |
 | `sudo systemctl reset-failed usługa` | kasuje licznik po `Start request repeated too quickly` |
 | `systemctl show -p NRestarts -p MainPID usługa` | ile razy wznowiona, aktualny PID |
