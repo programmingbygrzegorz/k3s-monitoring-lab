@@ -9,6 +9,11 @@ metadata:
   name: k8s-ingress
   namespace: kurs-kubernetes
 spec:
+  tls:
+    - hosts:
+        - podinfo.192.168.180.51.nip.io
+        - httpbin.192.168.180.51.nip.io
+      secretName: ingress-tls  
   rules:
     - host: podinfo.192.168.180.51.nip.io
       http:
