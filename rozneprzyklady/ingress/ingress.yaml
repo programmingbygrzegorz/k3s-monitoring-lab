@@ -13,7 +13,7 @@ spec:
     - hosts:
         - podinfo.192.168.180.51.nip.io
         - httpbin.192.168.180.51.nip.io
-      secretName: ingress-tls  
+      secretName: ingress-tls
   rules:
     - host: podinfo.192.168.180.51.nip.io
       http:

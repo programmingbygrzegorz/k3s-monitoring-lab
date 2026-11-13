@@ -182,6 +182,7 @@ Każdy etap ma w `docs/` swój folder z instrukcją, teorią, ćwiczeniami, rozw
 
 Przydatne na co dzień:
 - [ściągawka poleceń](docs/sciagawka-polecen.md) – wszystkie omawiane polecenia w jednym miejscu,
+- [różne przykłady](rozneprzyklady/README.md) – ćwiczenia z kursu w labie: Ingress z HTTPS (mkcert, nip.io), headless Service,
 - [problemy-ogolne.md](docs/problemy-ogolne.md) – metoda diagnozowania i spis problemów według etapów.
 
 ## Szybki start
@@ -258,6 +259,7 @@ Szczegóły: [k3s przez Ansible](docs/etap-2-k3s-ansible/02-k3s-przez-ansible.md
 │   └── hello-lab/         # wdrożenie własnego obrazu z rejestru labu
 ├── apps/hello-lab/        # własna aplikacja: app.py, Dockerfile
 ├── monitoring/            # values kube-prometheus-stack, Docker Compose dla maszyny monitoring
+├── rozneprzyklady/        # przykłady z kursu w labie: Ingress + TLS (mkcert), headless Service
 ├── tools/                 # sprawdzanie odnośników, generowanie zrzutów do ćwiczeń
 └── docs/                  # przewodnik + folder dla każdego etapu
 ```

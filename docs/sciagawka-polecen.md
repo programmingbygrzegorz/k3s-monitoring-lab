@@ -368,6 +368,11 @@ Szczegóły: [własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md).
 | `curl --cacert ca.crt https://…` / `curl -k https://…` | HTTPS z zaufaniem do własnego CA / bez sprawdzania certyfikatu |
 | 🪟 `Import-Certificate -FilePath ca.crt -CertStoreLocation Cert:\CurrentUser\Root` | Windows ufa CA labu (tylko Twoje konto) |
 | 🪟 `curl.exe --ssl-no-revoke https://…` | pomija sprawdzanie unieważnienia (`CRYPT_E_NO_REVOCATION_CHECK` przy własnym CA) |
+| 🪟 `mkcert -install`, `mkcert -CAROOT` | własne CA dodane do zaufanych Windowsa / gdzie leżą jego pliki – [przykład z Ingressem](../rozneprzyklady/README.md) |
+| 🪟 `mkcert --key-file key.pem --cert-file cert.pem NAZWA1 NAZWA2` | certyfikat dla podanych nazw (pole SAN), podpisany CA z mkcert |
+| `openssl x509 -in cert.pem -noout -pubkey \| sha256sum` i `openssl pkey -in key.pem -pubout \| sha256sum` | ten sam skrót = certyfikat i klucz to para |
+| `openssl x509 -in cert.pem -noout -enddate -ext subjectAltName` | do kiedy ważny i dla jakich nazw |
+| `curl -s -o /dev/null -w "%{http_code}\n" -H "Host: NAZWA" http://IP/` | test reguły Ingressa z podaną nazwą, niezależnie od DNS |
 
 Ćwiczenia: [Ingress, nip.io i HTTPS](etap-3-monitoring/13-cwiczenia-ingress.md).
 
