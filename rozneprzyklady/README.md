@@ -265,10 +265,10 @@ app-headless-wzb8w   IPv4          5000    10.42.3.99,10.42.1.87,10.42.2.133
 
 **Pułapki z `dig`:**
 
-- `dig` z obrazu `pnowy/toolbox:1.0.0` **wypisuje odpowiedź**, a dopiero przy zamykaniu kończy się błędem
-  `isc_app_ctxshutdown(): fatal error: kill: Permission denied`, exit 139. Wynik jest poprawny – błąd na końcu
-  można pominąć (albo użyć `getent hosts`). Przykład z labu:
-  `app.kurs-kubernetes.svc.cluster.local. 5 IN A 10.43.21.3`.
+- `dig` z obrazu `pnowy/toolbox:1.0.0` przy zamykaniu kończy się błędem
+  `isc_app_ctxshutdown(): fatal error: kill: Permission denied`, exit 139. **Z `exec -it`** odpowiedź zdąży się
+  wypisać (`app.kurs-kubernetes.svc.cluster.local. 5 IN A 10.43.21.3`), **bez `-it`** widać tylko błąd, bez adresu
+  (wyjście nie zdąży się wypisać przed awarią). Najprościej: `getent hosts NAZWA` – działa bez błędu.
 - `dig getent NAZWA` to pomyłka: `dig` traktuje słowo `getent` jako nazwę do sprawdzenia (`status: NXDOMAIN`).
   Używa się **albo** `dig +short NAZWA`, **albo** `getent hosts NAZWA`.
 - Nazwa Service w DNS to `NAZWA.NAMESPACE.svc.cluster.local` – np. `app-headless.kurs-kubernetes.svc.cluster.local`,
