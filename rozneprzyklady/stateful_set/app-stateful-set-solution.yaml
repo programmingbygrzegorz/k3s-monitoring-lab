@@ -1,0 +1,92 @@
+# Przykład z kursu Kubernetesa (lekcja StatefulSet / headless Service) – wersja z labu:
+# wszystkie obiekty w namespace kurs-kubernetes, obraz app:1.0.0 z rejestru labu (192.168.180.54:5000).
+# Dwa Service na te same pody: app-headless (clusterIP: None – DNS zwraca adresy podów) i app (zwykły ClusterIP).
+# Wdrożenie: kubectl apply -f app-stateful-set-solution.yaml
+# Test DNS z poda toolbox: kubectl -n kurs-kubernetes exec -it toolbox -- dig app-headless.kurs-kubernetes.svc.cluster.local
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-headless
+  namespace: kurs-kubernetes
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: app-pod
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: kurs-kubernetes
+spec:
+  type: ClusterIP
+  selector:
+    app: app-pod
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+  namespace: kurs-kubernetes
+  labels:
+    app: app-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-pod
+  template:
+    metadata:
+      labels:
+        app: app-pod
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: app
+          # w kursie: app:1.0.0 zbudowany w minikube; w labie obraz leży w rejestrze na maszynie monitoring
+          image: 192.168.180.54:5000/app:1.0.0
+          readinessProbe:
+            httpGet:
+              port: 5000
+              path: "/health/readiness"
+          livenessProbe:
+            httpGet:
+              port: 5000
+              path: "/health/liveness"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+          ports:
+            - containerPort: 5000
+              name: http
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: toolbox
+  namespace: kurs-kubernetes
+spec:
+  terminationGracePeriodSeconds: 0
+  containers:
+    - name: toolbox
+      image: pnowy/toolbox:1.0.0
+      command: ['sh', '-c']
+      args:  # https://yaml-multiline.info/
+        - >-
+          sleep infinity
