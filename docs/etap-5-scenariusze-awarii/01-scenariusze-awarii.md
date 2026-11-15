@@ -501,6 +501,76 @@ sudo ./scripts/chaos.sh bad-deploy
 Skrypt wdraża nieistniejącą wersję obrazu, pokazuje historię wdrożeń i wycofuje zmianę przez
 `kubectl rollout undo`. Dzięki `maxUnavailable: 1` aplikacja działa przez cały czas.
 
+### Przebieg w labie (15.11.2026)
+
+**Zadanie:** wdrożyć do `demo/podinfo` nieistniejący obraz i wycofać zmianę – ręcznie, bez skryptu.
+Właściciel przeszedł to sam, krok po kroku (wyniki wklejone z terminala).
+
+**Stan wyjściowy:** 3/3 pody, kontener `podinfo`, obraz `ghcr.io/stefanprodan/podinfo:6.7.1`, rewizja 1,
+strategia `RollingUpdate` z `maxSurge: 1` i `maxUnavailable: 1`.
+
+```bash
+kubectl -n demo get deployment podinfo -o wide              # obraz i nazwa kontenera (CONTAINERS)
+kubectl -n demo rollout history deployment podinfo          # REVISION 1
+kubectl -n demo get pods -l app=podinfo -w                  # drugi terminal – podgląd na żywo
+kubectl -n demo set image deployment/podinfo podinfo=ghcr.io/stefanprodan/podinfo:9.9.9
+```
+
+`podinfo=…` to `NAZWA_KONTENERA=OBRAZ` (rejestr `ghcr.io`, konto `stefanprodan`, obraz `podinfo`, tag `9.9.9`).
+Wynik po złej zmianie:
+
+```
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                               SELECTOR
+podinfo   2/3     2            2           16d   podinfo      ghcr.io/stefanprodan/podinfo:9.9.9   app=podinfo
+```
+
+Podów było **4**, ale `Running` tylko 2 (stare, 6.7.1), a 2 nowe w `ImagePullBackOff`:
+
+| Ustawienie | Skutek |
+|---|---|
+| `maxSurge: 1` | najwyżej 3 + 1 = 4 pody naraz – powstał 1 nowy pod ponad liczbę replik |
+| `maxUnavailable: 1` | co najmniej 2 z 3 muszą działać – usunięty został tylko 1 stary pod |
+
+Nowe pody nigdy nie są gotowe, więc wdrożenie **staje** (`rollout status` czeka bez końca) i nie usuwa kolejnych
+starych podów – aplikacja działa na 2 podach przez cały czas.
+
+| Kolumna | Znaczenie |
+|---|---|
+| `READY` | pody gotowe (readinessProbe) / zamówione repliki |
+| `UP-TO-DATE` | pody z aktualnym `spec.template` (tu: 2 z obrazem 9.9.9 – nie działają) |
+| `AVAILABLE` | pody gotowe i obsługujące ruch (od `minReadySeconds`) |
+
+**Wycofanie:**
+
+```bash
+kubectl -n demo rollout history deployment podinfo          # REVISION 1 (6.7.1) i 2 (9.9.9)
+kubectl -n demo rollout undo deployment podinfo
+```
+
+```
+Warning: resource deployments/podinfo was previously managed with 'kubectl apply'. Rolling back will not update
+the kubectl.kubernetes.io/last-applied-configuration annotation, …
+deployment.apps/podinfo rolled back
+```
+
+Ostrzeżenie: `kubectl apply` zapisuje w obiekcie adnotację `last-applied-configuration` (treść pliku) i przy
+kolejnym `apply` porównuje z nią plik. `set image` i `rollout undo` jej nie zmieniają. Tu nic się nie rozjechało –
+plik i adnotacja mówią 6.7.1, obraz po `undo` też. Na produkcji `undo` to szybki ratunek, a potem poprawka
+manifestu w gicie (inaczej następne `apply` przywróci złą wersję – drift).
+
+Po wycofaniu: `READY 3/3`, obraz `6.7.1`. `undo` nie wraca do numeru 1, tylko kopiuje go jako nową rewizję 3
+(w historii zostają 2 i 3).
+
+| Widzę | To znaczy | Robię |
+|---|---|---|
+| `UP-TO-DATE` > `AVAILABLE`, nowe pody `ImagePullBackOff`, stare `Running` | nowa wersja nie startuje, wdrożenie stoi | `rollout undo`, potem poprawka manifestu |
+
+**Pytanie rekrutacyjne:** *Nowa wersja nie wstaje po wdrożeniu. Co robisz?* – `rollout status` i `get pods`
+(stare pody działają dzięki `maxUnavailable`), Events w `describe` nowego poda, `rollout undo` jako szybki
+ratunek, potem poprawka manifestu w repozytorium. *Czym różnią się `maxSurge` i `maxUnavailable`?* – ile podów
+może być ponad liczbę replik w trakcie wymiany oraz ile może nie działać; `maxUnavailable: 0` = zero przerwy,
+ale wymaga wolnych zasobów na dodatkowy pod.
+
 ## Awaria całego klastra
 
 Wyłącz wszystkie węzły. Oczekiwane: alarm w Uptime Kuma i powiadomienie z healthchecks.io

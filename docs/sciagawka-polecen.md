@@ -237,10 +237,14 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 
 | Polecenie | Co robi |
 |---|---|
-| `k -n NS set image deployment/web nginx=nginx:1.27` | nowy obraz → nowy ReplicaSet, aktualizacja krocząca |
-| `k -n NS rollout status deployment/web` | czy aktualizacja się skończyła |
+| `k -n NS set image deployment/web nginx=nginx:1.27` | nowy obraz → nowy ReplicaSet, aktualizacja krocząca; `KONTENER=OBRAZ` (nazwa kontenera z kolumny `CONTAINERS`) |
+| `k -n NS get deployment web -o wide` | dodatkowe kolumny `CONTAINERS`, `IMAGES`, `SELECTOR` (dla podów: `IP`, `NODE`); nazwa **albo** `-l etykieta`, nie oba naraz |
+| `k -n NS get deployment web -o jsonpath='{.spec.strategy}{"\n"}'` | strategia wymiany: `RollingUpdate` (`maxSurge`, `maxUnavailable`, domyślnie 25%) albo `Recreate` |
+| `k -n NS get pods -l app=web -w` | podgląd na żywo (`-w` = watch) – drugi terminal przy wdrożeniu |
+| `k -n NS rollout status deployment/web` | czy aktualizacja się skończyła (przy zepsutym obrazie czeka bez końca – `Ctrl+C`) |
 | `k -n NS rollout history deployment/web` | historia wersji |
-| `k -n NS rollout undo deployment/web` | powrót do poprzedniej wersji |
+| `k -n NS rollout history deployment/web --revision=1` | co było w danej rewizji (obraz, etykiety) |
+| `k -n NS rollout undo deployment/web` | powrót do poprzedniej wersji – kopiuje ją jako nową rewizję; nie zmienia adnotacji `last-applied-configuration` (popraw też plik w gicie) |
 | `k -n NS rollout restart deployment/web` | restart podów (np. po zmianie ConfigMap w zmiennych) |
 | `k drain WĘZEŁ --ignore-daemonsets --delete-emptydir-data` | wyprowadza pody z węzła przed konserwacją |
 | `k uncordon WĘZEŁ` | wpuszcza pody z powrotem |
@@ -259,7 +263,10 @@ Teoria obiektów: [teoria Kubernetesa](etap-3-monitoring/03-teoria-kubernetes-he
 | `k exec -it NAZWA -c KONTENER -- sh` | gdy pod ma kilka kontenerów; `sh`, gdy w obrazie nie ma `bash` |
 | `k get pods -A \| grep -v Running` | pody, które nie działają |
 | `k exec toolbox -- cat /etc/resolv.conf` | jaki DNS i jakie domeny dopisuje pod (`search …svc.cluster.local`) |
-| `k exec toolbox -- getent hosts USŁUGA.NAMESPACE` | nazwa Service → IP (DNS klastra); `nslookup`/`dig` w obrazie `pnowy/toolbox` kończą się błędem |
+| `k exec toolbox -- getent hosts USŁUGA.NAMESPACE` | nazwa Service → IP (DNS klastra) – pyta system jak każdy program (`/etc/hosts`, potem DNS); zwykły Service = 1 adres `10.43.x.x`, headless = adresy podów `10.42.x.x` |
+| `k exec -it toolbox -- dig +short USŁUGA.NAMESPACE.svc.cluster.local` | to samo przez `dig` (tylko DNS); w `pnowy/toolbox` wypisuje wynik **tylko z `-it`**, potem błąd 139 przy zamykaniu (do pominięcia; `nslookup` i `host` tak samo) |
+| `k exec -it toolbox -- http USŁUGA:PORT/ścieżka` | HTTPie (`http`) – wygodniejszy `curl`, kolory i nagłówki; bez `-it` wysyła POST (405) – wtedy `--ignore-stdin` |
+| `k9s` | podgląd klastra w terminalu (instalacja: `.deb` z github.com/derailed/k9s/releases); `:pod`, `:deploy`, `0` wszystkie ns, `/` filtr, `d` describe, `l` logi, `s` shell, `?` pomoc, `:q` wyjście; `Ctrl+D` usuwa! |
 | `k exec toolbox -- curl -s http://USŁUGA.NAMESPACE:PORT/` | połączenie z usługą po nazwie |
 | `k get ingress -A` | wszystkie Ingressy: klasa, hosty, adresy węzłów |
 | `k describe ingress NAZWA -n NS` | reguły host → ścieżka → Service:port i **adresy podów za nim**; zdarzenia na dole |
