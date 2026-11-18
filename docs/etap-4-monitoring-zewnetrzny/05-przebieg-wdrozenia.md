@@ -1142,6 +1142,48 @@ z `control-plane:NoSchedule`, worker-1 z `unreachable`) – przez tainty. Po pow
 >   `kubectl get events --field-selector reason=FailedScheduling`): ile węzłów odpadło i z jakiego powodu –
 >   zasoby, tainty, `nodeSelector`/affinity, przypisanie dysku.
 
+## Krok 12 – e-mail z Uptime Kumy (18.11.2026)
+
+Do tej pory Kuma tylko pokazywała kolory – nikt nie dostawał wiadomości, gdy monitor robił się czerwony.
+Właściciel ustawił powiadomienie e-mail sam, w przeglądarce (Kuma po polsku).
+
+**1. Hasło aplikacji Google** (🪟 przeglądarka, konto Gmail, z którego lab wysyła): weryfikacja dwuetapowa
+musi być włączona (`myaccount.google.com/security`), potem `myaccount.google.com/apppasswords` → nazwa `k3s-lab`
+→ 16 znaków. Zwykłe hasło do Gmaila nie zadziała – Google od 2022 r. nie wpuszcza po SMTP samym hasłem konta.
+Hasło aplikacji można w każdej chwili unieważnić bez zmiany hasła głównego.
+
+**2. Kuma** (`http://192.168.180.54:3001`) → profil → *Ustawienia* → *Powiadomienia* → *Skonfiguruj powiadomienie*:
+
+| Pole | Wartość |
+|---|---|
+| Rodzaj powiadomienia | `Email (SMTP)` |
+| Przyjazna nazwa | `Gmail lab` |
+| Nazwa hosta | `smtp.gmail.com` – sama nazwa, bez `https://`, portu i spacji |
+| Port / Bezpieczeństwo | `465` / `TLS (465)` – szyfrowanie od pierwszego pakietu |
+| Zignoruj błędy TLS, Wyłącz STARTTLS | **nie** zaznaczać (to wyłącza sprawdzanie lub szyfrowanie) |
+| Nazwa użytkownika, Nadawca (OD) | adres Gmail, z którego lab wysyła |
+| Hasło | hasło aplikacji (16 znaków bez spacji) – przechowywane w bazie SQLite Kumy, poza gitem |
+| Odbiorca (DO) | adres, na który mają przychodzić alerty |
+| Włącz domyślnie, Zastosuj do istniejących monitorów | ✅ – nowe i wszystkie 6 obecnych monitorów dostają e-mail |
+
+**3. Test** – pierwsza próba skończyła się błędem `queryA` (zła nazwa w polu *Nazwa hosta*, opis w
+[problemach](problemy.md#uptime-kuma-test-e-mail-kończy-się-błędem-querya)). Po wpisaniu `smtp.gmail.com` ręcznie –
+e-mail testowy dotarł. Ile wiadomości: Kuma pisze tylko przy zmianie stanu (DOWN i UP), więc w spokojnym labie –
+zero.
+
+**Planowane wyłączenie labu** (żeby nie zasypać skrzynki): wyłączenie także `monitoring` = Kuma nie działa, zero
+e-maili; wyłączenie samego klastra przy włączonej `monitoring` = 1 e-mail na każdy monitor – wcześniej
+*Konserwacja* (maintenance) w Kumie. healthchecks.io jak dotąd: *Pause*. Alertmanager działa w klastrze, więc
+wyłącza się razem z nim.
+
+> **Pytania rekrutacyjne**
+> - *Jak uniknąć zasypania alertami (alert fatigue)?* – powiadamiać tylko o tym, co wymaga reakcji (`critical`),
+>   grupować alerty jednej awarii, ustawić rzadkie powtórki, wyciszać na czas prac (maintenance window, silence).
+> - *Dlaczego hasło aplikacji, a nie zwykłe hasło konta?* – ma wąski zakres (tylko poczta), działa przy 2FA,
+>   da się je unieważnić bez ruszania konta; wyciek nie daje dostępu do całego konta Google.
+> - *Port 465 czy 587?* – 465: TLS od razu (implicit TLS); 587: połączenie zwykłe, potem `STARTTLS`.
+>   Oba szyfrują – ważne, żeby nie wyłączać STARTTLS na 587.
+
 ## Co dalej (następna sesja)
 
 - ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
@@ -1149,8 +1191,7 @@ z `control-plane:NoSchedule`, worker-1 z `unreachable`) – przez tainty. Po pow
 - ~~przyczyna zawieszenia hosta~~ ✅ 06.11 ([diagnoza](../etap-0-maszyny-wirtualne/03-diagnoza-zawieszenia-hosta.md)) – właściciel aktualizuje BIOS;
 - ~~healthchecks.io: Period 2 min, Grace 5 min~~ ✅ 09.11, pingi dochodzą;
 - ~~monitory w Kumie~~ ✅ wszystkie 6 zielone (09.11);
-- ⏸️ powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google) – **odłożone 09.11 na później**
-  (decyzja właściciela); do tego czasu Kuma tylko pokazuje kolory, a alarm e-mail daje healthchecks.io;
+- ~~powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google)~~ ✅ 18.11 ([krok 12](#krok-12--e-mail-z-uptime-kumy-18112026));
 - ~~dashboard 1860 w Grafanie~~ ✅ 09.11;
 - ~~test awarii A (worker-3)~~ ✅ 09–10.11 ([krok 10](#krok-10--test-awarii-a-wyłączony-worker-3-0910112026));
 - ⏸️ odbiorca e-mail w Alertmanagerze (Gmail SMTP 587, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`)

@@ -129,6 +129,20 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   Szybka łatka – tak, ale zaraz potem to samo w Ansible. 06.11 reguła trafiła do roli (commit `c903998`),
   przebieg na masterze dał `changed=0` – [krok 9 przebiegu](05-przebieg-wdrozenia.md#krok-9--reguła-6443-w-kodzie-nie-tylko-na-serwerze-06112026).
 
+## Uptime Kuma: test e-mail kończy się błędem queryA
+
+- **Objaw:** 18.11.2026, *Ustawienia → Powiadomienia → Email (SMTP) → Test* – komunikat z `queryA`
+  (pełna postać zwykle `queryA ENOTFOUND <nazwa>` albo `queryA EAI_AGAIN <nazwa>`).
+- **Przyczyna:** `queryA` to zapytanie DNS o adres IPv4 (rekord A) dla nazwy z pola *Nazwa hosta*. Nazwa nie
+  istniała – w polu było coś innego niż `smtp.gmail.com` (spacja, `https://`, port w nazwie, literówka).
+- **Diagnoza:** wykluczyć sieć i DNS po kolei, z maszyny i z kontenera:
+  `getent ahostsv4 smtp.gmail.com` na `monitoring` i `docker exec uptime-kuma getent ahostsv4 smtp.gmail.com`
+  (oba: `142.251.9.109`), połączenie TLS z kontenera na port 465 – OK. Skoro sieć działa, błąd jest w danych
+  formularza; nazwa po `ENOTFOUND` pokazuje, czego Kuma szukała.
+- **Rozwiązanie:** wyczyścić pole i wpisać ręcznie `smtp.gmail.com` – test przeszedł.
+- **Wniosek:** zanim zaczniesz naprawiać sieć, sprawdź, czy sieć w ogóle jest problemem – jedno polecenie
+  z wnętrza kontenera rozstrzyga, czy winny jest DNS, czy wpisana wartość.
+
 ## VMware: Cannot open the disk – pozostałe blokady .lck
 
 - **Objaw:** po zawieszeniu hosta k3s-worker-3 nie startuje: *„Proces nie może uzyskać dostępu do pliku, ponieważ
