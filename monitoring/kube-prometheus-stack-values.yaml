@@ -64,7 +64,7 @@ alertmanager:
       smtp_from: "${ALERT_EMAIL_FROM}"
       smtp_auth_username: "${ALERT_EMAIL_FROM}"
       smtp_auth_password: "${GMAIL_APP_PASSWORD}"
-      smtp_require_tls: true         
+      smtp_require_tls: true
     route:
       receiver: "null"
       group_by: ["alertname", "namespace"]
@@ -80,9 +80,17 @@ alertmanager:
           group_wait: 0s
           group_interval: 1m
           repeat_interval: 1m
+        # Alerty critical idą na e-mail; jedna awaria = jeden e-mail, przypomnienie co 12 h.
+        - receiver: email
+          matchers:
+            - severity = "critical"
+          repeat_interval: 12h
     receivers:
       - name: "null"
-      # Tu możesz dodać własny kanał powiadomień, np. e-mail (email_configs) lub Telegram (telegram_configs).
+      - name: email
+        email_configs:
+          - to: "${ALERT_EMAIL_TO}"
+            send_resolved: true
       - name: deadmans-switch
         webhook_configs:
           - url: "${HEALTHCHECKS_URL}"
