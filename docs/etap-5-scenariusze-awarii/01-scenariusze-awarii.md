@@ -643,6 +643,64 @@ cd ~/k3s-monitoring-lab && git diff && git add kubernetes/monitoring/prometheusr
 Na rozmowie: *"I wrote a custom alert rule – I tested the PromQL query in Prometheus first,
 validated it with a server-side dry run and deployed it as a PrometheusRule."*
 
+### Przebieg w labie (23.11.2026)
+
+Właściciel przeszedł zadanie sam. Zamiast obniżać próg (krok 4) – **prawdziwie zapchał dysk** jednego węzła.
+
+**1. Zapytanie** – zajętość `/`: master 28,6%, worker-1 39,6%, worker-2 40,0%, worker-3 **43,3%**. Worker-3 (zbudowany
+Packerem) ma dysk `/dev/sda2`, pozostałe węzły (klony szablonu) – LVM `/dev/mapper/ubuntu--vg-ubuntu--lv`; reguła
+działa dla obu, bo filtruje po `mountpoint="/"`, a nie po urządzeniu.
+
+**2. Reguła** dopisana w VS Code na Windowsie (8 spacji przed `- alert:`), commit `35f18e1`, `git pull` na masterze.
+Plik z regułami to `kubernetes/monitoring/prometheusrule-lab.yaml` – nie `monitoring/` (tam są ustawienia Helma).
+
+**3. `--dry-run=server`** → bez błędu, w klastrze nic się nie zmienia (sprawdzone: w `lab-rules` brak nowej reguły);
+potem `kubectl apply` → `configured`, operator wygenerował plik reguł, Prometheus wczytał go po ok. minucie.
+
+**4. Zapchanie dysku.** Przed testem – granice kubeleta na węźle (`kubectl get --raw
+/api/v1/nodes/k3s-worker-3/proxy/configz`):
+
+| Zajętość | Co robi Kubernetes |
+|---|---|
+| > 85% | alert `NodeDiskAlmostFull`; kubelet zaczyna usuwać **nieużywane obrazy** (`imageGCHighThresholdPercent: 85`) |
+| > 95% | `evictionHard` `nodefs.available: 5%` → **DiskPressure** i wyrzucanie podów z węzła |
+
+Cel: ok. 87% na worker-3 (40 GB, wolne 23 GB, bez dysków `local-path` – nic ważnego nie ucierpi):
+
+```bash
+sudo fallocate -l 17G /var/tmp/zapychacz-dysku.img && df -h /     # 🐧 k3s-worker-3
+```
+
+`fallocate` rezerwuje miejsce od razu (bez zapisywania danych – trwa sekundę); nazwa pliku od razu mówi, co to jest.
+
+![Prometheus – NodeDiskAlmostFull w stanie PENDING na worker-3, wartość 0,8685](img/dysk-1-prometheus-pending.png)
+
+Na zrzucie: grupa `lab.nodes` z plikiem wygenerowanym przez operatora, `PENDING (1)`, etykiety alertu
+(`instance="192.168.180.55:9100"`, `device="/dev/sda2"`), *Active Since* 50 s, *Value* `0.8685` (86,85%).
+`{{ $value | humanizePercentage }}` to tu **szablon** reguły – wypełniony tekst widać w Alertmanagerze.
+
+**Oś czasu:** 16:36:31 `pending` → po `for: 10m` ok. 16:46:30 `firing` → po `group_wait` (30 s) alert w
+Alertmanagerze. Maila nie ma – `severity: warning` idzie do odbiorcy `null`
+([routing Alertmanagera](../etap-4-monitoring-zewnetrzny/05-przebieg-wdrozenia.md#krok-13--e-mail-z-alertmanagera-tylko-critical-23112026)).
+
+**Sprzątanie** (🐧 k3s-worker-3): `sudo rm /var/tmp/zapychacz-dysku.img` – alert znika przy następnym sprawdzeniu.
+
+**Warning a critical.** Typowo dwa progi dla tego samego zjawiska: ostrzeżenie z czasem na reakcję i alarm, gdy trzeba
+działać od razu. W labie `critical` musi stać **przed** progiem wyrzucania podów (95%), np.:
+
+| Alert | Próg | `for` | Waga | Skutek |
+|---|---|---|---|---|
+| `NodeDiskAlmostFull` | > 85% | 10m | `warning` | widać w Prometheusie / Alertmanagerze / Grafanie |
+| `NodeDiskCritical` | > 92% | 5m | `critical` | **e-mail** (trasa `severity = "critical"`) |
+
+> **Pytania rekrutacyjne**
+> - *Dlaczego `for: 10m`, a nie od razu?* – chwilowy skok (rozpakowanie obrazu, duży log) nie może budzić ludzi;
+>   alert ma oznaczać stan, który trwa.
+> - *Co się dzieje z węzłem, gdy kończy się dysk?* – kubelet sprząta nieużywane obrazy (image GC), a po progu
+>   `evictionHard` ustawia `DiskPressure`, taint `node.kubernetes.io/disk-pressure` i wyrzuca pody.
+> - *Jak przetestować alert dyskowy bez ryzyka?* – zapytanie w Prometheusie, `--dry-run=server`, potem albo
+>   tymczasowo niższy próg, albo kontrolowane zapchanie (`fallocate`) z zapasem do progu eviction.
+
 ## Sprzątanie
 
 ```bash
