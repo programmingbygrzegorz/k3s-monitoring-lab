@@ -1184,6 +1184,101 @@ wyłącza się razem z nim.
 > - *Port 465 czy 587?* – 465: TLS od razu (implicit TLS); 587: połączenie zwykłe, potem `STARTTLS`.
 >   Oba szyfrują – ważne, żeby nie wyłączać STARTTLS na 587.
 
+## Krok 13 – e-mail z Alertmanagera, tylko `critical` (23.11.2026)
+
+W teście awarii A ([krok 10](#krok-10--test-awarii-a-wyłączony-worker-3-0910112026)) ok. 9 alertów było *firing*,
+ale wszystko poza Watchdogiem szło do odbiorcy `null` – nikt by się nie dowiedział. Teraz alerty `critical` idą na
+e-mail. Właściciel zmienił pliki sam (VS Code na Windowsie, commity `e0fe0b3`, `cd4b8a8`, `7d785fc`).
+
+**Decyzja: tylko `critical`.** Wszystko na e-mail = burza maili przy każdej awarii i drobiazgi (`CPUThrottlingHigh`,
+pody w `chaos`) – po tygodniu nikt ich nie czyta (*alert fatigue*). `warning` zostaje w Alertmanagerze i Grafanie.
+
+**1. Sekrety w `lab.env` na masterze** (poza gitem, `600`): `ALERT_EMAIL_FROM` (konto, które wysyła),
+`ALERT_EMAIL_TO` (odbiorca – osobna zmienna, żeby zmiana adresata nie wymagała zmiany pliku w gicie)
+i `GMAIL_APP_PASSWORD` (to samo hasło aplikacji co w Kumie, **16 znaków bez spacji** – Google pokazuje je
+w grupach po 4). Sprawdzenie bez pokazywania wartości:
+
+```bash
+grep -c -E '^(ALERT_EMAIL_FROM|ALERT_EMAIL_TO|GMAIL_APP_PASSWORD)=' ~/k3s-monitoring-lab/lab.env   # 3
+grep '^GMAIL_APP_PASSWORD=' ~/k3s-monitoring-lab/lab.env | cut -d'"' -f2 | tr -d '\n' | wc -c       # 16
+```
+
+Pierwszy wynik to było `5` (adresy dopisane dwa razy), a hasło miało 19 znaków (ze spacjami).
+
+**2. Plik values** (`monitoring/kube-prometheus-stack-values.yaml`, sekcja `alertmanager.config`):
+
+```yaml
+    global:
+      smtp_smarthost: "smtp.gmail.com:587"         # 587 = połączenie, potem STARTTLS
+      smtp_from: "${ALERT_EMAIL_FROM}"
+      smtp_auth_username: "${ALERT_EMAIL_FROM}"
+      smtp_auth_password: "${GMAIL_APP_PASSWORD}"
+      smtp_require_tls: true                       # bez szyfrowania – nie wysyłaj
+    route:
+      receiver: "null"                             # domyślnie: kosz (warning, info)
+      routes:
+        - receiver: deadmans-switch                # Watchdog → healthchecks.io
+          ...
+        - receiver: email                          # NOWE: tylko critical
+          matchers:
+            - severity = "critical"
+          repeat_interval: 12h
+    receivers:
+      - name: "null"
+      - name: email                                # NOWE
+        email_configs:
+          - to: "${ALERT_EMAIL_TO}"
+            send_resolved: true                    # drugi mail, gdy awaria minie
+```
+
+| Pojęcie | Znaczenie |
+|---|---|
+| `routes` | sortownia: trasy sprawdzane od góry, pierwsza pasująca wskazuje odbiorcę |
+| `receivers` | skrzynki – każda nazwa z trasy musi tu istnieć, inaczej Alertmanager odrzuci całą konfigurację |
+| `"null"` | odbiorca bez kanału (kosz); nie wolno go usunąć, bo wskazuje go `route.receiver` |
+| `group_by`, `group_wait` | jedna awaria = jeden mail; trasa dziedziczy je z `route` |
+
+**3. Skrypt** `scripts/04-install-monitoring.sh`: `export` trzech zmiennych z `:?` (bez nich skrypt się
+zatrzymuje) i dopisanie ich do listy `envsubst` – inaczej w konfiguracji zostałby dosłowny tekst
+`${GMAIL_APP_PASSWORD}`.
+
+**4. Wdrożenie** (🐧 master): `git pull` (z `e2886a2` na `7d785fc`), potem
+`sudo ./scripts/04-install-monitoring.sh` → **rewizja 4** (`helm history`: `Mon Nov 23 16:01:43 2026`, `deployed`).
+Operator przepisał sekret `alertmanager-…-generated`, a sidecar `config-reloader` przeładował konfigurację po
+ok. minucie: `Completed loading of configuration file` (kubelet podmienia sekrety w podach z opóźnieniem).
+
+**5. Test bez psucia klastra** – sztuczny alert wprost do API Alertmanagera:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X POST -H 'Content-Type: application/json' \
+  http://localhost:30093/api/v2/alerts \
+  -d '[{"labels":{"alertname":"TestEmail","severity":"critical","namespace":"test"},"annotations":{"summary":"Test e-maila z Alertmanagera"}}]'
+```
+
+Wynik `200` (przyjęty). Pierwsza próba nie dotarła do Alertmanagera (0 alertów w API) – stąd `-w "%{http_code}"`,
+żeby widzieć odpowiedź. Dowód wysyłki z metryk Alertmanagera:
+
+```bash
+curl -s http://localhost:30093/metrics | grep -E 'alertmanager_notifications_(total|failed_total)\{.*email'
+```
+
+```
+alertmanager_notifications_failed_total{integration="email",reason="authError"} 0
+alertmanager_notifications_total{integration="email"} 1
+```
+
+Mail `[FIRING:1] TestEmail` dotarł (nadawca = odbiorca, więc Gmail może go pokazać tylko w wyszukiwarce lub
+w *Wysłanych*), po ok. 5 min – `[RESOLVED]` (alert bez odnawiania wygasa po `resolve_timeout`).
+
+> **Pytania rekrutacyjne**
+> - *Jak skonfigurujesz powiadomienia, żeby zespół ich nie ignorował?* – na kanał wymagający reakcji tylko
+>   `critical`, grupowanie (`group_by`), rzadkie przypomnienia (`repeat_interval`), `send_resolved`, wyciszenia
+>   na czas prac; reszta w dashboardach.
+> - *Jak przetestujesz kanał powiadomień bez psucia systemu?* – `POST /api/v2/alerts` (albo `amtool alert add`)
+>   z etykietami pasującymi do trasy, potem metryka `alertmanager_notifications_total` i skrzynka.
+> - *Skąd wiesz, że Alertmanager wczytał nową konfigurację?* – log `Completed loading of configuration file`,
+>   strona *Status* (`/api/v2/status`) albo metryka `alertmanager_config_last_reload_successful`.
+
 ## Co dalej (następna sesja)
 
 - ~~sprawdzić, czy wszystkie maszyny wstały~~ ✅ 06.11 – wszystkie 5 maszyn działa;
@@ -1194,9 +1289,9 @@ wyłącza się razem z nim.
 - ~~powiadomienia w Kumie (e-mail Gmail SMTP, hasło aplikacji Google)~~ ✅ 18.11 ([krok 12](#krok-12--e-mail-z-uptime-kumy-18112026));
 - ~~dashboard 1860 w Grafanie~~ ✅ 09.11;
 - ~~test awarii A (worker-3)~~ ✅ 09–10.11 ([krok 10](#krok-10--test-awarii-a-wyłączony-worker-3-0910112026));
-- ⏸️ odbiorca e-mail w Alertmanagerze (Gmail SMTP 587, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`)
-  – **odłożone 10.11 na późniejszy etap** (decyzja właściciela), razem z e-mailem w Kumie i automatyczną pauzą
-  healthchecks.io;
+- ~~odbiorca e-mail w Alertmanagerze (Gmail SMTP 587, hasło aplikacji w `lab.env`, `envsubst`, `helm upgrade`)~~
+  ✅ 23.11, tylko `critical` ([krok 13](#krok-13--e-mail-z-alertmanagera-tylko-critical-23112026));
+- ⏸️ skrypt „wyłącz lab” z automatyczną pauzą healthchecks.io przez API;
 - **wyłączanie labu, póki nie ma skryptu:** healthchecks.io → check → **⋯ → Pause** (inaczej po ~7 min przyjdzie
   e-mail „DOWN”), potem *Shut Down Guest*: workery → master → `monitoring`. Włączanie odwrotnie – check wznawia się
   sam przy pierwszym pingu. Przy serwisie jednej maszyny: *New Silence* w Alertmanagerze (np. `node="k3s-worker-1"`);

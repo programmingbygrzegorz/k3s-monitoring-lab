@@ -317,6 +317,17 @@ Szczegóły: [Headlamp – logowanie tokenem](etap-6-gui/01-headlamp.md#logowani
 | `rm -rf NAZWA/templates/*` | czyści przykładowe szablony z `helm create`, katalog `templates/` zostaje na własne pliki |
 | `helm template NAZWA ./katalog` | pokazuje gotowe YAML-e z szablonów, niczego nie instaluje |
 
+**Alertmanager i sekrety w `lab.env`:**
+
+| Polecenie | Co robi |
+|---|---|
+| `grep -c -E '^(ALERT_EMAIL_FROM\|ALERT_EMAIL_TO\|GMAIL_APP_PASSWORD)=' lab.env` | ile wpisów jest w pliku – bez pokazywania wartości (`-c` liczy, `^` początek linii, `\|` = albo) |
+| `grep '^GMAIL_APP_PASSWORD=' lab.env \| cut -d'"' -f2 \| tr -d '\n' \| wc -c` | długość hasła bez jego wyświetlania (hasło aplikacji Google: 16) |
+| `curl -s -o /dev/null -w "%{http_code}\n" -X POST -H 'Content-Type: application/json' http://localhost:30093/api/v2/alerts -d '[{"labels":{"alertname":"TestEmail","severity":"critical"}}]'` | sztuczny alert wprost do Alertmanagera – test kanału powiadomień; `200` = przyjęty |
+| `curl -s http://localhost:30093/metrics \| grep 'alertmanager_notifications_.*email'` | ile maili wysłano i ile się nie udało (`reason="authError"` = złe hasło) |
+| `curl -s http://localhost:30093/api/v2/status` | wczytana konfiguracja (`config.original`) i stan klastra Alertmanagera |
+| `kubectl -n monitoring logs alertmanager-monitoring-kube-prometheus-alertmanager-0 -c config-reloader` | czy sidecar przeładował konfigurację po `helm upgrade` (`Reload triggered`) |
+
 Teoria: [Helm](etap-3-monitoring/03-teoria-kubernetes-helm.md). Wszystkie polecenia i przełączniki:
 oficjalna ściągawka Helma (po angielsku) – [helm.sh/docs/intro/cheatsheet](https://helm.sh/docs/intro/cheatsheet/).
 
