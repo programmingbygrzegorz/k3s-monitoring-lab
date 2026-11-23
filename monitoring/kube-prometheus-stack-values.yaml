@@ -59,6 +59,12 @@ alertmanager:
   config:
     global:
       resolve_timeout: 5m
+    # Poczta: Gmail SMTP 587 + STARTTLS. Wartości podstawia skrypt z lab.env (poza gitem).
+      smtp_smarthost: "smtp.gmail.com:587"
+      smtp_from: "${ALERT_EMAIL_FROM}"
+      smtp_auth_username: "${ALERT_EMAIL_FROM}"
+      smtp_auth_password: "${GMAIL_APP_PASSWORD}"
+      smtp_require_tls: true         
     route:
       receiver: "null"
       group_by: ["alertname", "namespace"]
