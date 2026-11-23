@@ -683,8 +683,6 @@ Na zrzucie: grupa `lab.nodes` z plikiem wygenerowanym przez operatora, `PENDING 
 Alertmanagerze. Maila nie ma – `severity: warning` idzie do odbiorcy `null`
 ([routing Alertmanagera](../etap-4-monitoring-zewnetrzny/05-przebieg-wdrozenia.md#krok-13--e-mail-z-alertmanagera-tylko-critical-23112026)).
 
-**Sprzątanie** (🐧 k3s-worker-3): `sudo rm /var/tmp/zapychacz-dysku.img` – alert znika przy następnym sprawdzeniu.
-
 **Warning a critical.** Typowo dwa progi dla tego samego zjawiska: ostrzeżenie z czasem na reakcję i alarm, gdy trzeba
 działać od razu. W labie `critical` musi stać **przed** progiem wyrzucania podów (95%), np.:
 
@@ -693,11 +691,41 @@ działać od razu. W labie `critical` musi stać **przed** progiem wyrzucania po
 | `NodeDiskAlmostFull` | > 85% | 10m | `warning` | widać w Prometheusie / Alertmanagerze / Grafanie |
 | `NodeDiskCritical` | > 92% | 5m | `critical` | **e-mail** (trasa `severity = "critical"`) |
 
+**5. Test `critical`.** Reguła `NodeDiskCritical` dopisana obok pierwszej (commit `7372411`), `kubectl apply` na masterze.
+
+**Niespodzianka – kubelet sam zwolnił miejsce.** Po przekroczeniu 85% zajętość spadła z ok. 87% do ok. 70%:
+kubelet (image GC) usunął nieużywane obrazy – ok. 7 GB. To dokładnie zachowanie z tabeli w kroku 4, zobaczone na żywo.
+Żeby dojść do 92%, trzeba było dołożyć drugi plik:
+
+```bash
+sudo fallocate -l 9000M /var/tmp/zapychacz-dysku-2.img && df -h /     # 🐧 k3s-worker-3 → 93%
+```
+
+**Wynik:** oba alerty `firing` od 16:51:01 (`NodeDiskAlmostFull` – bez maila, `NodeDiskCritical` – mail
+`[FIRING:1] NodeDiskCritical` w skrzynce). Licznik `alertmanager_notifications_total{integration="email"}` rośnie
+z każdym wysłanym mailem.
+
+**6. Sprzątanie** (🐧 k3s-worker-3):
+
+```bash
+sudo rm /var/tmp/zapychacz-dysku.img /var/tmp/zapychacz-dysku-2.img && df -h /
+```
+
+Zajętość spadła do **24%** (mniej niż przed testem – usunięte obrazy kubelet pobierze ponownie, gdy będą potrzebne).
+Alerty zniknęły z Alertmanagera, a dzięki `send_resolved: true` przyszedł mail **RESOLVED** (licznik e-maili: 4).
+
+**Przy okazji – czerwony CI.** Po commicie `7372411` GitHub Actions przysłał mail *Run failed: lint*. `yamllint` zgłosił
+`65:1 [trailing-spaces]` – pusta linia między regułami miała 12 spacji (niewidocznych w edytorze). Naprawa w VS Code:
+kursor **w pliku** (nie w panelu czatu), `Ctrl+G` 65, `Ctrl+Shift+K` (usuń linię), `Ctrl+S`; commit `855b621` → zielony.
+Poprawki robimy w repo na Windowsie i wypychamy – master tylko pobiera (`git pull`).
+
 > **Pytania rekrutacyjne**
 > - *Dlaczego `for: 10m`, a nie od razu?* – chwilowy skok (rozpakowanie obrazu, duży log) nie może budzić ludzi;
 >   alert ma oznaczać stan, który trwa.
 > - *Co się dzieje z węzłem, gdy kończy się dysk?* – kubelet sprząta nieużywane obrazy (image GC), a po progu
 >   `evictionHard` ustawia `DiskPressure`, taint `node.kubernetes.io/disk-pressure` i wyrzuca pody.
+> - *Zapchałeś dysk do 87%, a po chwili było 70% – co się stało?* – kubelet przekroczył
+>   `imageGCHighThresholdPercent` (85%) i usunął nieużywane obrazy kontenerów, aż zszedł poniżej progu dolnego (80%).
 > - *Jak przetestować alert dyskowy bez ryzyka?* – zapytanie w Prometheusie, `--dry-run=server`, potem albo
 >   tymczasowo niższy próg, albo kontrolowane zapchanie (`fallocate`) z zapasem do progu eviction.
 
