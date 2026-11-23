@@ -3,15 +3,16 @@
 #
 # Gdzie:   na k3s-master, gdy klaster działa (4 węzły Ready)
 # Użycie:  sudo ./scripts/04-install-monitoring.sh
-# Wymaga:  lab.env z GRAFANA_ADMIN_PASSWORD i HEALTHCHECKS_URL (opcjonalnie KPS_CHART_VERSION)
+# Wymaga:  lab.env z GRAFANA_ADMIN_PASSWORD, HEALTHCHECKS_URL, ALERT_EMAIL_FROM, ALERT_EMAIL_TO
+#          i GMAIL_APP_PASSWORD (opcjonalnie KPS_CHART_VERSION)
 #
 # Co robi, po kolei:
 #   1. Jeśli nie ma Helma – instaluje go oficjalnym skryptem get-helm-3
 #      (w instalacji ręcznej pobierasz archiwum i sprawdzasz sumę SHA-256).
 #   2. Dodaje i odświeża repozytorium chartów prometheus-community.
-#   3. Wypełnia plik monitoring/kube-prometheus-stack-values.yaml hasłem Grafany i adresem
-#      healthchecks.io z lab.env (envsubst) – do pliku tymczasowego, usuwanego na końcu
-#      (trap ... EXIT), żeby hasło nie zostało na dysku.
+#   3. Wypełnia plik monitoring/kube-prometheus-stack-values.yaml hasłem Grafany, adresem
+#      healthchecks.io i danymi poczty (Gmail SMTP dla Alertmanagera) z lab.env (envsubst) –
+#      do pliku tymczasowego, usuwanego na końcu (trap ... EXIT), żeby hasła nie zostały na dysku.
 #   4. helm upgrade --install monitoring prometheus-community/kube-prometheus-stack
 #      w namespace monitoring (tworzy go), z wersją z KPS_CHART_VERSION, jeśli ustawiona;
 #      --wait czeka do 15 min, aż wszystko wystartuje.
@@ -39,13 +40,18 @@ helm repo update
 
 export GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:?Uzupełnij w lab.env}"
 export HEALTHCHECKS_URL="${HEALTHCHECKS_URL:?Uzupełnij w lab.env}"
+# Poczta dla Alertmanagera (Gmail SMTP)
+export ALERT_EMAIL_FROM="${ALERT_EMAIL_FROM:?Uzupełnij w lab.env}"
+export ALERT_EMAIL_TO="${ALERT_EMAIL_TO:?Uzupełnij w lab.env}"
+export GMAIL_APP_PASSWORD="${GMAIL_APP_PASSWORD:?Uzupełnij w lab.env}"
 
 values_file="$(mktemp)"
 trap 'rm -f "${values_file}"' EXIT
-# shellcheck disable=SC2016  # celowo: envsubst ma podstawić tylko te dwie zmienne
-envsubst '${GRAFANA_ADMIN_PASSWORD} ${HEALTHCHECKS_URL}' \
+# shellcheck disable=SC2016  # celowo: envsubst ma podstawić tylko te zmienne
+envsubst '${GRAFANA_ADMIN_PASSWORD} ${HEALTHCHECKS_URL} ${ALERT_EMAIL_FROM} ${ALERT_EMAIL_TO} ${GMAIL_APP_PASSWORD}' \
   < "${REPO_DIR}/monitoring/kube-prometheus-stack-values.yaml" > "${values_file}"
 
+# Opcjonalnie: wersja kube-prometheus-stack z lab.env (KPS_CHART_VERSION)
 version_args=()
 if [[ -n "${KPS_CHART_VERSION:-}" ]]; then
   version_args=(--version "${KPS_CHART_VERSION}")
