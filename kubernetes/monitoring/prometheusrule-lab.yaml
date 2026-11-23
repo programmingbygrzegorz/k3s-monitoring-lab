@@ -62,7 +62,6 @@ spec:
           annotations:
             summary: "Dysk na {{ $labels.instance }} prawie pełny"
             description: "Zajęte {{ $value | humanizePercentage }} głównego systemu plików."
-            
         - alert: NodeDiskCritical
           expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) > 0.92
           for: 5m
