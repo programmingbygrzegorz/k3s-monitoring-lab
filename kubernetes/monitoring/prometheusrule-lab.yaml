@@ -54,3 +54,11 @@ spec:
           annotations:
             summary: "Wysokie zużycie pamięci na {{ $labels.instance }}"
             description: "Zużycie pamięci przekracza 90% od 5 minut."
+        - alert: NodeDiskAlmostFull
+          expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Dysk na {{ $labels.instance }} prawie pełny"
+            description: "Zajęte {{ $value | humanizePercentage }} głównego systemu plików."
