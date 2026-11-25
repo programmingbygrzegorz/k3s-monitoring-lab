@@ -16,4 +16,4 @@ Semaphore UI (playbooki Ansible). Plan etapu: [przewodnik](../00-przewodnik.md#e
 | 1 | [01-headlamp.md](01-headlamp.md) | Headlamp: instalacja Helmem, NodePort, token i jego ważność, ostrzeżenie readiness przy starcie, bezpieczeństwo, pytania rekrutacyjne |
 | – | [problemy.md](problemy.md) | problemy z tego etapu |
 
-Następny etap: Etap 7 – CI/CD i GitOps ([plan](../00-przewodnik.md#etapy-6-i-7--plan)).
+Następny etap: [Etap 7 – CI/CD](../etap-7-cicd-gitlab/README.md).

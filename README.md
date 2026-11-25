@@ -179,6 +179,7 @@ Każdy etap ma w `docs/` swój folder z instrukcją, teorią, ćwiczeniami, rozw
 | 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [monitoring zewnętrzny](docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md), [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | obraz i rejestr: [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
 | 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | [scenariusze awarii](docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md), [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
 | 6 – zarządzanie przez GUI | [etap-6-gui](docs/etap-6-gui/README.md) | [Headlamp: Service, NodePort, token](docs/etap-6-gui/01-headlamp.md) | – |
+| 7 – CI/CD: GitLab, Runner, pipeline *(w trakcie)* | [etap-7-cicd-gitlab](docs/etap-7-cicd-gitlab/README.md) | [maszyna gitlab i GitLab CE](docs/etap-7-cicd-gitlab/01-maszyna-gitlab.md) | – |
 
 Przydatne na co dzień:
 - [ściągawka poleceń](docs/sciagawka-polecen.md) – wszystkie omawiane polecenia w jednym miejscu,
