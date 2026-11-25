@@ -137,6 +137,105 @@ sudo EXTERNAL_URL="http://192.168.180.56" apt install -y gitlab-ce     # 🐧 gi
 Po rozpakowaniu instalator sam uruchamia `gitlab-ctl reconfigure` – Chef czyta `gitlab.rb` i konfiguruje
 wszystkie usługi. Na razie `http`: HTTPS (certyfikat z CA labu) można dodać później zmianą `external_url`.
 
+Wynik: GitLab CE **19.6.1** (`dpkg -l gitlab-ce`), strona logowania `http://192.168.180.56/users/sign_in` → `200`.
+
+## Krok 7. Pierwsze logowanie i zabezpieczenie
+
+Hasło konta `root` generuje instalator (plik znika po 24 h):
+
+```bash
+sudo cat /etc/gitlab/initial_root_password     # 🐧 gitlab – hasła nie wklejaj nigdzie
+```
+
+Po zalogowaniu GitLab sam pokazuje dwa ostrzeżenia bezpieczeństwa:
+
+| Ostrzeżenie | Ryzyko | Co zrobione |
+|---|---|---|
+| *Check the restrictions for new users* | każdy w sieci może założyć konto (`/users/sign_up`) i uruchamiać pipeline'y na runnerach | **Admin → Settings → General → New user account restrictions** → odznaczone *Allow new user accounts* → na stronie logowania nie ma już „Register now” |
+| *Web IDE single origin fallback is enabled* | gdy domena `cdn.web-ide.gitlab-static.net` jest niedostępna, edytor VS Code ładuje się z adresu GitLaba – kod rozszerzeń działa wtedy w tej samej domenie co sesja użytkownika (same-origin policy) | **Admin → Settings → General → Web IDE** → odznaczone *Enable single origin fallback* (domena rozszerzeń bez zmian) |
+
+Hasło roota zmienione na własne (**Edit profile → Password**), plik `initial_root_password` do usunięcia
+(`sudo rm`). Odzyskanie hasła z serwera: `sudo gitlab-rake "gitlab:password:reset[root]"` – kto ma `sudo` na
+maszynie, ma cały GitLab.
+
+## Krok 8. Własne konto zamiast `root`
+
+Na co dzień nie pracuje się jako administrator (zasada najmniejszych uprawnień, jak `sudo` na Linuksie):
+
+1. **Admin → Users → New user**: `grzegorz`, e-mail `grzegorz@lab.local`, **Access level: Regular**;
+   hasło tymczasowe przez **Edit** (poczty nie ma) – przy pierwszym logowaniu GitLab każe je zmienić.
+2. Grupa `lab` → **Manage → Members → Invite members** → `grzegorz`, rola **Owner** – uprawnienia
+   dziedziczą wszystkie projekty grupy (`lab/hello-lab` też).
+
+Kreator przy pierwszym logowaniu roota założył grupę `lab` i pusty, prywatny projekt `hello-lab`
+(`http://192.168.180.56/lab/hello-lab`).
+
+## Krok 9. Osobny klucz SSH do GitLaba
+
+Klucz `k3s-lab` otwiera wszystkie serwery labu – nie dokładamy mu dostępu do kodu. Osobny klucz tylko do gita:
+
+```powershell
+ssh-keygen -t ed25519 -f C:\Users\User\.ssh\gitlab-lab -C "gitlab-lab"      # 🪟
+Get-Content C:\Users\User\.ssh\gitlab-lab.pub | Set-Clipboard
+```
+
+GitLab (jako `grzegorz`): **Edit profile → SSH Keys → Add new key**. Jeden klucz = jedno konto – przy próbie
+dodania tego samego klucza drugiemu kontu: `Fingerprint has already been taken`.
+
+Wpis w `C:\Users\User\.ssh\config`:
+
+```
+# GitLab w labie – tylko git push/pull, osobny klucz
+Host gitlab-git
+    HostName 192.168.180.56
+    User git
+    IdentityFile ~/.ssh/gitlab-lab
+    IdentitiesOnly yes
+```
+
+`ssh -T gitlab-git` → `Welcome to GitLab, @grzegorz!`. Wszyscy łączą się jako systemowy użytkownik `git`
+(założony przez Omnibus); GitLab dopisuje każdy klucz do `/var/opt/gitlab/.ssh/authorized_keys` z
+`command="gitlab-shell key-N"` – po kluczu rozpoznaje osobę, a powłoki nie daje.
+
+Adres `git@192.168.180.56:lab/hello-lab.git` (podpowiadany przez GitLab) by nie zadziałał: pasuje do bloku
+`Host … 192.168.180.*` z kluczem `k3s-lab`, którego GitLab nie zna. Alias `gitlab-git` wybiera właściwy klucz.
+
+## Krok 10. Kod `hello-lab` w GitLabie
+
+Aplikacja z Etapu 4 (`apps/hello-lab`) jako osobne repozytorium:
+
+```powershell
+mkdir C:\Projekty\hello-lab                                                       # 🪟
+cd C:\Projekty\hello-lab
+copy C:\Projekty\k3s-monitoring-lab\apps\hello-lab\Dockerfile, C:\Projekty\k3s-monitoring-lab\apps\hello-lab\app.py .
+git init -b main
+git config user.name "Grzegorz"                 # bez --global: tylko to repo
+git config user.email "grzegorz@lab.local"      # ten sam e-mail co konto w GitLabie
+git add Dockerfile app.py
+git commit -m "hello-lab: kod aplikacji i Dockerfile (z Etapu 4)"
+git remote add origin git@gitlab-git:lab/hello-lab.git
+git push -u origin main
+```
+
+Pułapki po drodze:
+
+| Komunikat | Przyczyna |
+|---|---|
+| `fatal: pathspec 'Dockerfile' did not match any files` | pominięte `copy` – pusty folder |
+| `warning: LF will be replaced by CRLF` | tylko ostrzeżenie: `core.autocrlf=true` – w repo `LF`, na dysku Windows `CRLF` |
+| `error: src refspec main does not match any` | brak commita – gałąź `main` jeszcze nie istnieje |
+| `error: remote origin already exists` | `remote add` wykonane wcześniej – pominąć |
+
+Wynik: commit `14f055d` w GitLabie. GitLab od razu uruchomił **pipeline nr 1 – Auto DevOps** (gotowy pipeline,
+gdy brak `.gitlab-ci.yml`), wiszący jako *pending*, bo nie ma Runnera. Wyłączone: projekt → **Settings → CI/CD →
+Auto DevOps** → odznaczone *Default to Auto DevOps pipeline*. Na produkcji zwykle wyłączone globalnie – zamiast
+tego jawne pipeline'y ze wspólnych szablonów (`include:`).
+
+## Dalej
+
+GitLab Runner (executor `docker`) na `monitoring` – osobno od serwera GitLab, bo zadania uruchamiają kod
+z każdego commita.
+
 ## Pytania rekrutacyjne
 
 - *Po co Packer, skoro można sklonować maszynę?* – przepis w gicie jest powtarzalny i przeglądalny;
@@ -145,3 +244,9 @@ wszystkie usługi. Na razie `http`: HTTPS (certyfikat z CA labu) można dodać p
   z jednego pliku `/etc/gitlab/gitlab.rb` (`gitlab-ctl reconfigure`).
 - *Dlaczego nie `curl | sudo bash`?* – uruchamiasz jako root nieprzejrzany kod; podmiana po stronie serwera
   albo urwane pobieranie wykonuje się od razu. Bezpieczniej: pobierz, sprawdź, uruchom.
+- *Co zabezpieczasz zaraz po instalacji GitLaba?* – wyłączenie samodzielnej rejestracji, własne hasło roota
+  i usunięcie `initial_root_password`, osobne konto do pracy zamiast roota, Web IDE bez single origin fallback.
+- *Dlaczego osobny klucz SSH do GitLaba?* – rozdzielenie uprawnień: kradzież jednego klucza nie daje naraz
+  dostępu do serwerów i do kodu; klucz można unieważnić osobno.
+- *Dlaczego runner nie stoi na serwerze GitLab?* – zadania wykonują kod z każdego commita; na tej samej maszynie
+  złośliwy pipeline mógłby sięgnąć do bazy i sekretów GitLaba. Do tego budowanie obrazów zabiera RAM i CPU.
