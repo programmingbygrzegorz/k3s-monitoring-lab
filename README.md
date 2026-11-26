@@ -4,7 +4,7 @@
 
 **Domowe laboratorium DevOps zbudowane od zera, ręcznie i krok po kroku.**
 Klaster Kubernetes (k3s) na 5 maszynach wirtualnych, monitoring z alertami, automatyzacja Ansible
-i Packer, własny rejestr obrazów – oraz ćwiczenia z ponad 130 zrzutami z prawdziwego labu.
+i Packer, własny rejestr obrazów, pipeline DevSecOps w GitLab CI – oraz ćwiczenia z ponad 130 zrzutami z prawdziwego labu.
 
 ![k3s](https://img.shields.io/badge/k3s-Kubernetes-FFC61C?logo=k3s&logoColor=black)
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-26.04-E95420?logo=ubuntu&logoColor=white)
@@ -16,18 +16,67 @@ i Packer, własny rejestr obrazów – oraz ćwiczenia z ponad 130 zrzutami z pr
 ![Docker](https://img.shields.io/badge/Docker-registry%20TLS-2496ED?logo=docker&logoColor=white)
 ![nginx](https://img.shields.io/badge/nginx-vhosts%20%2F%20HTTPS-009639?logo=nginx&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)
+![GitLab CI](https://img.shields.io/badge/GitLab%20CI-DevSecOps-FC6D26?logo=gitlab&logoColor=white)
+![Trivy](https://img.shields.io/badge/Trivy-security%20gate-1904DA?logo=aqua&logoColor=white)
+![Semgrep](https://img.shields.io/badge/Semgrep-SAST-2DB89E?logo=semgrep&logoColor=white)
+![gitleaks](https://img.shields.io/badge/gitleaks-secrets-CC3333)
 
 </div>
 
-> Projekt powstaje jako nauka i portfolio na stanowisko **junior DevOps / administrator Linux**.
+> Projekt powstaje jako nauka i portfolio na stanowisko **junior DevOps / administrator Linux / AppSec**.
 > Wszystko jest udokumentowane po polsku: każde polecenie z wyjaśnieniem, prawdziwe wyniki z labu,
 > zrzuty ekranu, problemy, na które trafiłem, i pytania rekrutacyjne do każdego etapu.
+
+## 🔐 Pipeline DevSecOps (GitLab CI)
+
+Własny **GitLab CE 19.6** na osobnej maszynie i **GitLab Runner** (executor Docker) na drugiej. Każdy `git push`
+aplikacji `hello-lab` przechodzi przez pipeline, który skanuje kod, buduje obraz, skanuje obraz i dopiero wtedy
+wysyła go do rejestru – obraz z podatnością **nie trafia do rejestru**.
+
+```mermaid
+flowchart LR
+    push["git push"] --> test["test"]
+    test --> code["scan-code<br/>gitleaks · Semgrep · Trivy config"]
+    code --> build["build<br/>docker build"]
+    build --> img["scan-image<br/>Trivy – security gate"]
+    img --> reg["push<br/>rejestr z TLS"]
+    reg -.->|"kubectl set image<br/>(rolling update)"| k3s["k3s<br/>2 pody"]
+```
+
+| Narzędzie | Rodzaj | Co sprawdza | Wynik w labie |
+|---|---|---|---|
+| **gitleaks** | secret scanning | hasła, tokeny, klucze w kodzie **i w całej historii gita** | 0 sekretów |
+| **Semgrep** | SAST | niebezpieczne wzorce w Pythonie i w `Dockerfile` (158 reguł) | 0 znalezisk |
+| **Trivy config** | IaC / konfiguracja | błędy w `Dockerfile` (root, brak HEALTHCHECK…) | 0 – obraz bez roota |
+| **Trivy image** | SCA, **security gate** | znane podatności (CVE) w obrazie; HIGH/CRITICAL z poprawką = czerwony pipeline | **6 × HIGH → 0** |
+
+**Od znaleziska do poprawki** – pełny cykl na prawdziwym wyniku:
+
+1. **Skan:** Trivy znalazł w obrazie 6 podatności HIGH – `libzstd1` (Debian) oraz `msgpack`, `setuptools`, `urllib3`.
+2. **Triage:** zajrzenie do obrazu pokazało, że trzy biblioteki Pythona siedzą **wewnątrz `pip`** (`pip/_vendor`),
+   a aplikacja używa tylko biblioteki standardowej – podatności nieosiągalne z kodu, ale do usunięcia.
+3. **Łatka:** `apt-get upgrade` + usunięcie `pip` z obrazu (zasada minimalnego obrazu) → **0 podatności**.
+4. **Bramka:** Trivy przełączony z raportu (`--exit-code 0`) na blokadę (`--exit-code 1`).
+5. **Kolejność fail fast:** `push` przeniesiony **za** skan obrazu – wcześniej dziurawy obraz trafiał do rejestru przed skanem.
+
+**Czego nie złapał żaden skaner:** ręczna kontrola zbudowanego obrazu (`ls -la /app`) pokazała `app.py` z prawami
+**666** – Runner klonuje repozytorium z `umask 0000`, a `COPY` przenosi prawa do obrazu. Poprawka: `COPY --chmod=644`.
+Automaty nie zastępują przeglądu.
+
+Świadome kompromisy labu (opisane w dokumentacji): budowanie przez `docker.sock` (= root na maszynie Runnera –
+w firmie Buildah / BuildKit rootless), wdrożenie w k3s jeszcze ręczne (docelowo GitOps z Argo CD).
+
+📁 Szczegóły z poleceniami, logami i pytaniami rekrutacyjnymi:
+[maszyna i GitLab](docs/etap-7-cicd-gitlab/01-maszyna-gitlab.md) ·
+[Runner](docs/etap-7-cicd-gitlab/02-gitlab-runner.md) ·
+[skanery](docs/etap-7-cicd-gitlab/03-skanery-bezpieczenstwa.md) ·
+[build, łatki i security gate](docs/etap-7-cicd-gitlab/04-budowanie-obrazu-i-security-gate.md)
 
 ## W liczbach
 
 | 🖥️ Maszyny | ☸️ Węzły k3s | 📚 Etapy | 🧩 Ćwiczenia | 🐞 Opisane problemy |
 |:---:|:---:|:---:|:---:|:---:|
-| 5 działa, 3 w planie | 1 master + 3 workery | 5 gotowych, 3 w trakcie, 6 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
+| 6 działa, 2 w planie | 1 master + 3 workery | 5 gotowych, 4 w trakcie, 5 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
 
 ## Architektura
 
@@ -74,7 +123,7 @@ flowchart TB
 | k3s-master | 192.168.180.51 | control plane k3s (taint `NoSchedule`) | ✅ |
 | k3s-worker-1 / -2 / -3 | .52 / .53 / .55 | workery; worker-3 zainstalowany automatycznie Packerem | ✅ |
 | monitoring | .54 | węzeł sterujący Ansible, Docker, rejestr obrazów, monitoring zewnętrzny | ✅ |
-| gitlab | .56 | GitLab CE, Runner, rejestr – Etap 7 | 🗓️ |
+| gitlab | .56 | GitLab CE 19.6 – Etap 7 (Runner na `monitoring`) | ✅ |
 | security | .57 | Wazuh SIEM – Etap 9b | 🗓️ |
 | kali | .58 | kontrolowane ataki na lab – Etap 9c | 🗓️ |
 
@@ -96,11 +145,11 @@ flowchart LR
         direction TB
         e4["Etap 4 · monitoring zewnętrzny, własny obraz"] --> e5["Etap 5 · scenariusze awarii"]
         e5 --> e6["Etap 6 · GUI: Headlamp ✅, Portainer, Semaphore"]
+        e6 --> e7["Etap 7 · GitLab CI ✅, gitleaks, Semgrep, Trivy ✅, Argo CD"]
     end
     subgraph plan["🗓️ W planie"]
         direction TB
-        e7["Etap 7 · GitLab CI, SAST/DAST, Trivy, Argo CD"] --> e8["Etap 8 · AIOps"]
-        e8 --> e9["Etap 9 · kube-bench, Falco, Kyverno"]
+        e8["Etap 8 · AIOps"] --> e9["Etap 9 · kube-bench, Falco, Kyverno"]
         e9 --> e9b["Etap 9b/9c · Wazuh, ataki z Kali"]
     end
     done --> wip --> plan
@@ -109,8 +158,8 @@ flowchart LR
     classDef w fill:#fff3c4,stroke:#f9a825,color:#6d4c00
     classDef p fill:#e8eaf6,stroke:#5c6bc0,color:#283593
     class e0,e0b,e1,e2,e3 d
-    class e4,e5,e6 w
-    class e7,e8,e9,e9b p
+    class e4,e5,e6,e7 w
+    class e8,e9,e9b p
 ```
 
 ## Zrzuty z labu
