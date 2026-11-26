@@ -334,6 +334,85 @@ Najpierw `0` (zobaczyć skalę problemu bez blokowania zespołu), po naprawie `1
 Bramka przepuszcza: MEDIUM/LOW (`--severity`), podatności bez poprawki (`--ignore-unfixed`) i błędy logiki (to Semgrep
 i testy). Commit `6d83661`. Sprawdzenie kodu wyjścia ręcznie: `ls /tmp; echo $?` → `0`, `ls /nie-ma; echo $?` → `2`.
 
+## Krok 6. Kolejność „fail fast” – push dopiero po skanie
+
+Słaby punkt pipeline'u z kroków 2–5: `build` budował **i od razu wysyłał** obraz, a Trivy skanował go dopiero potem.
+Czerwona bramka nic by nie dała – **dziurawy obraz leżałby już w rejestrze** (bramka zamyka się, gdy pasażer
+jest w samolocie). Na rozmowie AppSec to pierwsze pytanie: *„czy obraz z podatnością trafi do rejestru?”*.
+
+Nowa kolejność – 5 etapów, każdy czeka na zielony poprzedni (zadania **w jednym** etapie idą równolegle):
+
+| Etap | Zadania | Pytanie | Jeśli nie |
+|---|---|---|---|
+| `test` | `hello` | czy działa? | stop |
+| `scan-code` | `gitleaks`, `semgrep`, `trivy-config` | czy kod i `Dockerfile` są bezpieczne? | stop – nie budujemy |
+| `build` | `build` | czy obraz się buduje? (tylko `docker build`, **bez push**) | stop |
+| `scan-image` | `trivy-image` | czy obraz nie ma podatności? – **security gate** | stop – nie wysyłamy |
+| `push` | `push` | `docker push` – do rejestru tylko obraz po skanie | – |
+
+**Fail fast:** najtańsze sprawdzenia (sekundy) najpierw – sekret w kodzie zatrzymuje pipeline, zanim zaczniemy budować.
+`push` jako osobny etap wymusza kolejność „sprawdź, potem wyślij” (w jednym etapie poszłyby naraz).
+
+```yaml
+# PL: Kolejność "fail fast": najpierw tanie skany kodu, push tylko czystego obrazu
+# EN: "Fail fast" order: cheap code scans first, push only a clean image
+stages:
+  - test            # PL: testy / EN: tests
+  - scan-code       # PL: skan KODU przed budowaniem / EN: scan the CODE before building
+  - build           # PL: budowanie obrazu, BEZ wysyłki / EN: build the image, NO push
+  - scan-image      # PL: skan OBRAZU – security gate / EN: scan the IMAGE – security gate
+  - push            # PL: do rejestru tylko obraz po skanie / EN: only a scanned image goes to the registry
+
+# PL: Trivy config – błędy w Dockerfile, przed budowaniem / EN: Dockerfile misconfigurations, before build
+trivy-config:
+  stage: scan-code
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy config --exit-code 1 .
+
+# PL: Budowanie – obraz zostaje tylko w Dockerze na monitoring (docker.sock), jeszcze NIE w rejestrze
+# EN: Build – the image stays only in monitoring's Docker (docker.sock), NOT in the registry yet
+build:
+  stage: build
+  image: docker:29-cli
+  script:
+    - docker build --build-arg APP_VERSION=$CI_COMMIT_SHORT_SHA -t $IMAGE .
+
+# PL: Security gate – podatność HIGH/CRITICAL z poprawką = czerwony pipeline, push się NIE wykona
+# EN: Security gate – a fixable HIGH/CRITICAL vulnerability = red pipeline, push will NOT run
+trivy-image:
+  stage: scan-image
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy image --image-src docker --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 $IMAGE
+
+# PL: Wysyłka do rejestru – tylko gdy wszystkie poprzednie etapy są zielone
+# EN: Push to the registry – only when all previous stages are green
+push:
+  stage: push
+  image: docker:29-cli
+  script:
+    - docker push $IMAGE
+```
+
+(`gitleaks` i `semgrep` bez zmian, tylko `stage: scan-code`.) Obraz między `build` a `push` przechowuje Docker na
+`monitoring` – działa, bo wszystkie zadania idą przez ten sam `docker.sock`. Przy kilku Runnerach na różnych maszynach
+trzeba by przekazać obraz inaczej (np. `docker save` jako *artifact* albo push do tymczasowego tagu i „promocja” po skanie).
+
+Commit `d6b0d4f` → **pipeline #10 passed** (1 min 45 s, 7 zadań), w rejestrze `hello-lab:d6b0d4f6`:
+
+![pipeline #10: test → scan-code → build → scan-image → push](img/04-pipeline-10-fail-fast.png)
+
+```text
+{"name":"hello-lab","tags":["1.0","6d836614","729765dc","8480121a","d6b0d4f6"]}
+```
+
+`729765dc` (z podatnościami) trafił do rejestru jeszcze w starej kolejności – przy nowej nie miałby jak.
+
 ## Gdzie co jest
 
 ```bash
@@ -372,4 +451,6 @@ w firmie *cleanup policy*.
   dla HIGH/CRITICAL z poprawką). Wprowadza się go stopniowo: najpierw raport, potem blokada.
 - *Czy zielone skanery = bezpieczny obraz?* – nie: w labie `app.py` miał prawa 666 przez `umask 0000` Runnera, czego
   nie złapał żaden skaner. Ręczna kontrola zbudowanego obrazu (`id`, `ls -la`) uzupełnia automaty.
+- *Czy obraz z podatnością trafi do rejestru?* – w kolejności build+push → skan: tak (błąd, który u siebie poprawiłem);
+  w kolejności build → skan → push: nie, bo czerwony etap zatrzymuje następne. Fail fast: skany kodu przed budowaniem.
 - *Exit code – co to i jak go sprawdzić?* – liczba zwracana przez program (`0` = sukces); `echo $?` po poleceniu.
