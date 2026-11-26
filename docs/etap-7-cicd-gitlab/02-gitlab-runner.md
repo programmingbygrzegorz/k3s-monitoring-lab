@@ -182,6 +182,42 @@ zapamiętuje, że lokalny `main` śledzi `origin/main` (potem wystarczy samo `gi
 
 Wynik pipeline'u: projekt → **Build → Pipelines**.
 
+### Zadanie wisi jako *Pending* – tagi
+
+Pipeline z commita `86bee0a` nie ruszył: *„This job is stuck because the project doesn't have any runners online
+assigned to it”*, choć Runner był *Online*. Runner ma tag `docker` i nie bierze zadań bez tagów, a zadanie `hello`
+tagu nie miało (opis: [problemy.md](problemy.md#this-job-is-stuck-because-the-project-doesnt-have-any-runners-online-assigned-to-it)).
+
+**Tagi** działają jak naklejki na paczkach u kuriera: paczkę „chłodnia” zabierze tylko chłodnia. W firmie np.
+`docker` (budowanie obrazów), `gpu`, `windows`, `production` (Runner z kluczami do produkcji – zwykłe testy
+z każdego commita nigdy na niego nie trafią).
+
+Poprawka – tag dla wszystkich zadań w bloku `default:` (*Run untagged jobs* zostaje odznaczone):
+
+```yaml
+default:
+  tags:
+    - docker
+
+stages:
+  - test
+
+hello:
+  stage: test
+  script:
+    - echo "Pipeline dziala, kontener $(hostname)"
+    - cat /etc/os-release
+```
+
+```powershell
+git add .gitlab-ci.yml
+git commit -m "Pipeline: tag docker dla wszystkich zadań"
+git push
+```
+
+Wynik: commit `ea3a755` – **pipeline zielony (passed)**, pierwszy przebieg na własnym Runnerze.
+Stary, wiszący pipeline – **Build → Pipelines → Cancel**.
+
 ## Pytania rekrutacyjne
 
 - *Czym jest GitLab Runner i kto inicjuje połączenie?* – osobny program, który wykonuje zadania z pipeline'u;
@@ -193,5 +229,7 @@ Wynik pipeline'u: projekt → **Build → Pipelines**.
   token; da się go unieważnić bez ruszania innych Runnerów. Stary token był wspólny dla projektu/grupy.
 - *Do czego służą tagi Runnera?* – zadanie z `tags: [docker]` trafi tylko do Runnera z tym tagiem
   (np. osobne Runnery do budowania obrazów, do wdrożeń na produkcję, z GPU).
+- *Pipeline wisi jako Pending, a Runner jest Online – co sprawdzasz?* – tagi zadania i tagi Runnera, *Run untagged
+  jobs*, czy Runner nie jest *Paused* i czy jest przypisany do projektu; komunikat na stronie zadania.
 - *Dlaczego `privileged = false`?* – kontener uprzywilejowany ma praktycznie pełny dostęp do hosta; złośliwy
   commit mógłby przejąć maszynę Runnera. Potrzebny tylko do Docker-in-Docker – lepiej tego unikać (np. Kaniko, Buildah).

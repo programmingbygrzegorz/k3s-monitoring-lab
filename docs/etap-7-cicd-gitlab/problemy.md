@@ -25,3 +25,18 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   pokazuje ustawienia, które SSH naprawdę wybrał.
 - **Rozwiązanie:** dopisać `gitlab` do linii `Host k3s-master k3s-worker-1 … monitoring gitlab 192.168.180.*`.
 - **Wniosek:** nowa maszyna = dwa miejsca w `~/.ssh/config`: adres i grupa ze wspólnymi ustawieniami.
+
+## This job is stuck because the project doesn't have any runners online assigned to it
+
+- **Objaw:** pierwszy pipeline wisi jako *Pending* (pomarańczowa ikonka przy commicie), w zadaniu `hello`
+  żółta ramka z tym komunikatem – mimo że Runner `monitoring-docker` w **Settings → CI/CD → Runners** jest
+  *Online* (Idle), a `sudo gitlab-runner verify` daje `is valid`.
+- **Przyczyna:** Runner ma tag `docker` i **nie** bierze zadań bez tagów (*Run untagged jobs* odznaczone),
+  a zadanie `hello` nie miało żadnego tagu. Żaden Runner „nie pasuje”, więc GitLab nie wydaje zadania.
+- **Diagnoza:** log Runnera (`journalctl -u gitlab-runner` – działa bez `sudo` dla grupy `adm`) bez błędów,
+  ale `builds=0`; strona zadania mówi, czego brakuje; na liście Runnerów: status, tagi, *Paused*.
+- **Rozwiązanie:** w `.gitlab-ci.yml` blok `default: tags: [docker]` – tag dla wszystkich zadań. Nowy push →
+  pipeline zielony (commit `ea3a755`). Stary pipeline anulować (**Build → Pipelines → Cancel**).
+  Prostsza droga: ✏️ przy Runnerze → *Run untagged jobs* – ale wtedy Runner bierze wszystko.
+- **Wniosek:** tagi decydują, który Runner weźmie zadanie (Docker, GPU, Windows, produkcja). Jawny tag
+  w każdym zadaniu jest bezpieczniejszy niż Runner „bierze wszystko”.
