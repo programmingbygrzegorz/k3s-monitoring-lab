@@ -413,6 +413,59 @@ Commit `d6b0d4f` → **pipeline #10 passed** (1 min 45 s, 7 zadań), w rejestrze
 
 `729765dc` (z podatnościami) trafił do rejestru jeszcze w starej kolejności – przy nowej nie miałby jak.
 
+## Krok 7. Wdrożenie w k3s (ręczne CD)
+
+Aplikacja działa w k3s od Etapu 4 (`kubectl apply -f kubernetes/hello-lab/hello-lab.yaml`: Namespace, Deployment
+z 2 podami, Service NodePort `30880`) – dotąd z obrazem `1.0`. Przed wdrożeniem: czy wersja jest w rejestrze
+(literówka w tagu = `ImagePullBackOff`) i która jest najnowsza (lista tagów w rejestrze jest alfabetyczna, bez dat):
+
+```bash
+# 🐧 monitoring – daty utworzenia obrazów
+docker images 192.168.180.54:5000/hello-lab --format "{{.CreatedAt}}  {{.Tag}}"
+```
+
+```text
+2026-11-26 12:06:00 +0100 CET  d6b0d4f6
+2026-11-26 11:10:40 +0100 CET  6d836614
+2026-11-26 10:51:42 +0100 CET  8480121a
+2026-11-26 09:43:31 +0100 CET  729765dc
+2026-11-05 15:01:09 +0100 CET  1.0
+```
+
+```bash
+# 🐧 k3s-master – węzły mają CA labu w /etc/rancher/k3s/lab-ca.crt
+curl -s --cacert /etc/rancher/k3s/lab-ca.crt https://192.168.180.54:5000/v2/hello-lab/tags/list
+kubectl set image deployment/hello-lab hello-lab=192.168.180.54:5000/hello-lab:d6b0d4f6 -n hello-lab
+kubectl rollout status deployment/hello-lab -n hello-lab
+```
+
+```text
+{"name":"hello-lab","tags":["1.0","6d836614","729765dc","8480121a","d6b0d4f6"]}
+deployment.apps/hello-lab image updated
+Waiting for deployment "hello-lab" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "hello-lab" rollout to finish: 1 old replicas are pending termination...
+deployment "hello-lab" successfully rolled out
+```
+
+**Rolling update:** nowy pod startuje, przechodzi `readinessProbe` (`/healthz`), dopiero wtedy stary jest wyłączany –
+bez przerwy w działaniu. Wynik:
+
+```text
+$ curl -s http://192.168.180.51:30880/api
+{"app": "hello-lab", "version": "d6b0d4f6", "host": "hello-lab-794b79885b-sglpl"}
+
+hello-lab-794b79885b-g7vhx   1/1   Running   k3s-worker-2
+hello-lab-794b79885b-sglpl   1/1   Running   k3s-worker-3
+```
+
+Wersja `d6b0d4f6` na stronie = hash commita – w klastrze działa obraz zbudowany i sprawdzony przez pipeline.
+Strona jest dostępna z Windowsa w przeglądarce pod `http://192.168.180.51:30880` (NodePort działa na każdym węźle;
+sieć VMnet8 – tylko z tego komputera).
+
+⚠️ **Drift:** `kubectl set image` zmienił obraz tylko w klastrze – w `kubernetes/hello-lab/hello-lab.yaml` (linia 29)
+nadal jest `hello-lab:1.0`. Ponowne `kubectl apply -f` przywróciłoby stary obraz. Do poprawienia w pliku; docelowo
+**GitOps (Argo CD)** – pipeline zmienia tag w gicie, Argo CD pilnuje, żeby klaster był taki jak w gicie.
+
 ## Gdzie co jest
 
 ```bash
@@ -423,7 +476,8 @@ docker images | grep hello-lab # obrazy w Dockerze na monitoring
 
 | Obraz | Gdzie działa (26.11) |
 |---|---|
-| `hello-lab:1.0` | 2 pody w k3s (namespace `hello-lab`, worker-1) + zatrzymany kontener `hello` na `monitoring` |
+| `hello-lab:1.0` | zatrzymany kontener `hello` na `monitoring` (w k3s do 26.11, potem podmieniony) |
+| `hello-lab:d6b0d4f6` | **2 pody w k3s** (worker-2, worker-3) – od kroku 7 |
 | `hello-lab:729765dc` | nigdzie – tylko w rejestrze |
 | `hello-lab:8480121a` | nigdzie – tylko w rejestrze (załatany) |
 
