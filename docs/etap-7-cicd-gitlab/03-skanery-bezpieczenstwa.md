@@ -7,7 +7,7 @@ wdrożeniem. Błąd znaleziony w pipeline kosztuje minutę; ten sam błąd na pr
 |---|---|---|---|
 | gitleaks | secret scanning | hasła, tokeny, klucze w kodzie **i w historii gita** | zadanie `gitleaks` |
 | Semgrep | SAST (Static Application Security Testing) | niebezpieczne wzorce w kodzie i w Dockerfile, bez uruchamiania aplikacji | zadanie `semgrep` |
-| Trivy | SCA / skan obrazu i konfiguracji | znane podatności (CVE) w pakietach, błędy w Dockerfile | planowane |
+| Trivy | SCA / skan obrazu i konfiguracji | znane podatności (CVE) w pakietach, błędy w Dockerfile | zadanie `trivy` |
 
 Wszystko w repozytorium `lab/hello-lab` w GitLabie (plik `.gitlab-ci.yml`), na Runnerze `monitoring-docker`
 ([02-gitlab-runner.md](02-gitlab-runner.md)).
@@ -163,6 +163,78 @@ danych, plików i poleceń systemowych, a `Dockerfile` ma już `USER 10001` (Eta
 
 ![pipeline #5: gitleaks i semgrep równolegle w etapie security](img/03-pipeline-5-semgrep.png)
 
+## Krok 3. Trivy – Dockerfile i obraz bazowy
+
+Własnego obrazu pipeline jeszcze nie buduje, więc Trivy sprawdza `Dockerfile` (`trivy config`) i **obraz bazowy**
+`python:3.14-slim` – z niego aplikacja dziedziczy wszystkie pakiety systemowe i Pythona.
+
+```yaml
+# Zadanie 4: Trivy – błędy w Dockerfile i znane podatności (CVE) w obrazie bazowym
+trivy:
+  stage: security
+  image:
+    name: aquasec/trivy:latest   # obraz z programem trivy
+    entrypoint: [""]             # jak przy gitleaks – GitLab uruchamia nasz "script"
+  script:
+    - trivy config --exit-code 1 .
+    # config        – sprawdza pliki konfiguracyjne (u nas Dockerfile) z dobrymi praktykami
+    # --exit-code 1 – są błędy = zadanie czerwone
+    - trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 python:3.14-slim
+    # image              – pobiera obraz i porównuje jego pakiety z bazą znanych podatności (CVE)
+    # --severity         – pokazuj tylko poważne: HIGH i CRITICAL
+    # --ignore-unfixed   – pomiń podatności, na które nie ma jeszcze poprawki (nie da się ich naprawić)
+    # --exit-code 0      – na razie tylko raport, bez zatrzymywania pipeline'u
+```
+
+`--exit-code 0` przy obrazie bazowym: to nie nasz kod – pipeline stawałby na podatności, której nie możemy sami
+naprawić. Najpierw raport, potem decyzja o progu.
+
+Commit `8f1267f` → **pipeline #6 passed** (2 min 11 s): `hello` → `gitleaks` + `semgrep` + `trivy` równolegle.
+`trivy config` przeszedł (przy `--exit-code 1` błąd w `Dockerfile` zatrzymałby zadanie).
+
+![pipeline #6: trzy skanery równolegle w etapie security](img/03-pipeline-6-trivy.png)
+
+Log `trivy image` (job #17) – skrócony:
+
+```text
+INFO  Detected OS     family="debian" version="13.8"
+INFO  [debian] Detecting vulnerabilities...    os_version="13" pkg_num=87
+INFO  Number of language-specific files       num=1
+INFO  [python-pkg] Detecting vulnerabilities...
+Report Summary
+│ Target                                                          │ Type       │ Vulnerabilities │
+│ python:3.14-slim (debian 13.8)                                  │ debian     │ 1               │
+│ Python                                                          │ python-pkg │ 5               │
+│ usr/local/lib/python3.14/site-packages/pip-26.2.2.dist-info/... │ python-pkg │ 0               │
+
+python:3.14-slim (debian 13.8)
+Total: 1 (HIGH: 1, CRITICAL: 0)
+│ Library   │ Vulnerability   │ Severity │ Status │ Installed Version │ Fixed Version        │ Title                                          │
+│ libzstd1  │ CVE-2026-124851 │ HIGH     │ fixed  │ 1.5.7+dfsg-1      │ 1.5.7+dfsg-1+deb13u1 │ zstd: Information Disclosure via Uninitialized Buffer │
+
+Python (python-pkg)
+Total: 5 (HIGH: 5, CRITICAL: 0)
+│ msgpack    │ CVE-2026-114613     │ HIGH │ fixed │ 1.1.2  │ 1.2.3  │ Denial of Service via memory leak during map deserialization │
+│            │ GHSA-6v7p-g79w-8964 │      │       │        │ 1.2.1  │ Out-of-bounds read / crash on Unpacker reuse │
+│ setuptools │ CVE-2025-47273      │      │       │ 70.3.0 │ 78.1.1 │ Path Traversal Vulnerability in setuptools PackageIndex │
+│ urllib3    │ CVE-2026-97687      │      │       │ 2.7.0  │ 2.8.0  │ Traffic interception via HTTPS proxy TLS configuration override │
+│            │ CVE-2026-97689      │      │       │        │        │ Denial of Service via unbounded memory allocation in chunk parser │
+Job succeeded
+```
+
+### Jak czytać wynik (triage)
+
+| Pytanie | Odpowiedź dla `hello-lab` |
+|---|---|
+| Ile i jak poważne? | 6 × HIGH, 0 × CRITICAL; wszystkie mają poprawkę (`Status: fixed`) |
+| Skąd się wzięły? | `libzstd1` – pakiet Debiana w obrazie bazowym; `msgpack`, `setuptools`, `urllib3` – biblioteki Pythona dostarczone z obrazem (narzędzia instalacyjne, m.in. `pip`) |
+| Czy aplikacja ich używa? | **Nie** – `app.py` korzysta tylko z biblioteki standardowej (`http.server`, `json`, `socket`); nie importuje `urllib3` ani `msgpack`. Podatność jest w obrazie, ale nieosiągalna z kodu aplikacji (*reachability*) |
+| Czy mimo to naprawiać? | Tak, ale bez paniki: atakujący, który wejdzie do kontenera, może ich użyć; skaner w firmie i audytor i tak je zgłoszą |
+| Jak naprawić? | nowszy obraz bazowy (wydawca łata regularnie), `apt-get upgrade` w `Dockerfile`, usunięcie zbędnych narzędzi z obrazu końcowego (`pip`, `setuptools`) albo obraz minimalny (distroless) |
+
+`WARN Using severities from other vendors` – dla części CVE Trivy bierze ocenę od innego dostawcy (np. NVD zamiast
+Debiana), bo dystrybucja jeszcze jej nie podała.
+
 ## Pytania rekrutacyjne
 
 - *Co to jest „shift left”?* – przesunięcie testów (też bezpieczeństwa) na wcześniejszy etap: do IDE i pipeline'u
@@ -172,5 +244,14 @@ danych, plików i poleceń systemowych, a `Dockerfile` ma już `USER 10001` (Eta
   nie pomaga – sekret jest w historii.
 - *Dlaczego gitleaks z `GIT_DEPTH: 0`?* – domyślny płytki klon nie zawiera starych commitów, a sekrety często
   siedzą właśnie tam.
+- *Trivy znalazł 6 podatności HIGH w obrazie. Co robisz?* – triage: czy jest poprawka, skąd pochodzi pakiet,
+  czy aplikacja go używa (reachability), czy jest publiczny exploit; potem aktualizacja obrazu bazowego
+  i odchudzenie obrazu końcowego. Nie każde HIGH oznacza realne ryzyko dla tej aplikacji.
+- *Dlaczego `--ignore-unfixed`?* – podatność bez poprawki nie da się naprawić aktualizacją; zatrzymywanie na niej
+  pipeline'u tylko blokuje pracę. Śledzi się ją osobno (akceptacja ryzyka, VEX).
+- *Co to jest SCA?* – Software Composition Analysis: sprawdzanie cudzych komponentów (biblioteki, pakiety systemowe,
+  obraz bazowy) w bazach znanych podatności (CVE, GHSA).
+- *Dlaczego zielony pipeline nie znaczy „bezpiecznie”?* – próg (`--exit-code`, `--severity`) ustala człowiek;
+  tu skan obrazu bazowego to tylko raport, a 0 znalezisk Semgrepa znaczy tylko, że żadna reguła nie pasuje.
 - *Czym różni się secret scanning od SAST?* – secret scanning szuka danych uwierzytelniających (wzorce tokenów,
   entropia), SAST szuka błędów w logice i użyciu funkcji (wstrzyknięcia, XSS, niebezpieczne API).
