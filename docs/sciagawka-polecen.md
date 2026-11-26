@@ -491,7 +491,7 @@ Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.m
 | 🐧 `sudo gitlab-runner verify` | czy GitLab zna token Runnera (`is valid`) |
 | 🐧 `sudo gitlab-runner list` | Runnery z `/etc/gitlab-runner/config.toml` |
 | 🐧 `sudo systemctl status gitlab-runner` | czy usługa Runnera działa |
-| 🐧 `sudo grep -n -E 'volume|shm_size' /etc/gitlab-runner/config.toml` | wybrane linie konfiguracji Runnera z numerami (bez linii z tokenem) |
+| 🐧 `sudo grep -n -E 'volume\|shm_size' /etc/gitlab-runner/config.toml` | wybrane linie konfiguracji Runnera z numerami (bez linii z tokenem) |
 | 🐧 `sudo sed -i '42,44d' PLIK` | usuwa linie 42–44 (bez pytania; `-i.bak` robi kopię) |
 | 🐧 `journalctl -u gitlab-runner --since "10 min ago"` | log Runnera – czy wczytał `config.toml` (`Configuration loaded`) |
 | 🐧 `docker run --rm --entrypoint sh OBRAZ -c "id"` | zajrzyj do obrazu: użytkownik (też `ls -la /app`, `pip list`, `dpkg -l PAKIET`) |
