@@ -101,6 +101,33 @@ do commitów; nie wpływa na wynik skanu.
 kto sklonuje repozytorium, może je odczytać. Kolejność: **najpierw unieważnij** (nowe hasło / nowy token),
 potem ewentualnie przepisz historię (`git filter-repo`) i dodaj regułę do pipeline'u.
 
+## Krok 2. Semgrep – SAST
+
+Dopisane na końcu `.gitlab-ci.yml`:
+
+```yaml
+# Zadanie 3: Semgrep (SAST) – szuka niebezpiecznych wzorców w kodzie, bez uruchamiania aplikacji
+semgrep:
+  stage: security       # ten sam etap co gitleaks – oba zadania ruszą równolegle
+  image: semgrep/semgrep:latest   # oficjalny obraz z programem semgrep
+  script:
+    - semgrep scan --config p/python --config p/dockerfile --error .
+    # scan                  – przeskanuj pliki w katalogu
+    # --config p/python     – gotowy zestaw reguł dla Pythona (app.py)
+    # --config p/dockerfile – reguły dla Dockerfile
+    # --error               – są znaleziska = zadanie czerwone, pipeline zatrzymany
+    # .                     – skanuj całe repozytorium
+```
+
+`p/python`, `p/dockerfile` – gotowe zestawy reguł z rejestru Semgrepa (pobierane przy każdym skanie).
+Zadania w tym samym etapie (`gitleaks`, `semgrep`) działają **równolegle**.
+
+Commit `f59f37a` → **pipeline #5 passed**: `hello` ✅ → `gitleaks` ✅ + `semgrep` ✅. Całość 3 min 58 s – obraz
+Semgrepa (kilkaset MB) pobierał się pierwszy raz. Zielony `semgrep` z `--error` = reguły niczego nie znalazły
+(log zadania nie został zapisany).
+
+![pipeline #5: gitleaks i semgrep równolegle w etapie security](img/03-pipeline-5-semgrep.png)
+
 ## Pytania rekrutacyjne
 
 - *Co to jest „shift left”?* – przesunięcie testów (też bezpieczeństwa) na wcześniejszy etap: do IDE i pipeline'u
