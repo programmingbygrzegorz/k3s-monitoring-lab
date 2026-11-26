@@ -464,9 +464,20 @@ Wersja `d6b0d4f6` na stronie = hash commita – w klastrze działa obraz zbudowa
 Strona jest dostępna z Windowsa w przeglądarce pod `http://192.168.180.51:30880` (NodePort działa na każdym węźle;
 sieć VMnet8 – tylko z tego komputera).
 
-⚠️ **Drift:** `kubectl set image` zmienił obraz tylko w klastrze – w `kubernetes/hello-lab/hello-lab.yaml` (linia 29)
-nadal jest `hello-lab:1.0`. Ponowne `kubectl apply -f` przywróciłoby stary obraz. Do poprawienia w pliku; docelowo
-**GitOps (Argo CD)** – pipeline zmienia tag w gicie, Argo CD pilnuje, żeby klaster był taki jak w gicie.
+⚠️ **Drift:** `kubectl set image` zmienia obraz tylko w klastrze – w `kubernetes/hello-lab/hello-lab.yaml` (linia 29)
+zostało `hello-lab:1.0`; ponowne `kubectl apply -f` przywróciłoby stary, dziurawy obraz. Poprawka – commit `562a616`
+(`image: 192.168.180.54:5000/hello-lab:d6b0d4f6`, CI lint zielony), na masterze `git pull` i sprawdzenie:
+
+```bash
+kubectl diff -f kubernetes/hello-lab/hello-lab.yaml; echo "diff exit: $?"
+```
+
+```text
+diff exit: 0
+```
+
+`kubectl diff` porównuje plik z klastrem i niczego nie zmienia; pusty wynik i kod `0` = plik i klaster takie same.
+Docelowo **GitOps (Argo CD)** – pipeline zmienia tag w gicie, Argo CD pilnuje, żeby klaster był taki jak w gicie.
 
 ## Gdzie co jest
 
