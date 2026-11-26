@@ -30,7 +30,7 @@ Szczegóły i wyjaśnienia są w folderach etapów `docs/etap-…` – każdy et
 | ↳ Etap 3 – ćwiczenia: własny chart Helma | 7 poziomów: `helm create`, szablon ConfigMap, `helm template`, install, pod czytający ConfigMap, upgrade z `--set`, rollback | – | [ćwiczenia](etap-3-monitoring/11-cwiczenia-wlasny-chart-helm.md), [odpowiedzi](etap-3-monitoring/12-cwiczenia-wlasny-chart-helm-rozwiazania.md) |
 | ↳ Etap 3 – ćwiczenia: Ingress, nip.io i HTTPS | 7 poziomów: whoami za Traefikiem, nagłówek `Host`, plik `hosts`, nip.io, własne CA, Secret `tls`, HTTPS | – | [ćwiczenia](etap-3-monitoring/13-cwiczenia-ingress.md), [rozwiązania](etap-3-monitoring/14-cwiczenia-ingress-rozwiazania.md) |
 | ↳ Etap 3 – ćwiczenia z monitoringu | 8 poziomów: Target health, PromQL, wykresy, reguły, dashboardy, alert i wyciszenie, własny wykres | – | [ćwiczenia z monitoringu](etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania ze zrzutami](etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md) |
-| Etap 4 – monitoring poza klastrem | Grafana i Uptime Kuma na `monitoring`, healthchecks.io | – | [📁 folder](etap-4-monitoring-zewnetrzny/README.md), [monitoring zewnętrzny](etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md) |
+| Etap 4 – monitoring poza klastrem ✅ | Grafana i Uptime Kuma na `monitoring`, healthchecks.io, e-maile, testy awarii | – | [📁 folder](etap-4-monitoring-zewnetrzny/README.md), [monitoring zewnętrzny](etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md) |
 | ↳ Etap 4 – własny obraz | Dockerfile, warstwy, nie-root, rejestr z TLS i własnym CA, obraz na k3s, aktualizacja i wycofanie | – | [jak zbudować własny obraz](etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md), [ćwiczenia](etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
 | Etap 5 – scenariusze awarii | awarie węzłów i aplikacji, diagnoza w terminalu | – | [📁 folder](etap-5-scenariusze-awarii/README.md), [scenariusze awarii](etap-5-scenariusze-awarii/01-scenariusze-awarii.md) |
 | ↳ Etap 5 – typowe awarie Kubernetesa | metoda diagnozy, statusy i kody wyjścia, 17 problemów z poleceniami i naprawą, 11 zepsutych obiektów do ćwiczeń | – | [typowe awarie Kubernetesa](etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) |
@@ -743,6 +743,25 @@ Pojęcia: [teoria Kubernetes i Helm](etap-3-monitoring/03-teoria-kubernetes-helm
 | 30 | 📸 snapshot, `lab.env` → `envsubst` → `helm upgrade --install … --version 92.16.1 --wait` |
 | 31 | `kubectl apply` aplikacji demo i reguł alertów |
 | 32 | Grafana `:30300`, Prometheus `:30090` (Targets), Alertmanager `:30093`, podinfo `:30898`; 📸 snapshot |
+
+## Etap 4 – monitoring poza klastrem
+
+Grafana i Uptime Kuma w Dockerze na `monitoring`, dead man's switch w healthchecks.io, e-maile, a przy okazji
+własny obraz `hello-lab` i rejestr z TLS. Każdy krok z poleceniami i wynikami z labu:
+[docs/etap-4-monitoring-zewnetrzny/05-przebieg-wdrozenia.md](etap-4-monitoring-zewnetrzny/05-przebieg-wdrozenia.md);
+podsumowanie: [Etap 4 w pigułce](etap-4-monitoring-zewnetrzny/README.md#etap-4-w-pigułce--zacznij-tutaj).
+
+| Krok | Co robisz |
+|---|---|
+| 1–3 | 📸 snapshot `monitoring`, kopia obrazu `app` (`docker save`), pełny reset Dockera |
+| 4 | Docker od zera, użytkownik w grupie `docker` |
+| 5 | CA labu i certyfikat rejestru (`openssl`), `registry:3` z TLS na `:5000`, `docker push` |
+| 6 | k3s ufa rejestrowi: `lab-ca.crt` + `registries.yaml` na 4 węzłach, `hello-lab` na NodePort `30880` |
+| 7 | healthchecks.io: Watchdog → Alertmanager → ping co 1 min, Period 2 min / Grace 5 min |
+| 8 | `.env` (600) z `lab.env`, `docker compose up -d` – Grafana `:3000`, Uptime Kuma `:3001`, monitory |
+| 9 | reguła `ufw` 6443 dla `monitoring` w roli Ansible `common` (drift usunięty) |
+| 10–11 | testy awarii: wyłączony worker-3 i worker-1 – alerty, Kuma, e-mail `DOWN` z healthchecks.io |
+| 12–13 | e-mail z Uptime Kumy (Gmail SMTP 465) i z Alertmanagera (tylko `critical`, helm rewizja 4) |
 
 ---
 

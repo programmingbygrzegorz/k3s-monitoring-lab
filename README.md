@@ -76,7 +76,7 @@ w firmie Buildah / BuildKit rootless), wdrożenie w k3s jeszcze ręczne (docelow
 
 | 🖥️ Maszyny | ☸️ Węzły k3s | 📚 Etapy | 🧩 Ćwiczenia | 🐞 Opisane problemy |
 |:---:|:---:|:---:|:---:|:---:|
-| 6 działa, 2 w planie | 1 master + 3 workery | 5 gotowych, 4 w trakcie, 5 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
+| 6 działa, 2 w planie | 1 master + 3 workery | 6 gotowych, 3 w trakcie, 5 w planie | 10 poziomów Linux, 40 problemów nginx/bazy, kubectl, monitoring, Helm, Ingress, obrazy | kilkadziesiąt, każdy z objawem, przyczyną i naprawą |
 
 ## Architektura
 
@@ -140,11 +140,11 @@ flowchart LR
         e0b --> e1["Etap 1 · system + ćwiczenia Linux, nginx, bazy"]
         e1 --> e2["Etap 2 · k3s przez Ansible + Vault"]
         e2 --> e3["Etap 3 · Prometheus, Grafana, Helm, Ingress, PVC"]
+        e3 --> e4["Etap 4 · monitoring zewnętrzny, własny obraz, e-maile"]
     end
     subgraph wip["🔧 W trakcie"]
         direction TB
-        e4["Etap 4 · monitoring zewnętrzny, własny obraz"] --> e5["Etap 5 · scenariusze awarii"]
-        e5 --> e6["Etap 6 · GUI: Headlamp ✅, Portainer, Semaphore"]
+        e5["Etap 5 · scenariusze awarii"] --> e6["Etap 6 · GUI: Headlamp ✅, Portainer, Semaphore"]
         e6 --> e7["Etap 7 · GitLab CI ✅, gitleaks, Semgrep, Trivy ✅, Argo CD"]
     end
     subgraph plan["🗓️ W planie"]
@@ -157,8 +157,8 @@ flowchart LR
     classDef d fill:#d1f7c4,stroke:#2e7d32,color:#1b5e20
     classDef w fill:#fff3c4,stroke:#f9a825,color:#6d4c00
     classDef p fill:#e8eaf6,stroke:#5c6bc0,color:#283593
-    class e0,e0b,e1,e2,e3 d
-    class e4,e5,e6,e7 w
+    class e0,e0b,e1,e2,e3,e4 d
+    class e5,e6,e7 w
     class e8,e9,e9b p
 ```
 
@@ -225,7 +225,7 @@ Każdy etap ma w `docs/` swój folder z instrukcją, teorią, ćwiczeniami, rozw
 | 1 – przygotowanie systemu, administracja Linuxem | [etap-1-przygotowanie-systemu](docs/etap-1-przygotowanie-systemu/README.md) | [skrypt prepare-node](docs/etap-1-przygotowanie-systemu/01-skrypt-prepare-node.md), [jak czytać polecenia](docs/etap-1-przygotowanie-systemu/06-jak-czytac-polecenia.md) | admin Linuxa, 10 poziomów: [zadania](docs/etap-1-przygotowanie-systemu/02-cwiczenia-admin-linux.md), [rozwiązania](docs/etap-1-przygotowanie-systemu/03-cwiczenia-admin-linux-rozwiazania.md); 40 problemów nginx i bazy: [zadania](docs/etap-1-przygotowanie-systemu/04-cwiczenia-nginx-bazy.md), [rozwiązania](docs/etap-1-przygotowanie-systemu/05-cwiczenia-nginx-bazy-rozwiazania.md) |
 | 2 – klaster k3s przez Ansible, Vault | [etap-2-k3s-ansible](docs/etap-2-k3s-ansible/README.md) | [Ansible](docs/etap-2-k3s-ansible/01-teoria-ansible.md), [Ansible plik po pliku](docs/etap-2-k3s-ansible/07-ansible-plik-po-pliku.md) | kubectl: [zadania](docs/etap-2-k3s-ansible/05-cwiczenia-kubectl.md), [rozwiązania](docs/etap-2-k3s-ansible/06-cwiczenia-kubectl-rozwiazania.md); Ansible: [zadanie](docs/etap-2-k3s-ansible/08-cwiczenie-ansible-pakiet.md), [rozwiązanie](docs/etap-2-k3s-ansible/09-cwiczenie-ansible-pakiet-rozwiazanie.md) |
 | 3 – monitoring w klastrze, Helm, Ingress | [etap-3-monitoring](docs/etap-3-monitoring/README.md) | [Kubernetes i Helm](docs/etap-3-monitoring/03-teoria-kubernetes-helm.md), [monitoring](docs/etap-3-monitoring/04-teoria-monitoringu.md), [trwałe dane](docs/etap-3-monitoring/08-trwale-dane.md), [jak pisać YAML](docs/etap-3-monitoring/15-jak-pisac-yaml-podinfo.md) | monitoring: [zadania](docs/etap-3-monitoring/05-cwiczenia-monitoringu.md), [rozwiązania](docs/etap-3-monitoring/06-cwiczenia-monitoringu-rozwiazania.md); etykiety, ConfigMap, PVC: [zadania](docs/etap-3-monitoring/09-cwiczenia-etykiety-configmap-pvc.md), [rozwiązania](docs/etap-3-monitoring/10-cwiczenia-etykiety-configmap-pvc-rozwiazania.md); własny chart Helm: [zadania](docs/etap-3-monitoring/11-cwiczenia-wlasny-chart-helm.md), [rozwiązania](docs/etap-3-monitoring/12-cwiczenia-wlasny-chart-helm-rozwiazania.md); Ingress: [zadania](docs/etap-3-monitoring/13-cwiczenia-ingress.md), [rozwiązania](docs/etap-3-monitoring/14-cwiczenia-ingress-rozwiazania.md) |
-| 4 – monitoring poza klastrem, własny obraz | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [monitoring zewnętrzny](docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md), [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | obraz i rejestr: [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
+| 4 – monitoring poza klastrem, własny obraz ✅ | [etap-4-monitoring-zewnetrzny](docs/etap-4-monitoring-zewnetrzny/README.md) | [monitoring zewnętrzny](docs/etap-4-monitoring-zewnetrzny/01-monitoring-zewnetrzny.md), [własny obraz](docs/etap-4-monitoring-zewnetrzny/02-wlasny-obraz.md) | obraz i rejestr: [zadania](docs/etap-4-monitoring-zewnetrzny/03-cwiczenia-obraz.md), [rozwiązania](docs/etap-4-monitoring-zewnetrzny/04-cwiczenia-obraz-rozwiazania.md) |
 | 5 – scenariusze awarii | [etap-5-scenariusze-awarii](docs/etap-5-scenariusze-awarii/README.md) | [typowe awarie Kubernetesa](docs/etap-5-scenariusze-awarii/02-typowe-awarie-kubernetesa.md) | [scenariusze awarii](docs/etap-5-scenariusze-awarii/01-scenariusze-awarii.md), [zepsute obiekty do diagnozy](kubernetes/awarie/zepsute.yaml) |
 | 6 – zarządzanie przez GUI | [etap-6-gui](docs/etap-6-gui/README.md) | [Headlamp: Service, NodePort, token](docs/etap-6-gui/01-headlamp.md) | – |
 | 7 – CI/CD: GitLab, Runner, pipeline *(w trakcie)* | [etap-7-cicd-gitlab](docs/etap-7-cicd-gitlab/README.md) | [maszyna gitlab i GitLab CE](docs/etap-7-cicd-gitlab/01-maszyna-gitlab.md) | – |

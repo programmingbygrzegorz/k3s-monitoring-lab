@@ -1297,5 +1297,5 @@ w *Wysłanych*), po ok. 5 min – `[RESOLVED]` (alert bez odnawiania wygasa po `
   sam przy pierwszym pingu. Przy serwisie jednej maszyny: *New Silence* w Alertmanagerze (np. `node="k3s-worker-1"`);
 - ~~test awarii B (worker-1)~~ ✅ 10.11, e-mail `DOWN` o 09:28:34 ([krok 11](#krok-11--test-awarii-b-wyłączony-worker-1-10112026));
   e-mail `UP` po powrocie – niepotwierdzony;
-- zamknięcie Etapu 4;
+- ~~zamknięcie Etapu 4~~ ✅ 26.11 ([pigułka](README.md#etap-4-w-pigułce--zacznij-tutaj));
 - pominięte poziomy ćwiczeń z obrazu: 2 (warstwy), 4 (`.dockerignore`), 8 (nowa wersja i wycofanie).
