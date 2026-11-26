@@ -26,7 +26,9 @@ spec:
     spec:
       containers:
         - name: hello-lab
-          image: 192.168.180.54:5000/hello-lab:1.0
+          # PL: obraz z pipeline GitLaba (tag = hash commita), przeszedł Trivy – pipeline #10
+          # EN: image from the GitLab pipeline (tag = commit hash), passed Trivy – pipeline #10
+          image: 192.168.180.54:5000/hello-lab:d6b0d4f6
           ports:
             - containerPort: 8080
           env:
