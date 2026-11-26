@@ -63,6 +63,40 @@ każdym znalezisku, więc zielone zadanie = brak sekretów w całej historii (4 
 
 ![pipeline #4: test → security, oba zadania zielone](img/03-pipeline-4-gitleaks.png)
 
+Log zadania `gitleaks` (job #10, 17 s) – skrócony:
+
+```text
+Running with gitlab-runner 19.6.1 (9afb29f8)
+  on monitoring-docker ONR1xLro1, system ID: s_d7ec67165f91
+Preparing the "docker" executor                                    00:17
+Pulling docker image zricethezav/gitleaks:latest ...
+Using docker image sha256:c08b6bd0aeb3… for zricethezav/gitleaks:latest with digest zricethezav/gitleaks@sha256:c08b6bd0aeb3…
+Preparing environment
+Running on runner-onr1xlro1-project-1-concurrent-0 via monitoring...
+Getting source from Git repository
+Fetching changes...
+Checking out 8c1fff28 as detached HEAD (ref is main)...
+Executing "step_script" stage of the job script
+$ gitleaks git --verbose --redact .
+7:56AM INF 4 commits scanned.
+7:56AM INF scanned ~5032 bytes (5.03 KB) in 53.5ms
+7:56AM INF no leaks found
+Cleaning up project directory and file based variables
+Job succeeded
+```
+
+| Sekcja logu | Co się dzieje |
+|---|---|
+| `Preparing the "docker" executor` | Runner pobiera obraz z zadania (17 s – pierwszy raz; potem z pamięci Dockera na `monitoring`) |
+| `Using docker image … with digest …` | dokładna wersja obrazu (digest) – `latest` może jutro oznaczać inny obraz, digest nie |
+| `Getting source from Git repository` | Runner klonuje repozytorium i przełącza się na commit pipeline'u (`8c1fff28`) |
+| `Executing "step_script"` | polecenia z `script:` |
+| `4 commits scanned`, `no leaks found` | dzięki `GIT_DEPTH: 0` przejrzana cała historia – 4 commity, brak sekretów |
+| `Cleaning up` | kontener zadania usunięty („jednorazowe rękawiczki”) |
+
+Uwaga `Unknown SCM platform` – gitleaks nie rozpoznał GitLaba po adresie IP, więc w raporcie nie ma linków
+do commitów; nie wpływa na wynik skanu.
+
 **Sekret w historii:** usunięcie hasła w nowym commicie nic nie daje – stary commit nadal je zawiera i każdy,
 kto sklonuje repozytorium, może je odczytać. Kolejność: **najpierw unieważnij** (nowe hasło / nowy token),
 potem ewentualnie przepisz historię (`git filter-repo`) i dodaj regułę do pipeline'u.
