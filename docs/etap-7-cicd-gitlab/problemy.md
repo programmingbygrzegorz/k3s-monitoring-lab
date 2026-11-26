@@ -65,3 +65,45 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
 - **Rozwiązanie:** `COPY --chmod=644 app.py .` → w obrazie `8480121a`: `-rw-r--r--`.
 - **Wniosek:** pipeline może wprowadzić słabość, której nie widać w kodzie; skanery nie łapią wszystkiego – ręczna
   kontrola zbudowanego obrazu (`id`, `ls -la`) uzupełnia automaty.
+
+## Argo CD: CREATE nic nie tworzy
+
+- **Objaw:** w formularzu **+ NEW APP** kliknięcie **CREATE** nic nie robi – brak kafelka, `kubectl get applications -n argocd`
+  → `No resources found`.
+- **Przyczyna:** złe wartości w polach, w trzech próbach różne:
+  - **Project Name** `Project Itechnology`, potem `Project lab` – **autouzupełnianie przeglądarki** (wartości z innych
+    formularzy); w świeżym Argo CD istnieje tylko projekt `default`;
+  - na początku nazwy i adresu repozytorium **znak tabulacji** (`\thello-lab`) – doklejony przy kopiowaniu z tabeli;
+  - pusta sekcja **DESTINATION** (Cluster URL i Namespace) – Argo CD nie wie, gdzie wdrażać.
+- **Diagnoza:** log serwera Argo CD pokazuje, co naprawdę przyszło z formularza:
+  `kubectl -n argocd logs deploy/argocd-server --since=10m | grep -iE 'error|NotFound|hello-lab'` →
+  `appproject.argoproj.io "Project lab" not found`, `repository not found`, `appName:"\thello-lab"`.
+- **Rozwiązanie:** odświeżyć formularz, wartości wpisać z klawiatury, *Project* i *Cluster URL* wybrać z list Argo CD
+  (`default`, `https://kubernetes.default.svc`), Namespace `hello-lab`; podpowiedzi przeglądarki zamykać Esc.
+  Pewniejsza droga: aplikacja jako plik YAML i `kubectl apply` ([05-argo-cd.md](05-argo-cd.md#krok-3-aplikacja-hello-lab)).
+- **Wniosek:** gdy interfejs „nic nie robi”, log serwera mówi, co dostał. Definicja aplikacji w pliku (w gicie) jest
+  powtarzalna i odporna na takie pomyłki.
+
+## Self Heal nie cofa ręcznej zmiany (OutOfSync zostaje)
+
+- **Objaw:** po `kubectl scale deployment hello-lab -n hello-lab --replicas=4` w klastrze zostają 4 pody, w Argo CD
+  status **OutOfSync**.
+- **Przyczyna:** przy tworzeniu aplikacji zaznaczyło się tylko *Automatic* – `selfHeal` i `prune` wyłączone.
+- **Diagnoza:** `kubectl get application hello-lab -n argocd -o jsonpath='{.spec.syncPolicy}'` →
+  `{"automated":{"enabled":true,"prune":false,"selfHeal":false}}`.
+- **Rozwiązanie:** **DETAILS → SYNC POLICY → ENABLE** przy *Prune Resources* i *Self Heal* (albo `kubectl patch`) →
+  po kilku sekundach `Scaled down replica set … from 4 to 2`, status Synced.
+- **Wniosek:** `automated` wdraża zmiany **z gita**; ręczne zmiany **w klastrze** cofa dopiero `selfHeal`.
+
+## Usuwany pod: 30 s Terminating, potem Error
+
+- **Objaw:** przy zmniejszaniu liczby replik pody `hello-lab` wiszą 30 s w `Terminating`, a potem mają status `Error`
+  (`0/1`).
+- **Przyczyna:** `CMD ["python", "app.py"]` – Python jest PID 1 w kontenerze i nie ma obsługi SIGTERM; jądro nie
+  stosuje wobec PID 1 domyślnej akcji sygnału, więc SIGTERM jest ignorowany. Po `terminationGracePeriodSeconds` (30 s)
+  Kubernetes wysyła SIGKILL → kod 137 → `Error`.
+- **Diagnoza:** czasy w `kubectl get pods -w` (Terminating 8m47s → Error 9m17s = 30 s);
+  `kubectl exec -n hello-lab deploy/hello-lab -- cat /proc/1/cmdline` → `python app.py`; brak `import signal` w `app.py`.
+- **Rozwiązanie (do zrobienia):** obsługa SIGTERM w `app.py`, albo `STOPSIGNAL SIGINT` w `Dockerfile`, albo `tini`
+  jako PID 1 – nowy obraz przez pipeline.
+- **Wniosek:** forma JSON w `CMD` daje sygnał prosto do aplikacji, ale aplikacja jako PID 1 musi go sama obsłużyć.

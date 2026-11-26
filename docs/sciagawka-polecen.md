@@ -498,3 +498,12 @@ Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.m
 | 🐧 `docker history --format "{{.Size}}	{{.CreatedBy}}" OBRAZ` | warstwy obrazu z rozmiarem; `--no-trunc` – pełne polecenia |
 | 🐧 `curl -s --cacert ca.crt https://192.168.180.54:5000/v2/hello-lab/tags/list` | wersje obrazu w rejestrze (`/v2/_catalog` – lista obrazów) |
 | 🐧 `echo $?` | kod wyjścia poprzedniego polecenia (`0` = sukces) |
+| 🐧 `helm install argocd argo/argo-cd --version 10.20.0 -n argocd --create-namespace --set …` | instaluje Argo CD (NodePort, bez Dexa) |
+| 🐧 `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" \| base64 -d; echo` | pierwsze hasło konta `admin` w Argo CD |
+| 🐧 `kubectl get applications -n argocd -o wide` | aplikacje Argo CD: Synced/OutOfSync, Healthy, rewizja z gita |
+| 🐧 `kubectl get application hello-lab -n argocd -o jsonpath='{.spec.syncPolicy}'` | czy włączone `automated`, `selfHeal`, `prune` |
+| 🐧 `kubectl -n argocd logs deploy/argocd-server --since=10m` | log serwera Argo CD – co przyszło z formularza w UI |
+| 🐧 `kubectl scale deployment NAZWA -n NS --replicas=4` | ręczna zmiana liczby replik (test Self Heal) |
+| 🐧 `kubectl get pods -n NS -w` | obserwuje pody na żywo (Ctrl+C kończy) |
+| 🐧 `kubectl exec -n NS deploy/NAZWA -- cat /proc/1/cmdline` | jaki program jest PID 1 w kontenerze |
+| 🐧 `kubectl get svc kubernetes -n default` | Service API Kubernetesa (`kubernetes.default.svc` → `10.43.0.1:443`) |
