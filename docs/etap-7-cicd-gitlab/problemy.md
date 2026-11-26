@@ -40,3 +40,28 @@ Ogólna metoda diagnozowania i problemy niezwiązane z jednym etapem: [problemy 
   Prostsza droga: ✏️ przy Runnerze → *Run untagged jobs* – ale wtedy Runner bierze wszystko.
 - **Wniosek:** tagi decydują, który Runner weźmie zadanie (Docker, GPU, Windows, produkcja). Jawny tag
   w każdym zadaniu jest bezpieczniejszy niż Runner „bierze wszystko”.
+
+## Failed to load config – Key 'runners.docker.volumes' has already been defined
+
+- **Objaw:** po dopisaniu `docker.sock` do `/etc/gitlab-runner/config.toml` w logu Runnera
+  (`journalctl -u gitlab-runner`) `ERROR: Failed to load config … toml: line 42 (last key "runners.docker.volumes"):
+  Key 'runners.docker.volumes' has already been defined`; po usunięciu jednej linii – to samo dla `volume_keep`.
+- **Przyczyna:** nowa linia `volumes` dopisana obok starej (dwa razy ten sam klucz w sekcji = błąd TOML), a potem
+  wklejony cały fragment z `volume_keep`, `shm_size`, `network_mtu`, które w pliku już były. Runner **nie wczytuje**
+  błędnego pliku i działa dalej na poprzedniej konfiguracji – bez sygnału w GitLabie.
+- **Diagnoza:** `sudo grep -n -E 'volume|shm_size|network_mtu|disable_cache' /etc/gitlab-runner/config.toml` – numery
+  linii pokazały duplikaty 42–44 (`grep` po wybranych kluczach, żeby nie wyświetlać linii z tokenem).
+- **Rozwiązanie:** `sudo sed -i '42,44d' /etc/gitlab-runner/config.toml` (usuń linie 42–44); w logu `Configuration loaded`.
+  Pułapka: `sed` wklejony za zaznaczonym poprzednim poleceniem dokleił się do linii `grep` – najpierw Ctrl+C, potem wklejanie.
+- **Wniosek:** po każdej zmianie `config.toml` sprawdź `journalctl -u gitlab-runner`. `sed -i` nie pyta i nie robi
+  kopii – najpierw `grep -n`, ewentualnie `sed -i.bak`.
+
+## app.py w obrazie z prawami 666 (-rw-rw-rw-)
+
+- **Objaw:** `docker run --rm --entrypoint sh …/hello-lab:729765dc -c "ls -la /app"` → `-rw-rw-rw- root root app.py`,
+  choć aplikacja działa jako `app` (uid 10001) – każdy w kontenerze może zmienić kod. gitleaks, Semgrep i Trivy – zielone.
+- **Przyczyna:** GitLab Runner z executorem Docker klonuje repozytorium z `umask 0000`, pliki dostają 666, a `COPY`
+  w `Dockerfile` przenosi prawa do obrazu. Przy ręcznym budowaniu (Etap 4, `umask` 0002/0022) problemu nie było.
+- **Rozwiązanie:** `COPY --chmod=644 app.py .` → w obrazie `8480121a`: `-rw-r--r--`.
+- **Wniosek:** pipeline może wprowadzić słabość, której nie widać w kodzie; skanery nie łapią wszystkiego – ręczna
+  kontrola zbudowanego obrazu (`id`, `ls -la`) uzupełnia automaty.
