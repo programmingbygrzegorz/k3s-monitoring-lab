@@ -458,6 +458,8 @@ hello-lab-794b79885b-g7vhx   1/1   Running   k3s-worker-2
 hello-lab-794b79885b-sglpl   1/1   Running   k3s-worker-3
 ```
 
+![hello-lab w przeglądarce: wersja d6b0d4f6](img/04-hello-lab-d6b0d4f6.jpg)
+
 Wersja `d6b0d4f6` na stronie = hash commita – w klastrze działa obraz zbudowany i sprawdzony przez pipeline.
 Strona jest dostępna z Windowsa w przeglądarce pod `http://192.168.180.51:30880` (NodePort działa na każdym węźle;
 sieć VMnet8 – tylko z tego komputera).
