@@ -11,11 +11,58 @@ GitHub: kubernetes/hello-lab/hello-lab.yaml ──Argo CD──▶ k3s (namespac
          („2 repliki, obraz d6b0d4f6”)        co ~3 min porównuje git z klastrem i wyrównuje
 ```
 
+## Mapa: co, gdzie i który plik do czego
+
+```mermaid
+flowchart TB
+    subgraph GL["GitLab: lab/hello-lab – kod aplikacji (app repo)"]
+        A1["app.py – aplikacja WWW"]
+        A2["Dockerfile – przepis na obraz"]
+        A3[".gitlab-ci.yml – plan pipeline"]
+    end
+    subgraph GH["GitHub: k3s-monitoring-lab – konfiguracja (config repo)"]
+        C1["kubernetes/hello-lab/hello-lab.yaml<br/>co ma działać: 2 repliki, obraz d6b0d4f6"]
+    end
+    R["GitLab Runner na monitoring<br/>test → skany → build → skan obrazu → push"]
+    REG["Rejestr 192.168.180.54:5000<br/>obraz hello-lab:d6b0d4f6"]
+    ARGO["Argo CD w k3s<br/>co ~3 min: czy git = klaster?"]
+    subgraph K3S["Klaster k3s – namespace hello-lab"]
+        D["Deployment hello-lab<br/>2 pody: python app.py"]
+        S["Service hello-lab<br/>NodePort 30880"]
+    end
+    GL -->|git push| R
+    R --> REG
+    GH --> ARGO
+    ARGO -->|wdraża manifest| K3S
+    REG -->|k3s pobiera obraz| D
+```
+
+| Plik | Gdzie leży | Kto go czyta | Odpowiada na pytanie |
+|---|---|---|---|
+| `app.py` | GitLab | Python w kontenerze | **co robi aplikacja?** (strona, `/healthz`, `/api`) |
+| `Dockerfile` | GitLab | `docker build` w pipeline | **jak zbudować obraz?** (Python, użytkownik bez roota, `CMD`) |
+| `.gitlab-ci.yml` | GitLab | GitLab Runner | **jakie kroki po `git push`?** (test, skany, build, push) |
+| `hello-lab.yaml` | GitHub | Argo CD → Kubernetes | **co ma działać w klastrze?** (ile replik, który obraz, port) |
+| Application `hello-lab` | w klastrze (`kubectl get applications -n argocd`) | Argo CD | **którego folderu z gita pilnować?** |
+
+Pary, które łatwo pomylić:
+
+- **`Dockerfile` a `hello-lab.yaml`** – Dockerfile opisuje **jeden kontener** (co jest w obrazie), `hello-lab.yaml` –
+  **ile** takich kontenerów uruchomić i jak je wystawić.
+- **`.gitlab-ci.yml` a Application w Argo CD** – oba to automaty: pipeline **robi obraz** (CI), Argo CD **wdraża** (CD).
+- **Obraz a pod** – obraz `hello-lab:d6b0d4f6` leży w rejestrze jak płyta instalacyjna; pod to uruchomiony kontener
+  z tego obrazu (są 2).
+
 **Dwa repozytoria – celowo.** *App repo* (GitLab `lab/hello-lab`) zawiera kod, z którego CI robi obraz.
 *Config repo* (GitHub `k3s-monitoring-lab`) zawiera manifesty – opis tego, co ma działać w klastrze. Argo CD czyta
 tylko config repo: historia gita w nim to historia wdrożeń, a uprawnienia do kodu i do wdrożeń są rozdzielone.
 W firmie oba byłyby w jednym systemie (zwykle prywatne, Argo CD z tokenem tylko do odczytu); w labie config repo jest
 publiczne na GitHubie, więc Argo CD nie potrzebuje hasła.
+
+`hello-lab.yaml` mógłby równie dobrze leżeć w GitLabie – Argo CD potrzebowałby wtedy tylko adresu repozytorium i tokenu
+do odczytu (*Settings → Repositories*). Manifest w tym samym repo co kod (np. `deploy/`) jest prostszy, ale commit ze
+zmianą tagu uruchamia pipeline, który robi kolejny commit – trzeba to blokować regułami. Osobne repo konfiguracji
+(np. `lab/hello-lab-config`) tego problemu nie ma i rozdziela uprawnienia. Ćwiczenie na później.
 
 ## Krok 1. Instalacja Helmem
 
