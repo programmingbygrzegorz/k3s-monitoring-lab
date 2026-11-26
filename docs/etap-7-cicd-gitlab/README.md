@@ -26,6 +26,7 @@ i pierwszy pipeline. Następny krok: budowanie obrazu w pipeline, potem skanery 
 |---|---|---|
 | 1 | [01-maszyna-gitlab.md](01-maszyna-gitlab.md) | maszyna `gitlab` z Packera, alias SSH, snapshot, instalacja `gitlab-ce`, zabezpieczenie po instalacji (rejestracja, Web IDE, hasło roota), konto `grzegorz`, osobny klucz SSH do gita, kod `hello-lab` w GitLabie, Auto DevOps |
 | 2 | [02-gitlab-runner.md](02-gitlab-runner.md) | repozytorium pakietów Runnera (co robi skrypt), instalacja, utworzenie Runnera w GitLabie (token `glrt-`), rejestracja z `sudo`, `config.toml`, pierwszy `.gitlab-ci.yml` |
+| 3 | [03-skanery-bezpieczenstwa.md](03-skanery-bezpieczenstwa.md) | **Etap 7b:** gitleaks (sekrety w historii gita), Semgrep (SAST), Trivy – skanery w pipeline |
 | – | [problemy.md](problemy.md) | problemy z tego etapu: brak pluginu Packera, `Permission denied (publickey)` przy nowym aliasie |
 
 Następny etap: Etap 8 – AIOps ([plan](../00-przewodnik.md#etap-8--plan)).
