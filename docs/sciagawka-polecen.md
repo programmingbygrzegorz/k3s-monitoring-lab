@@ -27,6 +27,7 @@ Oznaczenia: 🪟 Windows (PowerShell / Git Bash), 🐧 maszyna Linux przez SSH.
 17. [Ansible (ad-hoc)](#ansible-ad-hoc)
 18. [Sieć, firewall i maszyny VMware](#sieć-firewall-i-maszyny-vmware)
 19. [Git](#git)
+20. [Packer, GitLab i GitLab Runner](#packer-gitlab-i-gitlab-runner)
 
 ## Linux – tekst i pliki
 
@@ -465,3 +466,28 @@ Opis: [host zawiesza się razem z maszynami](etap-0-maszyny-wirtualne/problemy.m
 | `git restore --staged ŚCIEŻKA` | wyjmuje plik z poczekalni (cofa `git add`) |
 | `git rm --cached ŚCIEŻKA` | przestaje śledzić plik, ale zostawia go na dysku |
 | `git log origin/main..main --oneline` | commity lokalne, jeszcze niewypchnięte |
+| `git init -b main` | nowe repozytorium z gałęzią `main` |
+| `git remote add origin git@gitlab-git:lab/hello-lab.git` | podpina zdalne repozytorium pod nazwą `origin` (tu: alias SSH z `~/.ssh/config`) |
+| `git remote -v`, `git remote set-url origin ADRES` | pokazuje / zmienia adres zdalnego repozytorium |
+| `git push -u origin main` | pierwszy push; `-u` zapamiętuje, że `main` śledzi `origin/main` |
+
+## Packer, GitLab i GitLab Runner
+
+| Polecenie | Co robi |
+|---|---|
+| 🪟 `packer init .` | pobiera pluginy z bloku `required_plugins` (np. `vmware`) |
+| 🪟 `packer validate -var-file=gitlab.pkrvars.hcl .` | sprawdza przepis i parametry bez budowania |
+| 🪟 `packer build -var-file=gitlab.pkrvars.hcl .` | buduje maszynę od zera (instalacja Ubuntu + provisionery) |
+| 🪟 `ssh-keygen -t ed25519 -f $HOME\.ssh\gitlab-lab -C "gitlab-lab"` | osobna para kluczy do GitLaba |
+| 🪟 `Get-Content $HOME\.ssh\gitlab-lab.pub \| Set-Clipboard` | kopiuje klucz publiczny do schowka |
+| 🪟 `ssh -T gitlab-git` | test klucza w GitLabie: `Welcome to GitLab, @grzegorz!` |
+| 🐧 `sudo EXTERNAL_URL="http://192.168.180.56" apt install -y gitlab-ce` | instaluje GitLab CE z adresem w `gitlab.rb` |
+| 🐧 `sudo gitlab-ctl status`, `sudo gitlab-ctl reconfigure` | stan usług GitLaba / zastosowanie `/etc/gitlab/gitlab.rb` |
+| 🐧 `sudo gitlab-rake "gitlab:password:reset[root]"` | reset hasła użytkownika `root` |
+| 🐧 `curl -fsSL -o runner-repo.sh URL` | pobiera skrypt do pliku (najpierw czytasz, potem uruchamiasz) |
+| 🐧 `apt-cache policy gitlab-runner` | czy pakiet jest w repozytoriach i w jakiej wersji |
+| 🐧 `gitlab-runner --version` | wersja Runnera |
+| 🐧 `sudo gitlab-runner register` | rejestruje Runnera tokenem `glrt-…` (z `sudo` – dla usługi systemowej) |
+| 🐧 `sudo gitlab-runner verify` | czy GitLab zna token Runnera (`is valid`) |
+| 🐧 `sudo gitlab-runner list` | Runnery z `/etc/gitlab-runner/config.toml` |
+| 🐧 `sudo systemctl status gitlab-runner` | czy usługa Runnera działa |
