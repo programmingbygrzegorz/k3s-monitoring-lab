@@ -262,6 +262,53 @@ Komentarz w `Dockerfile` *„Python dostaje sygnały, docker stop działa od raz
 Poprawka (do zrobienia przez pipeline): obsługa SIGTERM w `app.py` albo `STOPSIGNAL SIGINT` w `Dockerfile` (na SIGINT
 Python reaguje sam), albo init (`tini`) jako PID 1.
 
+## Krok 5. Zmiana w gicie – Argo CD wdraża sam
+
+Odwrotność Self Heal: tym razem zmienia się **git**, a klaster ma się dostosować – bez żadnego `kubectl`.
+
+🪟 Na Windowsie, w `C:\Projekty\k3s-monitoring-lab`:
+
+```powershell
+notepad kubernetes\hello-lab\hello-lab.yaml      # replicas: 2 → replicas: 3, zapisz
+git add kubernetes/hello-lab/hello-lab.yaml
+git diff --staged                                 # po git add samo "git diff" nic nie pokazuje
+git commit -m "hello-lab: 3 repliki (test GitOps z Argo CD)"
+git push
+```
+
+Jak często Argo CD sprawdza gita – w ConfigMapie `argocd-cm`:
+
+```text
+$ kubectl -n argocd get cm argocd-cm -o jsonpath='{.data.timeout\.reconciliation} {.data.timeout\.reconciliation\.jitter}'
+120s 60s
+```
+
+Co 120 s plus losowo do 60 s (żeby przy wielu aplikacjach nie pytać repozytorium wszystkie naraz) – zmiana trafia do
+klastra najpóźniej po ok. 3 minutach. Szybciej: **REFRESH** w UI albo webhook z GitHuba do Argo CD.
+
+Wynik (commit `bf1fad0`):
+
+```text
+NAME        SYNC STATUS   HEALTH STATUS
+hello-lab   Synced        Healthy
+NAME                         READY   STATUS    RESTARTS   AGE
+hello-lab-794b79885b-dxc4f   1/1     Running   0          3s
+hello-lab-794b79885b-n9g7s   1/1     Running   0          69m
+hello-lab-794b79885b-sglpl   1/1     Running   0          5h28m
+
+Normal    ScalingReplicaSet   deployment/hello-lab   Scaled up replica set hello-lab-794b79885b from 2 to 3
+Warning   Unhealthy           pod/hello-lab-794b79885b-dxc4f   Readiness probe failed: … connect: connection refused
+```
+
+- Nikt nie wpisał `kubectl` – zmiana weszła commitem, a historia gita jest historią wdrożeń (cofnięcie = `git revert`).
+- Ten sam hash ReplicaSetu (`794b79885b`) – zmieniła się tylko liczba replik, nie szablon poda, więc to skalowanie,
+  a nie nowe wdrożenie (rolling update).
+- Jednorazowe `Readiness probe failed … connection refused` tuż po starcie jest normalne: kontener już działa, ale
+  `app.py` jeszcze nie słucha na 8080. Dlatego pod dostaje ruch dopiero po udanej sondzie gotowości.
+
+**Teraz oba kierunki GitOps są sprawdzone:** ręczna zmiana w klastrze → cofnięta (Self Heal), zmiana w gicie → wdrożona
+(auto-sync). Brakuje tylko ostatniego ogniwa: pipeline GitLaba sam zmienia tag obrazu w `hello-lab.yaml`.
+
 ## Pytania rekrutacyjne
 
 - *Czym jest GitOps?* – git jest jedynym źródłem prawdy o stanie klastra; zmiany wchodzą commitem, a kontroler
