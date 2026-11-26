@@ -123,8 +123,43 @@ semgrep:
 Zadania w tym samym etapie (`gitleaks`, `semgrep`) działają **równolegle**.
 
 Commit `f59f37a` → **pipeline #5 passed**: `hello` ✅ → `gitleaks` ✅ + `semgrep` ✅. Całość 3 min 58 s – obraz
-Semgrepa (kilkaset MB) pobierał się pierwszy raz. Zielony `semgrep` z `--error` = reguły niczego nie znalazły
-(log zadania nie został zapisany).
+Semgrepa (kilkaset MB) pobierał się pierwszy raz – w logu `Preparing the "docker" executor` **3 min 46 s**, sam skan 3 s.
+
+Log zadania `semgrep` (job #13) – skrócony:
+
+```text
+Fetching changes with git depth set to 20...
+Checking out f59f37a0 as detached HEAD (ref is main)...
+$ semgrep scan --config p/python --config p/dockerfile --error .
+
+  Scanning 3 files tracked by git with 158 Code rules:
+
+  Language     Rules   Files          Origin      Rules
+  python         151       1          Community     158
+  dockerfile       7       1
+  yaml             1       1
+
+  ✅ Scan completed successfully.
+   • Findings: 0 (0 blocking)
+   • Rules run: 158
+   • Targets scanned: 3
+   • Parsed lines: ~100.0%
+   • Scan was limited to files tracked by git
+Ran 158 rules on 3 files: 0 findings.
+Job succeeded
+```
+
+| Linia | Znaczenie |
+|---|---|
+| `git depth set to 20` | zwykły płytki klon – Semgrep patrzy na obecny kod, nie na historię (inaczej niż gitleaks) |
+| `3 files tracked by git` | `app.py`, `Dockerfile`, `.gitlab-ci.yml` – Semgrep skanuje tylko pliki śledzone przez gita |
+| `151 / 7 / 1` reguł | reguły dobrane do języka pliku (Python, Dockerfile, YAML) z zestawów `p/python` i `p/dockerfile` |
+| `Origin: Community` | darmowe reguły społeczności; więcej reguł (Pro) po `semgrep login` |
+| `Findings: 0 (0 blocking)` | brak znalezisk – `--error` nie miał czego zatrzymać |
+| `Parsed lines: ~100.0%` | Semgrep zrozumiał cały kod (niski procent = pliki, których nie umie przeczytać – fałszywe poczucie bezpieczeństwa) |
+
+0 znalezisk nie znaczy „kod bez błędów” – tylko że żadna z 158 reguł nie pasuje. `app.py` jest mały, bez bazy
+danych, plików i poleceń systemowych, a `Dockerfile` ma już `USER 10001` (Etap 4).
 
 ![pipeline #5: gitleaks i semgrep równolegle w etapie security](img/03-pipeline-5-semgrep.png)
 
